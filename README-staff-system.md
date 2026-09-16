@@ -42,7 +42,27 @@ your-repo/
    enables row-level security with no public policies (so only the service
    role key — used server-side — can touch it).
 
-## 3. Add environment variables in Vercel
+## 3. Login setup — demo mode (no environment variables needed)
+
+For quick demo purposes, the staff login password is **hardcoded directly
+in `api/staff-login.js`**, set to:
+
+```
+dcam-optical
+```
+
+This means staff login works immediately after deploying, with zero
+Vercel dashboard configuration. No environment variables required for
+this part.
+
+**When you're ready to move past demo mode:** set a `STAFF_PASSWORD`
+environment variable in Vercel (Project Settings → Environment
+Variables) to something less guessable — it automatically overrides the
+hardcoded value, no code changes needed. The same applies to
+`STAFF_SESSION_SECRET` (used to sign session cookies), which also has a
+hardcoded demo fallback in `api/_auth.js`.
+
+## 3b. Environment variables (only needed for email + database)
 
 **Project Settings → Environment Variables**, add:
 
@@ -50,15 +70,13 @@ your-repo/
 |---|---|
 | `SUPABASE_URL` | Your Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Your Supabase service role key |
-| `STAFF_PASSWORD` | The shared password staff will use to log in |
-| `STAFF_SESSION_SECRET` | Any long random string (used to sign session cookies — e.g. generate one with `openssl rand -hex 32`) |
 
 Apply to all environments, then **redeploy**.
 
 ## 4. How staff use it
 
 1. Go to `yoursite.vercel.app/staff-login.html`
-2. Enter the shared password (from `STAFF_PASSWORD`)
+2. Enter the password: `dcam-optical`
 3. Redirects to `staff-orders.html` — a searchable list of all saved orders,
    filterable by status (Ordered / Ready / Claimed)
 4. Click **New order** to open `order-form.html` — fill in the Rx grid,
@@ -73,6 +91,12 @@ The session lasts 12 hours, then requires logging in again.
 
 ## What this does NOT do (yet)
 
+- **Password is hardcoded in the source code, not a secret.** Anyone who
+  can view the deployed source (or this repo, if it's public) can read
+  the staff password directly. This is fine for a demo behind a private
+  repo, but is not real access control — before this handles actual
+  patient data, move the password to a `STAFF_PASSWORD` environment
+  variable (see section 3 above) so it isn't sitting in version control.
 - **One shared password, not individual accounts.** Anyone with the
   password can see and edit all orders; there's no per-staff audit trail
   (no record of *which* staff member created or edited a given order,
