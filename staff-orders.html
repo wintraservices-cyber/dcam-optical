@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orders — DCAM Optical (Staff)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #B05A9E;
+    --purple-deep: #8F4680;
+    --blue: #5BAFC0;
+    --blue-deep: #458F9E;
+    --ivory: #F7F1E8;
+    --ivory-dim: #EFE6D8;
+    --charcoal: #383334;
+    --charcoal-soft: #4A4547;
+    --line: rgba(56,51,52,0.14);
+    --display: 'Plus Jakarta Sans', sans-serif;
+    --body: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--charcoal); font-family: var(--body); }
+
+  .staff-bar {
+    background: var(--charcoal);
+    color: var(--ivory);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .staff-bar .tag {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .staff-bar .actions { display: flex; gap: 10px; }
+  .staff-bar a, .staff-bar button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-light { background: var(--ivory); color: var(--charcoal); }
+  .btn-ghost { background: transparent; color: var(--ivory); border: 1px solid rgba(247,241,232,0.4) !important; }
+  .btn-ghost:hover { background: rgba(247,241,232,0.1); }
+
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .controls input[type="text"] {
+    flex: 1;
+    min-width: 220px;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-family: var(--body);
+    font-size: 0.92rem;
+    color: var(--charcoal);
+    outline: none;
+  }
+  .controls input[type="text"]:focus { border-color: var(--blue); }
+  .status-filter { display: flex; gap: 8px; }
+  .status-filter button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.82rem;
+    padding: 10px 16px;
+    border-radius: 100px;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    color: var(--charcoal-soft);
+    cursor: pointer;
+  }
+  .status-filter button.active {
+    border-color: var(--purple);
+    background: rgba(176,90,158,0.08);
+    color: var(--purple-deep);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
+  }
+  thead th {
+    text-align: left;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    background: var(--ivory-dim);
+    padding: 12px 16px;
+  }
+  tbody td {
+    padding: 14px 16px;
+    border-top: 1px solid var(--line);
+    font-size: 0.9rem;
+  }
+  tbody tr:hover { background: var(--ivory-dim); }
+
+  .status-pill {
+    display: inline-block;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 4px 12px;
+    border-radius: 100px;
+  }
+  .status-pill.ordered { background: rgba(91,175,192,0.14); color: var(--blue-deep); }
+  .status-pill.ready { background: rgba(176,90,158,0.14); color: var(--purple-deep); }
+  .status-pill.claimed { background: rgba(56,51,52,0.1); color: var(--charcoal-soft); }
+
+  select.status-select {
+    font-family: var(--body);
+    font-size: 0.82rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 5px 8px;
+    background: #fff;
+    color: var(--charcoal);
+  }
+
+  .empty-state, .loading-state, .error-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--charcoal-soft);
+    font-size: 0.95rem;
+  }
+  .error-state { color: #B0405A; }
+
+  @media (max-width: 720px) {
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tbody tr {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      padding: 10px 14px;
+    }
+    tbody td {
+      border: none;
+      padding: 6px 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    tbody td::before {
+      content: attr(data-label);
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--charcoal-soft);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="staff-bar">
+  <div class="tag">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    Staff only — orders
+  </div>
+  <div class="actions">
+    <a href="order-form.html" class="btn-light">New order</a>
+    <button class="btn-ghost" id="logoutBtn">Log out</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Search by order # or patient name…">
+    <div class="status-filter">
+      <button class="active" data-status="">All</button>
+      <button data-status="ordered">Ordered</button>
+      <button data-status="ready">Ready</button>
+      <button data-status="claimed">Claimed</button>
+    </div>
+  </div>
+
+  <div id="content">
+    <div class="loading-state">Loading orders…</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const content = document.getElementById('content');
+  const searchInput = document.getElementById('searchInput');
+  const statusButtons = document.querySelectorAll('.status-filter button');
+  let currentStatus = '';
+  let searchDebounce = null;
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function checkAuth() {
+    try {
+      const resp = await fetch('/api/auth-check');
+      const result = await resp.json();
+      if (!result.authenticated) {
+        window.location.href = 'staff-login.html?next=staff-orders.html';
+      }
+    } catch (e) {
+      window.location.href = 'staff-login.html?next=staff-orders.html';
+    }
+  }
+
+  async function loadOrders() {
+    content.innerHTML = '<div class="loading-state">Loading orders…</div>';
+    const params = new URLSearchParams();
+    if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
+    if (currentStatus) params.set('status', currentStatus);
+
+    try {
+      const resp = await fetch('/api/orders?' + params.toString());
+      if (resp.status === 401) {
+        window.location.href = 'staff-login.html?next=staff-orders.html';
+        return;
+      }
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load orders.');
+
+      renderOrders(result.orders || []);
+    } catch (err) {
+      content.innerHTML = `<div class="error-state">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderOrders(orders) {
+    if (!orders.length) {
+      content.innerHTML = '<div class="empty-state">No orders found.</div>';
+      return;
+    }
+
+    const rows = orders.map(o => `
+      <tr>
+        <td data-label="Order #">#${escapeHtml(o.order_no)}</td>
+        <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
+        <td data-label="Date">${escapeHtml(o.order_date) || '—'}</td>
+        <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>
+        <td data-label="Frame">${escapeHtml(o.frame) || '—'}</td>
+        <td data-label="Balance">${o.balance ? '₱' + escapeHtml(o.balance) : '—'}</td>
+        <td data-label="Status">
+          <select class="status-select" data-id="${o.id}">
+            <option value="ordered" ${o.status === 'ordered' ? 'selected' : ''}>Ordered</option>
+            <option value="ready" ${o.status === 'ready' ? 'selected' : ''}>Ready</option>
+            <option value="claimed" ${o.status === 'claimed' ? 'selected' : ''}>Claimed</option>
+          </select>
+        </td>
+      </tr>
+    `).join('');
+
+    content.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Order #</th><th>Patient</th><th>Date</th><th>Due</th><th>Frame</th><th>Balance</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    content.querySelectorAll('.status-select').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const id = sel.getAttribute('data-id');
+        const status = sel.value;
+        sel.disabled = true;
+        try {
+          const resp = await fetch('/api/orders', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, status }),
+          });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not update status.');
+        } catch (err) {
+          alert(err.message || 'Could not update status.');
+        } finally {
+          sel.disabled = false;
+        }
+      });
+    });
+  }
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(loadOrders, 350);
+  });
+
+  statusButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      statusButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentStatus = btn.getAttribute('data-status');
+      loadOrders();
+    });
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/staff-logout', { method: 'POST' });
+    window.location.href = 'staff-login.html';
+  });
+
+  checkAuth().then(loadOrders);
+})();
+</script>
+
+</body>
+</html>

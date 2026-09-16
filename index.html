@@ -406,6 +406,229 @@
   }
 
   /* ---------- Booking strip ---------- */
+  /* ---------- Frame quiz ---------- */
+  .quiz-section {
+    background: var(--ivory-dim);
+    padding: 96px 32px;
+  }
+  .quiz-header { text-align: center; max-width: 640px; margin: 0 auto; }
+  .quiz-header h2 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(1.9rem, 3vw, 2.5rem);
+    color: var(--charcoal);
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+  }
+  .quiz-header .lede {
+    margin-top: 16px;
+    font-size: 1.05rem;
+    color: var(--charcoal-soft);
+  }
+  .quiz-card {
+    max-width: 760px;
+    margin: 48px auto 0;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 20px 50px rgba(56,51,52,0.1);
+    overflow: hidden;
+    min-height: 460px;
+    display: flex;
+    flex-direction: column;
+  }
+  .quiz-progress {
+    height: 4px;
+    background: var(--ivory-dim);
+    position: relative;
+  }
+  .quiz-progress-bar {
+    height: 100%;
+    background: var(--purple);
+    transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+    width: 25%;
+  }
+  .quiz-body {
+    padding: 48px 44px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .quiz-step-label {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--blue-deep);
+    margin-bottom: 14px;
+  }
+  .quiz-question {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--charcoal);
+    margin-bottom: 32px;
+    line-height: 1.3;
+  }
+  .quiz-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    flex: 1;
+  }
+  .quiz-option {
+    border: 1.5px solid var(--line);
+    background: #fff;
+    border-radius: 12px;
+    padding: 22px 20px;
+    text-align: left;
+    cursor: pointer;
+    font-family: var(--body);
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .quiz-option:hover {
+    border-color: var(--blue);
+    background: var(--ivory-dim);
+  }
+  .quiz-option:active { transform: scale(0.98); }
+  .quiz-option.selected {
+    border-color: var(--purple);
+    background: rgba(176,90,158,0.06);
+  }
+  .quiz-option .opt-title {
+    font-weight: 600;
+    color: var(--charcoal);
+    font-size: 1rem;
+  }
+  .quiz-option .opt-sub {
+    font-size: 0.85rem;
+    color: var(--charcoal-soft);
+  }
+  .quiz-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 32px;
+  }
+  .quiz-back {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--charcoal-soft);
+    background: none;
+    border: none;
+    cursor: pointer;
+    visibility: hidden;
+  }
+  .quiz-back.visible { visibility: visible; }
+  .quiz-back:hover { color: var(--charcoal); }
+
+  /* Results */
+  .quiz-results { padding: 44px 44px 48px; }
+  .quiz-results-head {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .quiz-results-head .kicker {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--purple-deep);
+    margin-bottom: 10px;
+  }
+  .quiz-results-head h3 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.6rem;
+    color: var(--charcoal);
+  }
+  .quiz-results-head p {
+    margin-top: 10px;
+    color: var(--charcoal-soft);
+    font-size: 0.98rem;
+    max-width: 50ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .quiz-frames {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .frame-card {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 18px;
+    text-align: center;
+    background: var(--ivory);
+  }
+  .frame-card .frame-icon {
+    width: 100%;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+  .frame-card .frame-icon svg { width: 88px; height: auto; }
+  .frame-card h4 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.02rem;
+    color: var(--charcoal);
+    margin-bottom: 6px;
+  }
+  .frame-card p {
+    font-size: 0.85rem;
+    color: var(--charcoal-soft);
+    line-height: 1.5;
+  }
+  .frame-card .match-tag {
+    display: inline-block;
+    margin-top: 12px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--blue-deep);
+    background: rgba(91,175,192,0.12);
+    padding: 4px 10px;
+    border-radius: 100px;
+  }
+  .quiz-restart-row {
+    text-align: center;
+    margin-top: 36px;
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    align-items: center;
+  }
+  .quiz-restart {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--charcoal-soft);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .quiz-restart:hover { color: var(--charcoal); }
+
+  @media (max-width: 640px) {
+    .quiz-options { grid-template-columns: 1fr; }
+    .quiz-frames { grid-template-columns: 1fr; }
+    .quiz-body { padding: 36px 24px; }
+    .quiz-results { padding: 36px 24px; }
+  }
+
   .booking {
     padding: 96px 32px;
     text-align: center;
@@ -496,6 +719,7 @@
     <nav class="navlinks">
       <a href="#services">Services</a>
       <a href="#ai">Ask Us Anything</a>
+      <a href="#quiz">Find Your Frame</a>
       <a href="#book">Book</a>
     </nav>
     <a href="#book" class="navcta">Book an exam</a>
@@ -608,6 +832,143 @@
   </div>
 </section>
 
+<section class="quiz-section" id="quiz">
+  <div class="wrap">
+    <div class="quiz-header">
+      <div class="kicker">Find your frame</div>
+      <h2>A 30-second style match.</h2>
+      <p class="lede">Answer a few quick questions and we'll point you toward frame shapes that actually suit you — a starting point for your fitting, not a final decision.</p>
+    </div>
+
+    <div class="quiz-card">
+      <div class="quiz-progress"><div class="quiz-progress-bar" id="quizProgressBar"></div></div>
+
+      <div id="quizQuestions">
+        <div class="quiz-body" data-step="0">
+          <div class="quiz-step-label">Step 1 of 4</div>
+          <div class="quiz-question">What's the shape of your face?</div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-q="face" data-v="round">
+              <span class="opt-title">Round</span>
+              <span class="opt-sub">Soft curves, similar width and length</span>
+            </button>
+            <button class="quiz-option" data-q="face" data-v="square">
+              <span class="opt-title">Square</span>
+              <span class="opt-sub">Strong jawline, angular</span>
+            </button>
+            <button class="quiz-option" data-q="face" data-v="oval">
+              <span class="opt-title">Oval</span>
+              <span class="opt-sub">Balanced, slightly longer than wide</span>
+            </button>
+            <button class="quiz-option" data-q="face" data-v="heart">
+              <span class="opt-title">Heart</span>
+              <span class="opt-sub">Wider forehead, narrower chin</span>
+            </button>
+          </div>
+          <div class="quiz-nav">
+            <button class="quiz-back" data-back="0">← Back</button>
+            <span></span>
+          </div>
+        </div>
+
+        <div class="quiz-body" data-step="1" style="display:none;">
+          <div class="quiz-step-label">Step 2 of 4</div>
+          <div class="quiz-question">How would you describe your style?</div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-q="style" data-v="classic">
+              <span class="opt-title">Classic</span>
+              <span class="opt-sub">Timeless, understated</span>
+            </button>
+            <button class="quiz-option" data-q="style" data-v="bold">
+              <span class="opt-title">Bold</span>
+              <span class="opt-sub">Make a statement</span>
+            </button>
+            <button class="quiz-option" data-q="style" data-v="minimal">
+              <span class="opt-title">Minimal</span>
+              <span class="opt-sub">Clean, barely-there</span>
+            </button>
+            <button class="quiz-option" data-q="style" data-v="retro">
+              <span class="opt-title">Retro</span>
+              <span class="opt-sub">Vintage-inspired character</span>
+            </button>
+          </div>
+          <div class="quiz-nav">
+            <button class="quiz-back" data-back="1">← Back</button>
+            <span></span>
+          </div>
+        </div>
+
+        <div class="quiz-body" data-step="2" style="display:none;">
+          <div class="quiz-step-label">Step 3 of 4</div>
+          <div class="quiz-question">What matters most in the fit?</div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-q="fit" data-v="lightweight">
+              <span class="opt-title">Lightweight</span>
+              <span class="opt-sub">Barely notice I'm wearing them</span>
+            </button>
+            <button class="quiz-option" data-q="fit" data-v="durable">
+              <span class="opt-title">Durable</span>
+              <span class="opt-sub">Built to take a beating</span>
+            </button>
+            <button class="quiz-option" data-q="fit" data-v="flexible">
+              <span class="opt-title">Flexible</span>
+              <span class="opt-sub">Comfortable all-day wear</span>
+            </button>
+            <button class="quiz-option" data-q="fit" data-v="premium">
+              <span class="opt-title">Premium feel</span>
+              <span class="opt-sub">Quality materials, worth it</span>
+            </button>
+          </div>
+          <div class="quiz-nav">
+            <button class="quiz-back" data-back="2">← Back</button>
+            <span></span>
+          </div>
+        </div>
+
+        <div class="quiz-body" data-step="3" style="display:none;">
+          <div class="quiz-step-label">Step 4 of 4</div>
+          <div class="quiz-question">Where will you wear them most?</div>
+          <div class="quiz-options">
+            <button class="quiz-option" data-q="use" data-v="work">
+              <span class="opt-title">Work / everyday</span>
+              <span class="opt-sub">All-purpose daily wear</span>
+            </button>
+            <button class="quiz-option" data-q="use" data-v="screen">
+              <span class="opt-title">Screens</span>
+              <span class="opt-sub">Long hours at a computer</span>
+            </button>
+            <button class="quiz-option" data-q="use" data-v="active">
+              <span class="opt-title">Active</span>
+              <span class="opt-sub">On the move, outdoors</span>
+            </button>
+            <button class="quiz-option" data-q="use" data-v="occasion">
+              <span class="opt-title">Special occasion</span>
+              <span class="opt-sub">Standout piece, statement look</span>
+            </button>
+          </div>
+          <div class="quiz-nav">
+            <button class="quiz-back" data-back="3">← Back</button>
+            <span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="quiz-results" id="quizResults" style="display:none;">
+        <div class="quiz-results-head">
+          <div class="kicker">Your match</div>
+          <h3 id="quizResultTitle">Frames worth trying</h3>
+          <p id="quizResultSub">Based on your answers, here's where we'd start your fitting.</p>
+        </div>
+        <div class="quiz-frames" id="quizFrames"></div>
+        <div class="quiz-restart-row">
+          <a href="#book" class="btn-primary">Book a fitting</a>
+          <button class="quiz-restart" id="quizRestartBtn">Start over</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="booking" id="book">
   <div class="wrap">
     <div class="kicker">Book an exam</div>
@@ -615,6 +976,7 @@
     <form class="booking-form" onsubmit="return false;">
       <div class="field">
         <label for="fname">First name</label>
+
         <input type="text" id="fname" placeholder="Jordan">
       </div>
       <div class="field">
@@ -644,10 +1006,10 @@
         <label for="consent">I consent to DCAM Optical collecting and processing this information to schedule and manage my appointment, in line with the Data Privacy Act of 2012.</label>
       </div>
       <div class="submit-row">
-        <button class="btn-primary" type="submit">Request appointment</button>
+        <a class="btn-primary" href="intake.html" style="display:inline-block; text-decoration:none; text-align:center;">Start intake form</a>
       </div>
     </form>
-    <p class="form-note">Demo form — not wired up yet. In the live build this books directly into your calendar and confirms by text.</p>
+    <p class="form-note">This opens our full patient intake form — takes about two minutes.</p>
   </div>
 </section>
 
@@ -769,6 +1131,151 @@ Tone: warm, clear, concise. Plain sentences, no medical jargon unless asked. Nev
     send(btn.getAttribute('data-q'));
     chips.style.display = 'none';
   });
+})();
+</script>
+
+<script>
+(function() {
+  const answers = {};
+  let currentStep = 0;
+  const totalSteps = 4;
+
+  const steps = document.querySelectorAll('#quizQuestions .quiz-body');
+  const progressBar = document.getElementById('quizProgressBar');
+  const resultsPanel = document.getElementById('quizResults');
+  const questionsPanel = document.getElementById('quizQuestions');
+  const framesEl = document.getElementById('quizFrames');
+  const resultTitle = document.getElementById('quizResultTitle');
+  const resultSub = document.getElementById('quizResultSub');
+  const restartBtn = document.getElementById('quizRestartBtn');
+
+  const frameIcons = {
+    round: '<svg viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="26" cy="20" r="16" stroke="#383334" stroke-width="3"/><circle cx="74" cy="20" r="16" stroke="#383334" stroke-width="3"/><path d="M42 20h16" stroke="#383334" stroke-width="3"/><path d="M10 16 L2 12" stroke="#383334" stroke-width="3" stroke-linecap="round"/><path d="M90 16 L98 12" stroke="#383334" stroke-width="3" stroke-linecap="round"/></svg>',
+    rectangle: '<svg viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="7" width="34" height="26" rx="4" stroke="#383334" stroke-width="3"/><rect x="58" y="7" width="34" height="26" rx="4" stroke="#383334" stroke-width="3"/><path d="M42 20h16" stroke="#383334" stroke-width="3"/><path d="M8 14 L1 11" stroke="#383334" stroke-width="3" stroke-linecap="round"/><path d="M92 14 L99 11" stroke="#383334" stroke-width="3" stroke-linecap="round"/></svg>',
+    catseye: '<svg viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 26 C8 12 20 6 34 8 C42 9 42 24 32 26 C20 28 8 34 8 26Z" stroke="#383334" stroke-width="3" stroke-linejoin="round"/><path d="M92 26 C92 12 80 6 66 8 C58 9 58 24 68 26 C80 28 92 34 92 26Z" stroke="#383334" stroke-width="3" stroke-linejoin="round"/><path d="M42 16h16" stroke="#383334" stroke-width="3"/><path d="M8 20 L1 17" stroke="#383334" stroke-width="3" stroke-linecap="round"/><path d="M92 20 L99 17" stroke="#383334" stroke-width="3" stroke-linecap="round"/></svg>',
+    aviator: '<svg viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 12 C8 10 12 8 25 8 C38 8 42 12 40 22 C38 32 28 34 20 30 C12 26 8 18 8 12Z" stroke="#383334" stroke-width="3" stroke-linejoin="round"/><path d="M92 12 C92 10 88 8 75 8 C62 8 58 12 60 22 C62 32 72 34 80 30 C88 26 92 18 92 12Z" stroke="#383334" stroke-width="3" stroke-linejoin="round"/><path d="M42 15h16" stroke="#383334" stroke-width="3"/></svg>',
+    oval: '<svg viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="26" cy="20" rx="17" ry="13" stroke="#383334" stroke-width="3"/><ellipse cx="74" cy="20" rx="17" ry="13" stroke="#383334" stroke-width="3"/><path d="M43 20h14" stroke="#383334" stroke-width="3"/><path d="M9 16 L2 13" stroke="#383334" stroke-width="3" stroke-linecap="round"/><path d="M91 16 L98 13" stroke="#383334" stroke-width="3" stroke-linecap="round"/></svg>',
+    browline: '<svg viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 12h34" stroke="#383334" stroke-width="4" stroke-linecap="round"/><path d="M57 12h34" stroke="#383334" stroke-width="4" stroke-linecap="round"/><circle cx="26" cy="21" r="13" stroke="#383334" stroke-width="2.5"/><circle cx="74" cy="21" r="13" stroke="#383334" stroke-width="2.5"/><path d="M42 20h16" stroke="#383334" stroke-width="3"/></svg>'
+  };
+
+  const frameLibrary = {
+    round: { name: 'Round frames', icon: 'round', desc: 'Soft curves that balance strong or angular features.' },
+    rectangle: { name: 'Rectangle frames', icon: 'rectangle', desc: 'Clean, structured lines with broad wearability.' },
+    catseye: { name: 'Cat-eye frames', icon: 'catseye', desc: 'Upswept corners for a lifted, expressive look.' },
+    aviator: { name: 'Aviator frames', icon: 'aviator', desc: 'Teardrop lenses with a relaxed, classic edge.' },
+    oval: { name: 'Oval frames', icon: 'oval', desc: 'Gently rounded, universally flattering shape.' },
+    browline: { name: 'Browline frames', icon: 'browline', desc: 'Bold upper edge with a lighter lower rim.' }
+  };
+
+  function updateProgress() {
+    const pct = ((currentStep + 1) / totalSteps) * 100;
+    progressBar.style.width = pct + '%';
+  }
+
+  function showStep(idx) {
+    steps.forEach((s, i) => { s.style.display = (i === idx) ? 'flex' : 'none'; });
+    currentStep = idx;
+    updateProgress();
+  }
+
+  function scoreFrames() {
+    const scores = { round: 0, rectangle: 0, catseye: 0, aviator: 0, oval: 0, browline: 0 };
+
+    // Face shape -> recommended shapes (classic optical guidance)
+    const faceMap = {
+      round: ['rectangle', 'browline', 'catseye'],
+      square: ['round', 'oval', 'aviator'],
+      oval: ['rectangle', 'aviator', 'catseye'],
+      heart: ['oval', 'round', 'aviator']
+    };
+    (faceMap[answers.face] || []).forEach((f, i) => scores[f] += (3 - i));
+
+    // Style preference
+    const styleMap = {
+      classic: ['rectangle', 'aviator'],
+      bold: ['catseye', 'browline'],
+      minimal: ['round', 'oval'],
+      retro: ['browline', 'catseye', 'aviator']
+    };
+    (styleMap[answers.style] || []).forEach((f, i) => scores[f] += (2 - i * 0.5));
+
+    // Fit priority - lighter weight nudge
+    if (answers.fit === 'lightweight') { scores.round += 1; scores.oval += 1; }
+    if (answers.fit === 'durable') { scores.rectangle += 1; scores.aviator += 1; }
+    if (answers.fit === 'premium') { scores.browline += 1; scores.aviator += 0.5; }
+
+    // Use case
+    if (answers.use === 'screen') { scores.rectangle += 1; scores.round += 0.5; }
+    if (answers.use === 'active') { scores.aviator += 1; scores.rectangle += 0.5; }
+    if (answers.use === 'occasion') { scores.catseye += 1; scores.browline += 1; }
+
+    const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+    return ranked.slice(0, 3);
+  }
+
+  function renderResults() {
+    const top3 = scoreFrames();
+    framesEl.innerHTML = top3.map((key, i) => {
+      const f = frameLibrary[key];
+      return `<div class="frame-card">
+        <div class="frame-icon">${frameIcons[f.icon]}</div>
+        <h4>${f.name}</h4>
+        <p>${f.desc}</p>
+        ${i === 0 ? '<span class="match-tag">Best match</span>' : ''}
+      </div>`;
+    }).join('');
+
+    questionsPanel.style.display = 'none';
+    resultsPanel.style.display = 'block';
+    progressBar.style.width = '100%';
+  }
+
+  function resetQuiz() {
+    Object.keys(answers).forEach(k => delete answers[k]);
+    document.querySelectorAll('.quiz-option.selected').forEach(el => el.classList.remove('selected'));
+    resultsPanel.style.display = 'none';
+    questionsPanel.style.display = 'block';
+    showStep(0);
+  }
+
+  document.querySelectorAll('.quiz-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const q = btn.getAttribute('data-q');
+      const v = btn.getAttribute('data-v');
+      answers[q] = v;
+
+      const parent = btn.closest('.quiz-options');
+      parent.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+      btn.classList.add('selected');
+
+      setTimeout(() => {
+        if (currentStep < totalSteps - 1) {
+          showStep(currentStep + 1);
+        } else {
+          renderResults();
+        }
+      }, 220);
+    });
+  });
+
+  document.querySelectorAll('.quiz-back').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (currentStep > 0) showStep(currentStep - 1);
+    });
+  });
+
+  restartBtn.addEventListener('click', resetQuiz);
+
+  // show/hide back buttons appropriately
+  function refreshBackVisibility() {
+    document.querySelectorAll('.quiz-back').forEach(btn => {
+      const step = parseInt(btn.getAttribute('data-back'), 10);
+      btn.classList.toggle('visible', step > 0);
+    });
+  }
+  refreshBackVisibility();
+
+  showStep(0);
 })();
 </script>
 
