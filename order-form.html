@@ -119,14 +119,99 @@
     font-family: var(--display);
     font-weight: 700;
     font-size: 1.1rem;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.1em;
     border: none;
     border-bottom: 2px solid var(--charcoal);
-    width: 110px;
+    width: 190px;
     text-align: center;
     color: var(--purple-deep);
     background: transparent;
   }
+
+  .order-type-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .order-type-toggle .type-btn {
+    flex: 1;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--charcoal);
+    background: #fff;
+    color: var(--charcoal);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .order-type-toggle .type-btn.active {
+    background: var(--charcoal);
+    color: var(--ivory);
+  }
+
+  .rx-subtype-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    background: var(--ivory-dim);
+    border-radius: 8px;
+  }
+  .rx-subtype-label {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--charcoal-soft);
+    flex-shrink: 0;
+  }
+  .rx-subtype-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .subtype-chip {
+    position: relative;
+    cursor: pointer;
+  }
+  .subtype-chip input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    margin: 0;
+  }
+  .subtype-chip span {
+    display: block;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.74rem;
+    padding: 6px 12px;
+    border-radius: 100px;
+    border: 1.3px solid var(--line);
+    background: #fff;
+    color: var(--charcoal);
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  .subtype-chip span em {
+    font-style: normal;
+    font-weight: 400;
+    opacity: 0.7;
+    font-size: 0.68rem;
+  }
+  .subtype-chip input:checked + span {
+    border-color: var(--purple);
+    background: var(--purple);
+    color: #fff;
+  }
+  .subtype-chip input:checked + span em { opacity: 0.85; }
 
   table.grid {
     width: 100%;
@@ -243,6 +328,51 @@
   }
   .field-inline textarea { resize: none; height: 40px; border: 1.3px solid var(--charcoal); padding: 4px 6px; }
 
+  .patient-autocomplete-wrap { position: relative; }
+  .patient-suggestions {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(56,51,52,0.15);
+    margin-top: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .patient-suggestions.visible { display: block; }
+  .patient-suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .patient-suggestion-item:last-child { border-bottom: none; }
+  .patient-suggestion-item:hover,
+  .patient-suggestion-item.active {
+    background: var(--ivory-dim);
+  }
+  .patient-suggestion-item .sugg-name {
+    font-family: var(--display);
+    font-weight: 600;
+    color: var(--charcoal);
+  }
+  .patient-suggestion-item .sugg-phone {
+    color: var(--charcoal-soft);
+    font-size: 0.78rem;
+    margin-left: 6px;
+  }
+  .patient-match-note {
+    font-size: 0.68rem;
+    color: var(--blue-deep);
+    margin-top: 3px;
+    font-style: italic;
+  }
+
   .lens-material-row {
     display: flex;
     gap: 14px;
@@ -299,10 +429,10 @@
     font-family: var(--display);
     font-weight: 700;
     font-size: 1.1rem;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.1em;
     border: none;
     border-bottom: 2px solid var(--charcoal);
-    width: 110px;
+    width: 190px;
     text-align: center;
     color: var(--purple-deep);
     background: transparent;
@@ -315,9 +445,58 @@
     line-height: 1.5;
   }
 
+  .payment-status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0 12px;
+  }
+  .payment-status-label {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--charcoal-soft);
+  }
+  .payment-chip {
+    position: relative;
+    cursor: pointer;
+  }
+  .payment-chip input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    margin: 0;
+  }
+  .payment-chip span {
+    display: block;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.74rem;
+    padding: 5px 14px;
+    border-radius: 100px;
+    border: 1.3px solid var(--line);
+    background: #fff;
+    color: var(--charcoal);
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  .payment-chip input:checked + span {
+    border-color: var(--charcoal);
+    background: var(--charcoal);
+    color: var(--ivory);
+  }
+  .payment-chip input[value="paid"]:checked + span {
+    border-color: #3D7A4D;
+    background: #3D7A4D;
+    color: #fff;
+  }
+
   /* ---------- Print styles ---------- */
   @media print {
-    .staff-bar, .form-meta-note { display: none !important; }
+    .staff-bar, .form-meta-note, .order-type-toggle { display: none !important; }
     body { background: #fff; }
     .page-wrap { margin: 0; padding: 0; max-width: 100%; }
     .slip {
@@ -375,7 +554,12 @@
 
       <div class="order-no-row">
         <span class="hash">No. #</span>
-        <input type="text" id="orderNo" placeholder="0001">
+        <input type="text" id="orderNo" placeholder="2025-RX-0001" maxlength="14">
+      </div>
+
+      <div class="order-type-toggle">
+        <button type="button" class="type-btn active" id="rxTypeBtn" data-type="rx">Rx Order</button>
+        <button type="button" class="type-btn" id="nonRxTypeBtn" data-type="non_rx">Non-Rx Order</button>
       </div>
 
       <div class="field-row cols-3">
@@ -385,10 +569,23 @@
       </div>
 
       <div class="field-row cols-2">
-        <div class="field-inline"><label>Patient's name</label><input type="text" id="ordName"></div>
+        <div class="field-inline patient-autocomplete-wrap">
+          <label>Patient's name</label>
+          <input type="text" id="ordName" autocomplete="off">
+          <div class="patient-suggestions" id="patientSuggestions"></div>
+        </div>
         <div class="field-inline"><label>Tel. no.</label><input type="text" id="ordTel"></div>
       </div>
 
+      <div id="rxSection">
+      <div class="rx-subtype-row">
+        <span class="rx-subtype-label">Rx job type:</span>
+        <div class="rx-subtype-chips">
+          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="CMRX" checked><span>CMRX <em>(Complete Rx)</em></span></label>
+          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="L/O"><span>L/O <em>(Lenses Only)</em></span></label>
+          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="F/O"><span>F/O <em>(Frame Only)</em></span></label>
+        </div>
+      </div>
       <table class="grid">
         <thead>
           <tr>
@@ -482,7 +679,18 @@
         <label><input type="radio" name="pdMode" value="split" checked> Split (R / L)</label>
         <label><input type="radio" name="pdMode" value="single"> Single (binocular)</label>
       </div>
+      </div><!-- /rxSection -->
 
+      <div id="nonRxSection" style="display:none;">
+        <div class="field-row single">
+          <div class="field-inline"><label>Item / product name</label><input type="text" id="itemName" placeholder="e.g. Ray-Ban Aviator Sunglasses"></div>
+        </div>
+        <div class="field-row cols-3">
+          <div class="field-inline"><label>Quantity</label><input type="text" id="itemQty" inputmode="numeric" placeholder="1"></div>
+          <div class="field-inline"><label>Unit price ₱</label><input type="text" id="itemUnitPrice" inputmode="decimal" placeholder="0.00"></div>
+          <div class="field-inline"><label>Line total ₱ <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(auto)</span></label><input type="text" id="itemLineTotal" inputmode="decimal" placeholder="0.00"></div>
+        </div>
+      </div>
 
       <div class="field-row single">
         <div class="field-inline"><label>Frame</label><input type="text" id="ordFrame"></div>
@@ -516,6 +724,11 @@
       <div class="field-row single"><div class="field-inline"><label>Amount ₱</label><input type="text" id="amount" inputmode="decimal" placeholder="0.00"></div></div>
       <div class="field-row single"><div class="field-inline"><label>Deposit</label><input type="text" id="deposit" inputmode="decimal" placeholder="0.00"></div></div>
       <div class="field-row single"><div class="field-inline"><label>Balance <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(auto-calculated — editable)</span></label><input type="text" id="balance" inputmode="decimal" placeholder="0.00"></div></div>
+      <div class="payment-status-row">
+        <span class="payment-status-label">Payment status:</span>
+        <label class="payment-chip"><input type="radio" name="paymentStatus" value="unpaid" checked><span>Unpaid</span></label>
+        <label class="payment-chip"><input type="radio" name="paymentStatus" value="paid"><span>Paid</span></label>
+      </div>
       <div class="field-row single"><div class="field-inline"><label>Lens type</label><input type="text" id="stubLens"></div></div>
       <div class="field-row single"><div class="field-inline"><label>Frame</label><input type="text" id="stubFrame"></div></div>
 
@@ -532,6 +745,11 @@
 
 <script>
 (function() {
+  // Declared here (top of script) rather than only where the toggle
+  // buttons are wired up further down, so it's already initialized by
+  // the time suggestOrderNumber() (called from checkAuth) reads it.
+  let currentOrderType = 'rx';
+
   const orderNo = document.getElementById('orderNo');
   const claimNoDisplay = document.getElementById('claimNoDisplay');
   const ordName = document.getElementById('ordName');
@@ -566,7 +784,12 @@
     document.querySelectorAll('.rx-axis, .rx-base').forEach(el => { el.disabled = true; });
     document.querySelector('input[name="pdMode"][value="split"]').checked = true;
     applyPdMode('split');
+    document.querySelector('input[name="rxSubtype"][value="CMRX"]').checked = true;
+    document.querySelector('input[name="paymentStatus"][value="unpaid"]').checked = true;
     balanceManuallyEdited = false;
+    lineTotalManuallyEdited = false;
+    orderNoManuallyEdited = false;
+    setOrderType('rx'); // also re-suggests the order number for the reset type
   });
 
   // ---- Auth gate ----
@@ -576,12 +799,128 @@
       const result = await resp.json();
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=order-form.html';
+        return;
       }
+      // Only fetch the suggested order number once we know the session
+      // is valid -- avoids a pointless 401 round-trip otherwise.
+      suggestOrderNumber();
     } catch (e) {
       window.location.href = 'staff-login.html?next=order-form.html';
     }
   }
   checkAuth();
+
+  // ---- Order number auto-suggestion ----
+  const orderNoInput = document.getElementById('orderNo');
+  let orderNoManuallyEdited = false;
+  orderNoInput.addEventListener('input', () => { orderNoManuallyEdited = true; });
+
+  async function suggestOrderNumber() {
+    try {
+      const resp = await fetch('/api/next-order-number?order_type=' + encodeURIComponent(currentOrderType));
+      if (!resp.ok) return; // fail silently -- field just stays blank/placeholder, staff can type their own
+      const result = await resp.json();
+      if (result.ok && result.suggestion && !orderNoManuallyEdited) {
+        orderNoInput.value = result.suggestion;
+        orderNoInput.placeholder = result.suggestion;
+      }
+    } catch (e) {
+      // Non-fatal -- the field is always editable regardless.
+    }
+  }
+
+  // ---- Patient name autocomplete ----
+  const ordNameInput = document.getElementById('ordName');
+  const ordTelInput = document.getElementById('ordTel');
+  const suggestionsBox = document.getElementById('patientSuggestions');
+  let patientSearchDebounce = null;
+  let activeSuggestionIndex = -1;
+  let currentSuggestions = [];
+
+  function escapeHtmlClient(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function renderSuggestions(patients) {
+    currentSuggestions = patients;
+    activeSuggestionIndex = -1;
+    if (!patients.length) {
+      suggestionsBox.classList.remove('visible');
+      suggestionsBox.innerHTML = '';
+      return;
+    }
+    suggestionsBox.innerHTML = patients.map((p, i) => `
+      <div class="patient-suggestion-item" data-index="${i}">
+        <span class="sugg-name">${escapeHtmlClient(p.name)}</span><span class="sugg-phone">${escapeHtmlClient(p.phone)}</span>
+      </div>
+    `).join('');
+    suggestionsBox.classList.add('visible');
+
+    suggestionsBox.querySelectorAll('.patient-suggestion-item').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        // mousedown (not click) so it fires before the input's blur hides the box
+        e.preventDefault();
+        const idx = parseInt(el.getAttribute('data-index'), 10);
+        selectPatient(currentSuggestions[idx]);
+      });
+    });
+  }
+
+  function selectPatient(patient) {
+    if (!patient) return;
+    ordNameInput.value = patient.name;
+    ordTelInput.value = patient.phone;
+    suggestionsBox.classList.remove('visible');
+    suggestionsBox.innerHTML = '';
+  }
+
+  async function searchPatients(term) {
+    try {
+      const resp = await fetch('/api/patient-search?q=' + encodeURIComponent(term));
+      if (!resp.ok) { renderSuggestions([]); return; }
+      const result = await resp.json();
+      renderSuggestions(result.ok ? (result.patients || []) : []);
+    } catch (e) {
+      renderSuggestions([]);
+    }
+  }
+
+  ordNameInput.addEventListener('input', () => {
+    const term = ordNameInput.value.trim();
+    clearTimeout(patientSearchDebounce);
+    if (term.length < 2) {
+      renderSuggestions([]);
+      return;
+    }
+    patientSearchDebounce = setTimeout(() => searchPatients(term), 300);
+  });
+
+  ordNameInput.addEventListener('keydown', (e) => {
+    if (!suggestionsBox.classList.contains('visible')) return;
+    const items = suggestionsBox.querySelectorAll('.patient-suggestion-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeSuggestionIndex = Math.min(activeSuggestionIndex + 1, items.length - 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeSuggestionIndex = Math.max(activeSuggestionIndex - 1, 0);
+    } else if (e.key === 'Enter' && activeSuggestionIndex >= 0) {
+      e.preventDefault();
+      selectPatient(currentSuggestions[activeSuggestionIndex]);
+      return;
+    } else if (e.key === 'Escape') {
+      suggestionsBox.classList.remove('visible');
+      return;
+    } else {
+      return;
+    }
+    items.forEach((el, i) => el.classList.toggle('active', i === activeSuggestionIndex));
+  });
+
+  ordNameInput.addEventListener('blur', () => {
+    // Delay so a mousedown on a suggestion registers first.
+    setTimeout(() => suggestionsBox.classList.remove('visible'), 150);
+  });
 
   // ---- Rx field soft validation + logical enable/disable ----
   const SPH_RE = /^[+-]?\d{1,2}(\.\d{1,2})?$|^(pl|plano)$/i;
@@ -625,6 +964,58 @@
     baseEl.disabled = !shouldEnable;
     if (!shouldEnable) { axisEl.value = ''; baseEl.value = ''; axisEl.classList.remove('field-invalid'); }
   }
+
+  // ---- Order type toggle (Rx vs Non-Rx) ----
+  const rxSection = document.getElementById('rxSection');
+  const nonRxSection = document.getElementById('nonRxSection');
+  const rxTypeBtn = document.getElementById('rxTypeBtn');
+  const nonRxTypeBtn = document.getElementById('nonRxTypeBtn');
+  // currentOrderType is declared at the top of this script (see note there)
+
+  function setOrderType(type) {
+    currentOrderType = type;
+    if (type === 'rx') {
+      rxSection.style.display = '';
+      nonRxSection.style.display = 'none';
+      rxTypeBtn.classList.add('active');
+      nonRxTypeBtn.classList.remove('active');
+    } else {
+      rxSection.style.display = 'none';
+      nonRxSection.style.display = '';
+      rxTypeBtn.classList.remove('active');
+      nonRxTypeBtn.classList.add('active');
+    }
+    // Re-suggest the order number for the newly selected type's own
+    // sequence (Rx and Non-Rx count independently) -- but only if staff
+    // haven't already typed a custom order number themselves.
+    if (!orderNoManuallyEdited) suggestOrderNumber();
+  }
+  rxTypeBtn.addEventListener('click', () => setOrderType('rx'));
+  nonRxTypeBtn.addEventListener('click', () => setOrderType('non_rx'));
+
+  // ---- Non-Rx line total auto-calculation ----
+  const itemQtyInput = document.getElementById('itemQty');
+  const itemUnitPriceInput = document.getElementById('itemUnitPrice');
+  const itemLineTotalInput = document.getElementById('itemLineTotal');
+  let lineTotalManuallyEdited = false;
+
+  function recalcLineTotal() {
+    if (lineTotalManuallyEdited) return;
+    const qty = parseFloat(itemQtyInput.value) || 0;
+    const unitPrice = parseFloat(itemUnitPriceInput.value) || 0;
+    const total = qty * unitPrice;
+    itemLineTotalInput.value = total ? total.toFixed(2) : '';
+    // Non-Rx orders don't fill in the Rx grid, so mirror the line total
+    // into the shared Amount field automatically (still editable/overridable
+    // down in the Insurance/claim-stub section, same as Rx orders).
+    if (total && !balanceManuallyEdited) {
+      amountInput.value = total.toFixed(2);
+      recalcBalance();
+    }
+  }
+  itemQtyInput.addEventListener('input', recalcLineTotal);
+  itemUnitPriceInput.addEventListener('input', recalcLineTotal);
+  itemLineTotalInput.addEventListener('input', () => { lineTotalManuallyEdited = true; });
 
   // ---- P.D. mode toggle (split R/L vs single binocular) ----
   const pdCellR = document.getElementById('pdCellR');
@@ -673,29 +1064,48 @@
 
   function collectOrderData() {
     const lensMaterialEl = document.querySelector('input[name="lensMaterial"]:checked');
-    return {
+    const base = {
       order_no: val('orderNo'),
+      order_type: currentOrderType,
       patient_name: val('ordName'),
       tel_no: val('ordTel'),
       order_date: val('ordDate'),
       due_date: val('ordDue'),
       tray_no: val('trayNo'),
-      rx_r_sph: val('rx_r_sph'), rx_r_cyl: val('rx_r_cyl'), rx_r_axis: val('rx_r_axis'),
-      rx_r_prism: val('rx_r_prism'), rx_r_base: val('rx_r_base'),
-      rx_l_sph: val('rx_l_sph'), rx_l_cyl: val('rx_l_cyl'), rx_l_axis: val('rx_l_axis'),
-      rx_l_prism: val('rx_l_prism'), rx_l_base: val('rx_l_base'),
-      lens_material: lensMaterialEl ? lensMaterialEl.value : '',
-      add_r: val('add_r'), add_l: val('add_l'),
-      seg_ht_r: val('seg_ht_r'), seg_ht_l: val('seg_ht_l'),
-      lens_type: val('lens_type'),
-      pd_mode: (document.querySelector('input[name="pdMode"]:checked') || {}).value || 'split',
-      pd_r: val('pd_r'), pd_l: val('pd_l'),
       frame: val('ordFrame'),
       special_instructions: val('ordNotes'),
       amount: val('amount'),
       deposit: val('deposit'),
       balance: val('balance'),
+      payment_status: (document.querySelector('input[name="paymentStatus"]:checked') || {}).value || 'unpaid',
       taken_by: val('takenBy'),
+    };
+
+    if (currentOrderType === 'rx') {
+      const rxSubtypeEl = document.querySelector('input[name="rxSubtype"]:checked');
+      return {
+        ...base,
+        rx_subtype: rxSubtypeEl ? rxSubtypeEl.value : 'CMRX',
+        rx_r_sph: val('rx_r_sph'), rx_r_cyl: val('rx_r_cyl'), rx_r_axis: val('rx_r_axis'),
+        rx_r_prism: val('rx_r_prism'), rx_r_base: val('rx_r_base'),
+        rx_l_sph: val('rx_l_sph'), rx_l_cyl: val('rx_l_cyl'), rx_l_axis: val('rx_l_axis'),
+        rx_l_prism: val('rx_l_prism'), rx_l_base: val('rx_l_base'),
+        lens_material: lensMaterialEl ? lensMaterialEl.value : '',
+        add_r: val('add_r'), add_l: val('add_l'),
+        seg_ht_r: val('seg_ht_r'), seg_ht_l: val('seg_ht_l'),
+        lens_type: val('lens_type'),
+        pd_mode: (document.querySelector('input[name="pdMode"]:checked') || {}).value || 'split',
+        pd_r: val('pd_r'), pd_l: val('pd_l'),
+      };
+    }
+
+    // Non-Rx: item/product fields instead of the Rx grid.
+    return {
+      ...base,
+      item_name: val('itemName'),
+      item_qty: val('itemQty'),
+      item_unit_price: val('itemUnitPrice'),
+      item_line_total: val('itemLineTotal'),
     };
   }
 

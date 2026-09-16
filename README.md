@@ -15,11 +15,14 @@ staff-patient-lookup.html  Staff patient search — phone lookup, full intake + 
 order-form.html            Staff order/claim form (Rx grid, saves to database, linked to patient)
 api/
   intake.js                Saves intake submissions to the database and emails the practice
+  intake-payment.js         Updates an intake submission's payment status (Paid/Unpaid)
   staff-login.js            Checks staff password, sets session cookie
   staff-logout.js           Clears session cookie
   auth-check.js             Checks whether a request has a valid staff session
-  orders.js                  Create/list/update saved orders, linked to a patient (Supabase)
+  orders.js                  Create/list/update saved orders (status + payment), linked to a patient
   patient-history.js          Looks up a patient by phone, returns their full history
+  patient-search.js            Autocomplete search — matches patients by name or phone
+  next-order-number.js          Suggests the next order number based on existing orders
   _auth.js                     Shared session-cookie logic (not a route itself)
   _supabase.js                  Shared Supabase REST helper (not a route itself)
   _patients.js                   Shared patient find-or-create-by-phone logic (not a route itself)
@@ -81,10 +84,11 @@ disallowing `/staff-*` — happy to add that if useful.
      phone number, confirm the email arrives.
    - Visit `/staff-login.html`, log in with `dcam-optical`, create a test
      order **using the same phone number**, confirm it shows up in
-     `/staff-orders.html` and the status dropdown works.
+     `/staff-orders.html` and both the status and payment dropdowns work.
    - Visit `/staff-patient-lookup.html`, search that phone number, confirm
      both the intake submission and the order appear together under one
-     patient record.
+     patient record, and that flipping either one's payment dropdown
+     there also sticks (refresh and check it held).
 
 ## What's still manual / not yet built
 
@@ -97,6 +101,95 @@ disallowing `/staff-*` — happy to add that if useful.
 - **AI chat demo** on the public site only works inside Claude.ai's own
   viewer, not on the live Vercel deployment (it depends on a
   Claude-app-specific capability with no server-side equivalent here yet).
+
+## Rx vs. Non-Rx orders
+
+`order-form.html` has a toggle at the top — **Rx Order** / **Non-Rx
+Order** — since not every optical sale involves a prescription (plano
+sunglasses, reading glasses off a rack, frame-only sales, repairs).
+
+- **Rx Order** (default): the full Rx grid (SPH/CYL/AXIS/etc.), lens
+  material, Add/Seg Ht/PD — unchanged from the original job-order form.
+- **Non-Rx Order**: replaces the Rx grid with item name, quantity, unit
+  price, and an auto-calculated line total (which also flows into the
+  shared Amount field). No prescription fields shown or required.
+
+Both share the same order number, patient name, date, frame, and
+amount/deposit/balance fields, and both save to the same `orders` table
+with an `order_type` column (`rx` or `non_rx`) so the orders list and
+patient lookup can distinguish them — shown as a small "Rx" / "Non-Rx" tag
+next to the order number.
+
+### Rx job sub-type (CMRX / L/O / F/O)
+
+When **Rx Order** is selected, a second row appears at the top of the Rx
+section — **Rx job type** — with three choices:
+
+- **CMRX** (Complete Rx) — a full new job: new frame + new lenses. This is
+  the default.
+- **L/O** (Lenses Only) — existing frame, new lenses ground and fit.
+- **F/O** (Frame Only) — new frame, no new lenses.
+
+This is saved as `rx_subtype` alongside `order_type` (`null` for Non-Rx
+orders, since the distinction doesn't apply there), and shows in place of
+the generic "Rx" tag in the orders list and patient lookup — so staff can
+tell at a glance whether a given Rx order was a full job, a lens-only
+redo, or a frame-only sale.
+
+## Patient name & order number lookup
+
+The order form no longer relies purely on manual typing for two fields:
+
+- **Patient's name**: as staff type (2+ characters), it queries existing
+  patients by name or phone via `api/patient-search.js` and shows a
+  dropdown of matches. Picking one auto-fills both Name and Tel. no. from
+  that patient's record — arrow keys + Enter work, as does mouse click.
+  If nothing matches, staff just keep typing a new name as before;
+  nothing blocks manual entry.
+- **Job Order #**: format is **`YEAR-TYPE-NNNN`** — `2025-RX-0001` for Rx
+  orders, `2025-NRX-0001` for Non-Rx orders. **Rx and Non-Rx each have
+  their own independent counter**, both resetting to `0001` at the start
+  of each new year. On page load (and whenever the Rx/Non-Rx toggle is
+  switched), `api/next-order-number.js` looks at the highest existing
+  counter **for the current year and selected type only** and pre-fills
+  the next one — e.g. if the last Rx order this year was `2025-RX-0944`,
+  it suggests `2025-RX-0945`, regardless of how many Non-Rx orders exist
+  in between. Switching the toggle re-fetches the right sequence's next
+  number (unless staff have already typed a custom value, which is always
+  respected and never overwritten). This is a **suggestion only** —
+  nothing is reserved or locked.
+
+Both fail silently and safely if their endpoint is unreachable (e.g.
+Supabase misconfigured) — the form still works exactly as a plain manual
+entry form in that case, just without the assist.
+
+## Payment status (Paid / Unpaid)
+
+Both intake submissions and orders now carry their own `payment_status`
+(`unpaid` or `paid`, defaulting to `unpaid`) — tracked independently,
+since a patient's check-up visit fee and their eyewear order are
+genuinely separate charges that may be settled at different times.
+
+This is **staff bookkeeping only** — no online payment is collected or
+processed anywhere in this system. It exists so staff can mark something
+as paid in-office (cash, card terminal, GCash, whatever they actually use)
+and have that reflected across the tools they already use:
+
+- **`order-form.html`** — a Paid/Unpaid toggle sits under the Balance
+  field, defaulting to Unpaid on a new order.
+- **`staff-orders.html`** — a "Payment" column with an inline dropdown,
+  right next to the existing Ordered/Ready/Claimed status dropdown.
+  Updating it calls `api/orders.js` (PATCH), which now accepts `status`,
+  `payment_status`, or both in the same request.
+- **`staff-patient-lookup.html`** — both intake requests and orders each
+  show their own Paid/Unpaid dropdown, updatable right from that view.
+  Intake payment updates go through the new `api/intake-payment.js`
+  endpoint (a separate table from orders, so a separate small endpoint).
+
+If DCAM later wants real online payment collection (card, GCash, etc.),
+that's a materially different feature — it involves a payment gateway
+integration and PCI-adjacent compliance considerations that this
+staff-only status flag deliberately does not take on.
 
 ## Patient linking (intake + orders + history)
 

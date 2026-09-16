@@ -5,6 +5,8 @@ const { findOrCreatePatient } = require('./_patients');
 // Field allow-list + length caps, same defensive pattern as the intake API.
 const FIELD_LIMITS = {
   order_no: 20,
+  order_type: 10,
+  rx_subtype: 10,
   patient_name: 150,
   tel_no: 40,
   order_date: 20,
@@ -18,12 +20,17 @@ const FIELD_LIMITS = {
   lens_type: 60,
   pd_mode: 10,
   pd_r: 15, pd_l: 15,
+  item_name: 200,
+  item_qty: 10,
+  item_unit_price: 20,
+  item_line_total: 20,
   frame: 150,
   special_instructions: 500,
   amount: 20,
   deposit: 20,
   balance: 20,
   status: 20,
+  payment_status: 10,
   taken_by: 100,
 };
 
@@ -35,6 +42,18 @@ function sanitize(value, maxLen) {
 
 function isValidStatus(status) {
   return ['ordered', 'ready', 'claimed'].includes(status);
+}
+
+function isValidPaymentStatus(status) {
+  return ['unpaid', 'paid'].includes(status);
+}
+
+function isValidOrderType(type) {
+  return ['rx', 'non_rx'].includes(type);
+}
+
+function isValidRxSubtype(subtype) {
+  return ['CMRX', 'L/O', 'F/O'].includes(subtype);
 }
 
 async function createOrder(req, res) {
@@ -61,6 +80,11 @@ async function createOrder(req, res) {
   }
 
   record.status = isValidStatus(record.status) ? record.status : 'ordered';
+  record.payment_status = isValidPaymentStatus(record.payment_status) ? record.payment_status : 'unpaid';
+  record.order_type = isValidOrderType(record.order_type) ? record.order_type : 'rx';
+  record.rx_subtype = record.order_type === 'rx'
+    ? (isValidRxSubtype(record.rx_subtype) ? record.rx_subtype : 'CMRX')
+    : null;
   record.created_at = new Date().toISOString();
 
   // Link this order to a patient record, matched by phone number. If no
@@ -136,18 +160,38 @@ async function updateOrderStatus(req, res) {
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch (e) { body = {}; }
   }
-  const { id, status } = body || {};
+  const { id, status, payment_status } = body || {};
 
-  if (!id || !isValidStatus(status)) {
-    res.status(400).json({ ok: false, error: 'A valid order id and status are required.' });
+  if (!id) {
+    res.status(400).json({ ok: false, error: 'A valid order id is required.' });
     return;
   }
+
+  const statusProvided = status !== undefined;
+  const paymentStatusProvided = payment_status !== undefined;
+
+  if (!statusProvided && !paymentStatusProvided) {
+    res.status(400).json({ ok: false, error: 'Provide a status or payment_status to update.' });
+    return;
+  }
+  if (statusProvided && !isValidStatus(status)) {
+    res.status(400).json({ ok: false, error: 'Invalid status value.' });
+    return;
+  }
+  if (paymentStatusProvided && !isValidPaymentStatus(payment_status)) {
+    res.status(400).json({ ok: false, error: 'Invalid payment_status value.' });
+    return;
+  }
+
+  const patch = {};
+  if (statusProvided) patch.status = status;
+  if (paymentStatusProvided) patch.payment_status = payment_status;
 
   try {
     const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { Prefer: 'return=representation' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(patch),
     });
 
     if (!resp.ok) {

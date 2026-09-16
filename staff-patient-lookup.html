@@ -179,6 +179,33 @@
   .status-pill.claimed { background: rgba(56,51,52,0.1); color: var(--charcoal-soft); }
 
   .empty-sub { font-size: 0.85rem; color: var(--charcoal-soft); font-style: italic; }
+
+  .payment-row {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .payment-row-label {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--charcoal-soft);
+  }
+  select.payment-select {
+    font-family: var(--body);
+    font-size: 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 4px 8px;
+    background: #fff;
+    color: var(--charcoal);
+  }
 </style>
 </head>
 <body>
@@ -231,6 +258,7 @@
 
   const REASON_LABELS = {
     comprehensive: 'Comprehensive eye exam',
+    checkup: 'Check up',
     contacts: 'Contact lens fitting',
     frames: 'Frame styling / new glasses',
     urgent: 'Urgent concern',
@@ -280,6 +308,13 @@
             <div class="primary">${escapeHtml(REASON_LABELS[i.reason] || i.reason || 'Intake request')}</div>
             <div class="date-badge">${formatDate(i.created_at)}</div>
             <div class="secondary">${i.patient_type === 'returning' ? 'Returning patient' : 'New patient'}${i.pref_date ? ' · Preferred: ' + escapeHtml(i.pref_date) : ''}${i.notes ? ' · ' + escapeHtml(i.notes) : ''}</div>
+            <div class="payment-row">
+              <span class="payment-row-label">Payment:</span>
+              <select class="payment-select" data-kind="intake" data-id="${i.id}">
+                <option value="unpaid" ${i.payment_status !== 'paid' ? 'selected' : ''}>Unpaid</option>
+                <option value="paid" ${i.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
+              </select>
+            </div>
           </div>
         `).join('')
       : '<p class="empty-sub">No intake requests on file.</p>';
@@ -287,9 +322,19 @@
     const ordersHtml = orders.length
       ? orders.map(o => `
           <div class="history-item">
-            <div class="primary">Order #${escapeHtml(o.order_no)}<span class="status-pill ${escapeHtml(o.status)}">${escapeHtml(o.status)}</span></div>
+            <div class="primary">Order #${escapeHtml(o.order_no)}<span class="status-pill ${o.order_type === 'non_rx' ? 'ordered' : 'ready'}" style="opacity:0.85;">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><span class="status-pill ${escapeHtml(o.status)}">${escapeHtml(o.status)}</span></div>
             <div class="date-badge">${formatDate(o.created_at)}</div>
-            <div class="secondary">${o.frame ? 'Frame: ' + escapeHtml(o.frame) : ''}${o.lens_type ? ' · ' + escapeHtml(o.lens_type) : ''}${o.balance ? ' · Balance: ₱' + escapeHtml(o.balance) : ''}</div>
+            <div class="secondary">${o.order_type === 'non_rx'
+              ? (o.item_name ? 'Item: ' + escapeHtml(o.item_name) : '') + (o.item_qty ? ' · Qty: ' + escapeHtml(o.item_qty) : '')
+              : (o.frame ? 'Frame: ' + escapeHtml(o.frame) : '') + (o.lens_type ? ' · ' + escapeHtml(o.lens_type) : '')
+            }${o.balance ? ' · Balance: ₱' + escapeHtml(o.balance) : ''}</div>
+            <div class="payment-row">
+              <span class="payment-row-label">Payment:</span>
+              <select class="payment-select" data-kind="order" data-id="${o.id}">
+                <option value="unpaid" ${o.payment_status !== 'paid' ? 'selected' : ''}>Unpaid</option>
+                <option value="paid" ${o.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
+              </select>
+            </div>
           </div>
         `).join('')
       : '<p class="empty-sub">No orders on file.</p>';
@@ -314,6 +359,29 @@
         <div class="history-list">${ordersHtml}</div>
       </div>
     `;
+
+    content.querySelectorAll('.payment-select').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const kind = sel.getAttribute('data-kind');
+        const id = sel.getAttribute('data-id');
+        const payment_status = sel.value;
+        sel.disabled = true;
+        try {
+          const endpoint = kind === 'intake' ? '/api/intake-payment' : '/api/orders';
+          const resp = await fetch(endpoint, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, payment_status }),
+          });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not update payment status.');
+        } catch (err) {
+          alert(err.message || 'Could not update payment status.');
+        } finally {
+          sel.disabled = false;
+        }
+      });
+    });
   }
 
   searchBtn.addEventListener('click', search);

@@ -57,6 +57,7 @@ function isValidEmail(email) {
 
 const REASON_LABELS = {
   comprehensive: 'Comprehensive eye exam',
+  checkup: 'Check up',
   contacts: 'Contact lens fitting',
   frames: 'Frame styling / new glasses',
   urgent: 'Urgent concern',

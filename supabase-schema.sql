@@ -47,10 +47,16 @@ create table if not exists intake_submissions (
   pref_time text,
   notes text,
 
+  payment_status text not null default 'unpaid' check (payment_status in ('unpaid', 'paid')),
+
   created_at timestamptz not null default now()
 );
 
 create index if not exists intake_patient_id_idx on intake_submissions (patient_id);
+
+-- Adds payment_status to an intake_submissions table that already existed
+-- from before payment tracking was added. No-op if already present.
+alter table intake_submissions add column if not exists payment_status text not null default 'unpaid';
 
 alter table intake_submissions enable row level security;
 
@@ -60,6 +66,8 @@ alter table intake_submissions enable row level security;
 create table if not exists orders (
   id uuid primary key default gen_random_uuid(),
   order_no text not null,
+  order_type text not null default 'rx' check (order_type in ('rx', 'non_rx')),
+  rx_subtype text check (rx_subtype in ('CMRX', 'L/O', 'F/O')),
   patient_name text not null,
   tel_no text,
   order_date text,
@@ -76,6 +84,11 @@ create table if not exists orders (
   pd_mode text,
   pd_r text, pd_l text,
 
+  item_name text,
+  item_qty text,
+  item_unit_price text,
+  item_line_total text,
+
   frame text,
   special_instructions text,
 
@@ -84,10 +97,24 @@ create table if not exists orders (
   balance text,
 
   status text not null default 'ordered' check (status in ('ordered', 'ready', 'claimed')),
+  payment_status text not null default 'unpaid' check (payment_status in ('unpaid', 'paid')),
   taken_by text,
 
   created_at timestamptz not null default now()
 );
+
+-- Adds payment_status to an orders table that already existed from
+-- before payment tracking was added. No-op if already present.
+alter table orders add column if not exists payment_status text not null default 'unpaid';
+
+-- Adds order_type/item_* columns to an orders table that already existed
+-- from before Non-Rx order support was added. No-op if already present.
+alter table orders add column if not exists order_type text not null default 'rx';
+alter table orders add column if not exists rx_subtype text;
+alter table orders add column if not exists item_name text;
+alter table orders add column if not exists item_qty text;
+alter table orders add column if not exists item_unit_price text;
+alter table orders add column if not exists item_line_total text;
 
 -- Adds patient_id to an orders table that already existed from before
 -- this patients-linking feature was added. No-op if the column is

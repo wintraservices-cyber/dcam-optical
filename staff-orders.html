@@ -140,6 +140,20 @@
   .status-pill.ready { background: rgba(176,90,158,0.14); color: var(--purple-deep); }
   .status-pill.claimed { background: rgba(56,51,52,0.1); color: var(--charcoal-soft); }
 
+  .type-tag {
+    display: inline-block;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 100px;
+    margin-left: 8px;
+  }
+  .type-tag.rx { background: rgba(176,90,158,0.14); color: var(--purple-deep); }
+  .type-tag.non-rx { background: rgba(56,51,52,0.1); color: var(--charcoal-soft); }
+
   select.status-select {
     font-family: var(--body);
     font-size: 0.82rem;
@@ -268,12 +282,18 @@
 
     const rows = orders.map(o => `
       <tr>
-        <td data-label="Order #">#${escapeHtml(o.order_no)}</td>
+        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span></td>
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
         <td data-label="Date">${escapeHtml(o.order_date) || '—'}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>
-        <td data-label="Frame">${escapeHtml(o.frame) || '—'}</td>
+        <td data-label="Item / Frame">${escapeHtml(o.order_type === 'non_rx' ? o.item_name : o.frame) || '—'}</td>
         <td data-label="Balance">${o.balance ? '₱' + escapeHtml(o.balance) : '—'}</td>
+        <td data-label="Payment">
+          <select class="payment-select" data-id="${o.id}">
+            <option value="unpaid" ${o.payment_status !== 'paid' ? 'selected' : ''}>Unpaid</option>
+            <option value="paid" ${o.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
+          </select>
+        </td>
         <td data-label="Status">
           <select class="status-select" data-id="${o.id}">
             <option value="ordered" ${o.status === 'ordered' ? 'selected' : ''}>Ordered</option>
@@ -288,12 +308,33 @@
       <table>
         <thead>
           <tr>
-            <th>Order #</th><th>Patient</th><th>Date</th><th>Due</th><th>Frame</th><th>Balance</th><th>Status</th>
+            <th>Order #</th><th>Patient</th><th>Date</th><th>Due</th><th>Item / Frame</th><th>Balance</th><th>Payment</th><th>Status</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
     `;
+
+    content.querySelectorAll('.payment-select').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const id = sel.getAttribute('data-id');
+        const payment_status = sel.value;
+        sel.disabled = true;
+        try {
+          const resp = await fetch('/api/orders', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, payment_status }),
+          });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not update payment status.');
+        } catch (err) {
+          alert(err.message || 'Could not update payment status.');
+        } finally {
+          sel.disabled = false;
+        }
+      });
+    });
 
     content.querySelectorAll('.status-select').forEach(sel => {
       sel.addEventListener('change', async () => {
