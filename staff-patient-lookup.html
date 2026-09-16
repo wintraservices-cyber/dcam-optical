@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patient Lookup — DCAM Optical (Staff)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #B05A9E;
+    --purple-deep: #8F4680;
+    --blue: #5BAFC0;
+    --blue-deep: #458F9E;
+    --ivory: #F7F1E8;
+    --ivory-dim: #EFE6D8;
+    --charcoal: #383334;
+    --charcoal-soft: #4A4547;
+    --line: rgba(56,51,52,0.14);
+    --display: 'Plus Jakarta Sans', sans-serif;
+    --body: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--charcoal); font-family: var(--body); }
+
+  .staff-bar {
+    background: var(--charcoal);
+    color: var(--ivory);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .staff-bar .tag {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .staff-bar .actions { display: flex; gap: 10px; }
+  .staff-bar a, .staff-bar button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-light { background: var(--ivory); color: var(--charcoal); }
+  .btn-ghost { background: transparent; color: var(--ivory); border: 1px solid rgba(247,241,232,0.4) !important; }
+  .btn-ghost:hover { background: rgba(247,241,232,0.1); }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .search-row input {
+    flex: 1;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    padding: 13px 16px;
+    border-radius: 10px;
+    font-family: var(--body);
+    font-size: 0.95rem;
+    color: var(--charcoal);
+    outline: none;
+  }
+  .search-row input:focus { border-color: var(--blue); }
+  .search-row button {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 13px 26px;
+    border-radius: 10px;
+    border: none;
+    background: var(--charcoal);
+    color: var(--ivory);
+    cursor: pointer;
+  }
+  .search-row button:hover { background: var(--purple-deep); }
+  .search-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .state-message {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--charcoal-soft);
+    font-size: 0.95rem;
+  }
+  .state-message.error { color: #B0405A; }
+
+  .patient-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 30px;
+    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
+    margin-bottom: 24px;
+  }
+  .patient-card h2 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.4rem;
+    color: var(--charcoal);
+  }
+  .patient-meta {
+    margin-top: 8px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 0.88rem;
+    color: var(--charcoal-soft);
+  }
+  .patient-meta strong { color: var(--charcoal); font-weight: 600; }
+
+  .history-section { margin-bottom: 28px; }
+  .history-section h3 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--blue-deep);
+    margin-bottom: 14px;
+  }
+
+  .history-list { display: flex; flex-direction: column; gap: 10px; }
+  .history-item {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 16px;
+    align-items: start;
+  }
+  .history-item .primary {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--charcoal);
+  }
+  .history-item .secondary {
+    font-size: 0.82rem;
+    color: var(--charcoal-soft);
+    grid-column: 1 / -1;
+  }
+  .history-item .date-badge {
+    font-size: 0.75rem;
+    color: var(--charcoal-soft);
+    white-space: nowrap;
+  }
+  .status-pill {
+    display: inline-block;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 3px 10px;
+    border-radius: 100px;
+    margin-left: 8px;
+  }
+  .status-pill.ordered { background: rgba(91,175,192,0.14); color: var(--blue-deep); }
+  .status-pill.ready { background: rgba(176,90,158,0.14); color: var(--purple-deep); }
+  .status-pill.claimed { background: rgba(56,51,52,0.1); color: var(--charcoal-soft); }
+
+  .empty-sub { font-size: 0.85rem; color: var(--charcoal-soft); font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="staff-bar">
+  <div class="tag">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    Staff only — patient lookup
+  </div>
+  <div class="actions">
+    <a href="staff-orders.html" class="btn-light">All orders</a>
+    <a href="order-form.html" class="btn-light">New order</a>
+    <button class="btn-ghost" id="logoutBtn">Log out</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="search-row">
+    <input type="text" id="phoneInput" placeholder="Enter patient phone number…" inputmode="tel">
+    <button id="searchBtn">Search</button>
+  </div>
+
+  <div id="content">
+    <div class="state-message">Search a phone number to see that patient's intake requests and order history.</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const phoneInput = document.getElementById('phoneInput');
+  const searchBtn = document.getElementById('searchBtn');
+  const content = document.getElementById('content');
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function checkAuth() {
+    try {
+      const resp = await fetch('/api/auth-check');
+      const result = await resp.json();
+      if (!result.authenticated) {
+        window.location.href = 'staff-login.html?next=staff-patient-lookup.html';
+      }
+    } catch (e) {
+      window.location.href = 'staff-login.html?next=staff-patient-lookup.html';
+    }
+  }
+  checkAuth();
+
+  const REASON_LABELS = {
+    comprehensive: 'Comprehensive eye exam',
+    contacts: 'Contact lens fitting',
+    frames: 'Frame styling / new glasses',
+    urgent: 'Urgent concern',
+    unsure: 'Not sure — help figure it out',
+  };
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (e) { return iso; }
+  }
+
+  async function search() {
+    const phone = phoneInput.value.trim();
+    if (!phone) return;
+
+    searchBtn.disabled = true;
+    content.innerHTML = '<div class="state-message">Searching…</div>';
+
+    try {
+      const resp = await fetch('/api/patient-history?phone=' + encodeURIComponent(phone));
+      if (resp.status === 401) {
+        window.location.href = 'staff-login.html?next=staff-patient-lookup.html';
+        return;
+      }
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not look up this patient.');
+
+      renderResult(result);
+    } catch (err) {
+      content.innerHTML = `<div class="state-message error">${escapeHtml(err.message)}</div>`;
+    } finally {
+      searchBtn.disabled = false;
+    }
+  }
+
+  function renderResult({ patient, intakes, orders }) {
+    if (!patient) {
+      content.innerHTML = '<div class="state-message">No patient found with that phone number yet — they may not have submitted an intake form or had an order placed.</div>';
+      return;
+    }
+
+    const intakeHtml = intakes.length
+      ? intakes.map(i => `
+          <div class="history-item">
+            <div class="primary">${escapeHtml(REASON_LABELS[i.reason] || i.reason || 'Intake request')}</div>
+            <div class="date-badge">${formatDate(i.created_at)}</div>
+            <div class="secondary">${i.patient_type === 'returning' ? 'Returning patient' : 'New patient'}${i.pref_date ? ' · Preferred: ' + escapeHtml(i.pref_date) : ''}${i.notes ? ' · ' + escapeHtml(i.notes) : ''}</div>
+          </div>
+        `).join('')
+      : '<p class="empty-sub">No intake requests on file.</p>';
+
+    const ordersHtml = orders.length
+      ? orders.map(o => `
+          <div class="history-item">
+            <div class="primary">Order #${escapeHtml(o.order_no)}<span class="status-pill ${escapeHtml(o.status)}">${escapeHtml(o.status)}</span></div>
+            <div class="date-badge">${formatDate(o.created_at)}</div>
+            <div class="secondary">${o.frame ? 'Frame: ' + escapeHtml(o.frame) : ''}${o.lens_type ? ' · ' + escapeHtml(o.lens_type) : ''}${o.balance ? ' · Balance: ₱' + escapeHtml(o.balance) : ''}</div>
+          </div>
+        `).join('')
+      : '<p class="empty-sub">No orders on file.</p>';
+
+    content.innerHTML = `
+      <div class="patient-card">
+        <h2>${escapeHtml(patient.name)}</h2>
+        <div class="patient-meta">
+          <span><strong>Phone:</strong> ${escapeHtml(patient.phone)}</span>
+          ${patient.email ? `<span><strong>Email:</strong> ${escapeHtml(patient.email)}</span>` : ''}
+          <span><strong>Patient since:</strong> ${formatDate(patient.created_at)}</span>
+        </div>
+      </div>
+
+      <div class="history-section">
+        <h3>Intake requests (${intakes.length})</h3>
+        <div class="history-list">${intakeHtml}</div>
+      </div>
+
+      <div class="history-section">
+        <h3>Orders (${orders.length})</h3>
+        <div class="history-list">${ordersHtml}</div>
+      </div>
+    `;
+  }
+
+  searchBtn.addEventListener('click', search);
+  phoneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/staff-logout', { method: 'POST' });
+    window.location.href = 'staff-login.html';
+  });
+})();
+</script>
+
+</body>
+</html>

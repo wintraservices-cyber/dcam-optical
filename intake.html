@@ -490,6 +490,39 @@
   const confirmDetail = document.getElementById('confirmDetail');
   const submitBtn = form.querySelector('.btn-submit');
 
+  // Pre-fill from the "Book an exam" section on the main site, if the
+  // person arrived here via that link with their details in the URL.
+  (function prefillFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    if (![...params.keys()].length) return;
+
+    const directFields = { fname: 'fname', lname: 'lname', email: 'email', phone: 'phone' };
+    Object.entries(directFields).forEach(([param, fieldId]) => {
+      const value = params.get(param);
+      if (value) {
+        const el = document.getElementById(fieldId);
+        if (el) el.value = value;
+      }
+    });
+
+    // The booking section's <select> uses full display text as its value
+    // (e.g. "Comprehensive eye exam"); this form's <select> uses short
+    // codes (e.g. "comprehensive"). Map by matching the visible label.
+    const reasonParam = params.get('reason');
+    if (reasonParam) {
+      const reasonSelect = document.getElementById('reason');
+      const matchingOption = [...reasonSelect.options].find(
+        opt => opt.text.trim().toLowerCase() === reasonParam.trim().toLowerCase()
+      );
+      if (matchingOption) {
+        reasonSelect.value = matchingOption.value;
+      } else if ([...reasonSelect.options].some(opt => opt.value === reasonParam)) {
+        // Already a valid value code (e.g. linked in directly) — use as-is.
+        reasonSelect.value = reasonParam;
+      }
+    }
+  })();
+
   function collectFormData() {
     const data = {};
     const fields = ['fname','lname','phone','email','prefDate','prefTime','notes'];

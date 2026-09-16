@@ -157,12 +157,61 @@
     font-size: 0.82rem;
     color: var(--charcoal);
   }
+  table.grid td select {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: center;
+    font-family: var(--body);
+    font-size: 0.76rem;
+    color: var(--charcoal);
+    cursor: pointer;
+  }
+  table.grid td input::placeholder { color: rgba(56,51,52,0.35); }
+  table.grid td input:disabled,
+  table.grid td select:disabled {
+    background: var(--ivory-dim);
+    color: rgba(56,51,52,0.3);
+    cursor: not-allowed;
+  }
+  table.grid td input.field-invalid {
+    background: rgba(201,161,92,0.18);
+  }
   table.grid td.label-cell {
     font-family: var(--display);
     font-weight: 700;
     background: var(--ivory-dim);
     width: 34px;
   }
+  .rx-hint {
+    font-size: 0.72rem;
+    color: var(--charcoal-soft);
+    font-style: italic;
+    margin: -4px 0 12px;
+  }
+  .pd-mode-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.78rem;
+    color: var(--charcoal-soft);
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .pd-mode-row .pd-mode-label {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .pd-mode-row label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+  }
+  .pd-mode-row input[type="radio"] { width: 13px; height: 13px; }
 
   .field-row {
     display: grid;
@@ -300,6 +349,7 @@
   </div>
   <div class="actions">
     <a href="staff-orders.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">View orders</a>
+    <a href="staff-patient-lookup.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Patient lookup</a>
     <button class="btn-new" id="clearBtn">Clear form</button>
     <button class="btn-new" id="saveBtn" style="background:var(--purple); color:#fff; border:none !important;">Save order</button>
     <button class="btn-print" id="printBtn">Print order + stub</button>
@@ -354,11 +404,23 @@
         <tbody>
           <tr>
             <td class="label-cell">R</td>
-            <td><input type="text" id="rx_r_sph"></td>
-            <td><input type="text" id="rx_r_cyl"></td>
-            <td><input type="text" id="rx_r_axis"></td>
-            <td><input type="text" id="rx_r_prism"></td>
-            <td><input type="text" id="rx_r_base"></td>
+            <td><input type="text" id="rx_r_sph" class="rx-field rx-sph" inputmode="decimal" placeholder="-2.25" title="Sphere power, e.g. -2.25 or +1.50, or PL for plano"></td>
+            <td><input type="text" id="rx_r_cyl" class="rx-field rx-cyl" data-eye="r" inputmode="decimal" placeholder="-0.75" title="Cylinder power, e.g. -0.75 or +0.75"></td>
+            <td><input type="text" id="rx_r_axis" class="rx-field rx-axis" data-eye="r" inputmode="numeric" placeholder="90" maxlength="3" title="Axis, 1–180 degrees" disabled></td>
+            <td><input type="text" id="rx_r_prism" class="rx-field rx-prism" data-eye="r" inputmode="decimal" placeholder="0.00" title="Prism power in prism diopters"></td>
+            <td>
+              <select id="rx_r_base" class="rx-field rx-base" data-eye="r" disabled>
+                <option value=""></option>
+                <option value="up">Up</option>
+                <option value="down">Down</option>
+                <option value="in">In</option>
+                <option value="out">Out</option>
+                <option value="up-in">Up &amp; In</option>
+                <option value="up-out">Up &amp; Out</option>
+                <option value="down-in">Down &amp; In</option>
+                <option value="down-out">Down &amp; Out</option>
+              </select>
+            </td>
             <td rowspan="2" style="font-size:0.68rem; line-height:1.4;">
               <label style="display:flex;align-items:center;gap:3px;justify-content:center;"><input type="radio" name="lensMaterial" value="glass" style="width:11px;height:11px;"> Glass</label>
               <label style="display:flex;align-items:center;gap:3px;justify-content:center;"><input type="radio" name="lensMaterial" value="plastic" style="width:11px;height:11px;"> Plastic</label>
@@ -367,14 +429,27 @@
           </tr>
           <tr>
             <td class="label-cell">L</td>
-            <td><input type="text" id="rx_l_sph"></td>
-            <td><input type="text" id="rx_l_cyl"></td>
-            <td><input type="text" id="rx_l_axis"></td>
-            <td><input type="text" id="rx_l_prism"></td>
-            <td><input type="text" id="rx_l_base"></td>
+            <td><input type="text" id="rx_l_sph" class="rx-field rx-sph" inputmode="decimal" placeholder="-2.25" title="Sphere power, e.g. -2.25 or +1.50, or PL for plano"></td>
+            <td><input type="text" id="rx_l_cyl" class="rx-field rx-cyl" data-eye="l" inputmode="decimal" placeholder="-0.75" title="Cylinder power, e.g. -0.75 or +0.75"></td>
+            <td><input type="text" id="rx_l_axis" class="rx-field rx-axis" data-eye="l" inputmode="numeric" placeholder="90" maxlength="3" title="Axis, 1–180 degrees" disabled></td>
+            <td><input type="text" id="rx_l_prism" class="rx-field rx-prism" data-eye="l" inputmode="decimal" placeholder="0.00" title="Prism power in prism diopters"></td>
+            <td>
+              <select id="rx_l_base" class="rx-field rx-base" data-eye="l" disabled>
+                <option value=""></option>
+                <option value="up">Up</option>
+                <option value="down">Down</option>
+                <option value="in">In</option>
+                <option value="out">Out</option>
+                <option value="up-in">Up &amp; In</option>
+                <option value="up-out">Up &amp; Out</option>
+                <option value="down-in">Down &amp; In</option>
+                <option value="down-out">Down &amp; Out</option>
+              </select>
+            </td>
           </tr>
         </tbody>
       </table>
+      <p class="rx-hint">Axis and Base enable automatically once Cylinder or Prism is entered.</p>
 
       <table class="grid">
         <thead>
@@ -389,19 +464,24 @@
         <tbody>
           <tr>
             <td class="label-cell">R</td>
-            <td><input type="text" id="add_r"></td>
-            <td><input type="text" id="seg_ht_r"></td>
-            <td rowspan="2"><input type="text" id="lens_type"></td>
-            <td><input type="text" id="pd_r"></td>
+            <td><input type="text" id="add_r" class="rx-field" inputmode="decimal" placeholder="+2.00" title="Addition power, e.g. +2.00"></td>
+            <td><input type="text" id="seg_ht_r" class="rx-field" inputmode="decimal" placeholder="18" title="Segment height in mm"></td>
+            <td rowspan="2"><input type="text" id="lens_type" placeholder="e.g. Progressive, Single Vision"></td>
+            <td id="pdCellR"><input type="text" id="pd_r" class="rx-field" inputmode="decimal" placeholder="31.5" title="Pupillary distance in mm"></td>
           </tr>
           <tr>
             <td class="label-cell">L</td>
-            <td><input type="text" id="add_l"></td>
-            <td><input type="text" id="seg_ht_l"></td>
-            <td><input type="text" id="pd_l"></td>
+            <td><input type="text" id="add_l" class="rx-field" inputmode="decimal" placeholder="+2.00" title="Addition power, e.g. +2.00"></td>
+            <td><input type="text" id="seg_ht_l" class="rx-field" inputmode="decimal" placeholder="18" title="Segment height in mm"></td>
+            <td id="pdCellL"><input type="text" id="pd_l" class="rx-field" inputmode="decimal" placeholder="31.5" title="Pupillary distance in mm"></td>
           </tr>
         </tbody>
       </table>
+      <div class="pd-mode-row">
+        <span class="pd-mode-label">P.D. measured as:</span>
+        <label><input type="radio" name="pdMode" value="split" checked> Split (R / L)</label>
+        <label><input type="radio" name="pdMode" value="single"> Single (binocular)</label>
+      </div>
 
 
       <div class="field-row single">
@@ -433,9 +513,9 @@
       <div class="field-row single"><div class="field-inline"><label>Name</label><input type="text" id="stubName"></div></div>
       <div class="field-row single"><div class="field-inline"><label>Date</label><input type="date" id="stubDate"></div></div>
       <div class="field-row single"><div class="field-inline"><label>Due date / time</label><input type="text" id="stubDue"></div></div>
-      <div class="field-row single"><div class="field-inline"><label>Amount ₱</label><input type="text" id="amount"></div></div>
-      <div class="field-row single"><div class="field-inline"><label>Deposit</label><input type="text" id="deposit"></div></div>
-      <div class="field-row single"><div class="field-inline"><label>Balance</label><input type="text" id="balance"></div></div>
+      <div class="field-row single"><div class="field-inline"><label>Amount ₱</label><input type="text" id="amount" inputmode="decimal" placeholder="0.00"></div></div>
+      <div class="field-row single"><div class="field-inline"><label>Deposit</label><input type="text" id="deposit" inputmode="decimal" placeholder="0.00"></div></div>
+      <div class="field-row single"><div class="field-inline"><label>Balance <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(auto-calculated — editable)</span></label><input type="text" id="balance" inputmode="decimal" placeholder="0.00"></div></div>
       <div class="field-row single"><div class="field-inline"><label>Lens type</label><input type="text" id="stubLens"></div></div>
       <div class="field-row single"><div class="field-inline"><label>Frame</label><input type="text" id="stubFrame"></div></div>
 
@@ -478,10 +558,15 @@
 
   document.getElementById('clearBtn').addEventListener('click', () => {
     if (!confirm('Clear all fields on this form?')) return;
-    document.querySelectorAll('input, textarea').forEach(el => {
+    document.querySelectorAll('input, textarea, select').forEach(el => {
       if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
       else el.value = '';
+      el.classList.remove('field-invalid');
     });
+    document.querySelectorAll('.rx-axis, .rx-base').forEach(el => { el.disabled = true; });
+    document.querySelector('input[name="pdMode"][value="split"]').checked = true;
+    applyPdMode('split');
+    balanceManuallyEdited = false;
   });
 
   // ---- Auth gate ----
@@ -497,6 +582,88 @@
     }
   }
   checkAuth();
+
+  // ---- Rx field soft validation + logical enable/disable ----
+  const SPH_RE = /^[+-]?\d{1,2}(\.\d{1,2})?$|^(pl|plano)$/i;
+  const CYL_RE = /^[+-]?\d{1,2}(\.\d{1,2})?$/;
+  const AXIS_RE = /^(180|1[0-7]\d|[1-9]\d|[1-9])$/;
+  const DECIMAL_RE = /^\d{1,3}(\.\d{1,2})?$/;
+
+  function markValidity(el, isValid) {
+    if (!el.value.trim()) { el.classList.remove('field-invalid'); return; }
+    el.classList.toggle('field-invalid', !isValid);
+  }
+
+  document.querySelectorAll('.rx-sph').forEach(el => {
+    el.addEventListener('blur', () => markValidity(el, SPH_RE.test(el.value.trim())));
+  });
+  document.querySelectorAll('.rx-cyl').forEach(el => {
+    el.addEventListener('input', () => {
+      markValidity(el, CYL_RE.test(el.value.trim()));
+      toggleAxisBase(el.getAttribute('data-eye'));
+    });
+  });
+  document.querySelectorAll('.rx-prism').forEach(el => {
+    el.addEventListener('input', () => {
+      markValidity(el, DECIMAL_RE.test(el.value.trim()));
+      toggleAxisBase(el.getAttribute('data-eye'));
+    });
+  });
+  document.querySelectorAll('.rx-axis').forEach(el => {
+    el.addEventListener('blur', () => markValidity(el, AXIS_RE.test(el.value.trim())));
+  });
+
+  // Axis and Base only make sense once Cylinder or Prism has a value —
+  // enable them dynamically per eye rather than leaving them always-on.
+  function toggleAxisBase(eye) {
+    const cyl = document.getElementById(`rx_${eye}_cyl`).value.trim();
+    const prism = document.getElementById(`rx_${eye}_prism`).value.trim();
+    const shouldEnable = !!cyl || !!prism;
+    const axisEl = document.getElementById(`rx_${eye}_axis`);
+    const baseEl = document.getElementById(`rx_${eye}_base`);
+    axisEl.disabled = !shouldEnable;
+    baseEl.disabled = !shouldEnable;
+    if (!shouldEnable) { axisEl.value = ''; baseEl.value = ''; axisEl.classList.remove('field-invalid'); }
+  }
+
+  // ---- P.D. mode toggle (split R/L vs single binocular) ----
+  const pdCellR = document.getElementById('pdCellR');
+  const pdCellL = document.getElementById('pdCellL');
+  const pdRInput = document.getElementById('pd_r');
+  const pdLInput = document.getElementById('pd_l');
+
+  function applyPdMode(mode) {
+    if (mode === 'single') {
+      pdCellL.style.display = 'none';
+      pdCellR.setAttribute('colspan', '1');
+      pdRInput.placeholder = '63';
+      pdRInput.title = 'Pupillary distance (binocular), in mm';
+    } else {
+      pdCellL.style.display = '';
+      pdRInput.placeholder = '31.5';
+      pdRInput.title = 'Pupillary distance, right eye, in mm';
+    }
+  }
+  document.querySelectorAll('input[name="pdMode"]').forEach(radio => {
+    radio.addEventListener('change', (e) => applyPdMode(e.target.value));
+  });
+
+  // ---- Balance auto-calculation ----
+  const amountInput = document.getElementById('amount');
+  const depositInput = document.getElementById('deposit');
+  const balanceInput = document.getElementById('balance');
+  let balanceManuallyEdited = false;
+
+  function recalcBalance() {
+    if (balanceManuallyEdited) return;
+    const amount = parseFloat(amountInput.value) || 0;
+    const deposit = parseFloat(depositInput.value) || 0;
+    const balance = amount - deposit;
+    balanceInput.value = balance ? balance.toFixed(2) : '';
+  }
+  amountInput.addEventListener('input', recalcBalance);
+  depositInput.addEventListener('input', recalcBalance);
+  balanceInput.addEventListener('input', () => { balanceManuallyEdited = true; });
 
   // ---- Save to database ----
   function val(id) {
@@ -521,6 +688,7 @@
       add_r: val('add_r'), add_l: val('add_l'),
       seg_ht_r: val('seg_ht_r'), seg_ht_l: val('seg_ht_l'),
       lens_type: val('lens_type'),
+      pd_mode: (document.querySelector('input[name="pdMode"]:checked') || {}).value || 'split',
       pd_r: val('pd_r'), pd_l: val('pd_l'),
       frame: val('ordFrame'),
       special_instructions: val('ordNotes'),

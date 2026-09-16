@@ -1006,13 +1006,42 @@
         <label for="consent">I consent to DCAM Optical collecting and processing this information to schedule and manage my appointment, in line with the Data Privacy Act of 2012.</label>
       </div>
       <div class="submit-row">
-        <a class="btn-primary" href="intake.html" style="display:inline-block; text-decoration:none; text-align:center;">Start intake form</a>
+        <a class="btn-primary" href="intake.html" id="startIntakeLink" style="display:inline-block; text-decoration:none; text-align:center;">Start intake form</a>
       </div>
     </form>
     <p class="form-note">This opens our full patient intake form — takes about two minutes.</p>
   </div>
 </section>
 
+<script>
+(function() {
+  const link = document.getElementById('startIntakeLink');
+  if (!link) return;
+
+  link.addEventListener('click', (e) => {
+    const fname = document.getElementById('fname').value.trim();
+    const lname = document.getElementById('lname').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const reason = document.getElementById('reason').value;
+
+    const params = new URLSearchParams();
+    if (fname) params.set('fname', fname);
+    if (lname) params.set('lname', lname);
+    if (email) params.set('email', email);
+    if (phone) params.set('phone', phone);
+    if (reason) params.set('reason', reason);
+
+    const query = params.toString();
+    if (query) {
+      e.preventDefault();
+      window.location.href = 'intake.html?' + query;
+    }
+    // If nothing was filled in, the link just goes to intake.html plain —
+    // no need to prevent default in that case.
+  });
+})();
+</script>
 <footer>
   <div class="wrap">
     <div class="foot-brand">

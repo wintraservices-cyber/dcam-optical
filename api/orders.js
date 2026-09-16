@@ -1,5 +1,6 @@
 const { requireAuth } = require('./_auth');
 const { supabaseRequest } = require('./_supabase');
+const { findOrCreatePatient } = require('./_patients');
 
 // Field allow-list + length caps, same defensive pattern as the intake API.
 const FIELD_LIMITS = {
@@ -15,6 +16,7 @@ const FIELD_LIMITS = {
   add_r: 15, add_l: 15,
   seg_ht_r: 15, seg_ht_l: 15,
   lens_type: 60,
+  pd_mode: 10,
   pd_r: 15, pd_l: 15,
   frame: 150,
   special_instructions: 500,
@@ -60,6 +62,21 @@ async function createOrder(req, res) {
 
   record.status = isValidStatus(record.status) ? record.status : 'ordered';
   record.created_at = new Date().toISOString();
+
+  // Link this order to a patient record, matched by phone number. If no
+  // phone was entered, the order still saves -- it just isn't linked to
+  // a patient history (patient_id stays null).
+  try {
+    const patient = await findOrCreatePatient({
+      phone: record.tel_no,
+      name: record.patient_name,
+      email: null,
+    });
+    record.patient_id = patient ? patient.id : null;
+  } catch (err) {
+    console.error('Patient linking failed, saving order without a link:', err);
+    record.patient_id = null;
+  }
 
   try {
     const resp = await supabaseRequest('orders', {

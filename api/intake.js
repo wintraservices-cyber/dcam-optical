@@ -1,14 +1,22 @@
 // Vercel Serverless Function: /api/intake
-// Receives patient intake form submissions and emails a notification to the practice.
+// Receives patient intake form submissions, saves them to the database
+// (linked to a patient record by phone number), and emails a notification
+// to the practice.
 //
-// Setup required (see README-intake-api.md):
+// Setup required (see README-intake-api.md and README-staff-system.md):
 //   1. Create a free Resend account: https://resend.com
 //   2. Verify a sending domain (or use their shared onboarding domain for testing)
-//   3. In Vercel: Project Settings -> Environment Variables, add:
-//        RESEND_API_KEY      = your Resend API key
-//        NOTIFY_EMAIL_TO     = the practice inbox that should receive submissions
-//        NOTIFY_EMAIL_FROM   = a verified "from" address (e.g. intake@yourdomain.com)
-//   4. Redeploy after adding env vars.
+//   3. Create a Supabase project and run supabase-schema.sql
+//   4. In Vercel: Project Settings -> Environment Variables, add:
+//        RESEND_API_KEY            = your Resend API key
+//        NOTIFY_EMAIL_TO           = the practice inbox that should receive submissions
+//        NOTIFY_EMAIL_FROM         = a verified "from" address (e.g. intake@yourdomain.com)
+//        SUPABASE_URL              = your Supabase project URL
+//        SUPABASE_SERVICE_ROLE_KEY = your Supabase service role key
+//   5. Redeploy after adding env vars.
+
+const { supabaseRequest } = require('./_supabase');
+const { findOrCreatePatient } = require('./_patients');
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
@@ -42,7 +50,7 @@ function escapeHtml(str) {
 }
 
 function isValidEmail(email) {
-  // Simple, deliberately permissive check — real validation happens when the
+  // Simple, deliberately permissive check -- real validation happens when the
   // practice actually replies. We just want to reject obvious garbage.
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -79,13 +87,16 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { RESEND_API_KEY, NOTIFY_EMAIL_TO, NOTIFY_EMAIL_FROM } = process.env;
+  const { RESEND_API_KEY, NOTIFY_EMAIL_TO, NOTIFY_EMAIL_FROM, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
 
-  if (!RESEND_API_KEY || !NOTIFY_EMAIL_TO || !NOTIFY_EMAIL_FROM) {
-    console.error('Missing required environment variables for /api/intake');
+  const emailConfigured = RESEND_API_KEY && NOTIFY_EMAIL_TO && NOTIFY_EMAIL_FROM;
+  const dbConfigured = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!emailConfigured && !dbConfigured) {
+    console.error('Missing required environment variables for /api/intake (neither email nor database configured)');
     res.status(500).json({
       ok: false,
-      error: 'Server is not configured yet. Missing email environment variables.',
+      error: 'Server is not configured yet. Missing email and database environment variables.',
     });
     return;
   }
@@ -138,50 +149,109 @@ module.exports = async (req, res) => {
 
   const submittedAt = new Date().toISOString();
 
-  const htmlBody = `
-    <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 560px; margin: 0 auto; color: #383334;">
-      <h2 style="font-size: 18px; margin-bottom: 4px;">New patient intake — ${escapeHtml(data.fname)} ${escapeHtml(data.lname)}</h2>
-      <p style="color: #777; font-size: 13px; margin-top: 0;">Submitted ${submittedAt}</p>
-      <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
-        <tr><td style="padding:6px 0; color:#777; width:160px;">Name</td><td style="padding:6px 0;">${escapeHtml(data.fname)} ${escapeHtml(data.lname)}</td></tr>
-        <tr><td style="padding:6px 0; color:#777;">Phone</td><td style="padding:6px 0;">${escapeHtml(data.phone)}</td></tr>
-        <tr><td style="padding:6px 0; color:#777;">Email</td><td style="padding:6px 0;">${escapeHtml(data.email)}</td></tr>
-        <tr><td style="padding:6px 0; color:#777;">Patient type</td><td style="padding:6px 0;">${escapeHtml(patientTypeLabel)}</td></tr>
-        <tr><td style="padding:6px 0; color:#777;">Reason for visit</td><td style="padding:6px 0;">${escapeHtml(reasonLabel)}</td></tr>
-        <tr><td style="padding:6px 0; color:#777;">Preferred date</td><td style="padding:6px 0;">${escapeHtml(data.prefDate) || '—'}</td></tr>
-        <tr><td style="padding:6px 0; color:#777;">Preferred time</td><td style="padding:6px 0;">${escapeHtml(timeLabel)}</td></tr>
-        <tr><td style="padding:6px 0; color:#777; vertical-align:top;">Notes</td><td style="padding:6px 0;">${data.notes ? escapeHtml(data.notes) : '—'}</td></tr>
-      </table>
-      <p style="margin-top: 20px; font-size: 12px; color: #999;">Both consent checkboxes were confirmed at submission.</p>
-    </div>
-  `;
+  // ---- Save to database (patient + intake_submissions), if configured ----
+  let dbSaveError = null;
+  if (dbConfigured) {
+    try {
+      const patient = await findOrCreatePatient({
+        phone: data.phone,
+        name: `${data.fname} ${data.lname}`.trim(),
+        email: data.email,
+      });
 
-  try {
-    const emailResp = await fetch(RESEND_API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: NOTIFY_EMAIL_FROM,
-        to: [NOTIFY_EMAIL_TO],
-        reply_to: data.email,
-        subject: `New intake: ${data.fname} ${data.lname} — ${reasonLabel}`,
-        html: htmlBody,
-      }),
-    });
+      const intakeResp = await supabaseRequest('intake_submissions', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          patient_id: patient ? patient.id : null,
+          fname: data.fname,
+          lname: data.lname,
+          phone: data.phone,
+          email: data.email,
+          patient_type: data.patientType || 'new',
+          reason: data.reason,
+          pref_date: data.prefDate || null,
+          pref_time: data.prefTime || null,
+          notes: data.notes || null,
+        }),
+      });
 
-    if (!emailResp.ok) {
-      const errText = await emailResp.text();
-      console.error('Resend API error:', emailResp.status, errText);
-      res.status(502).json({ ok: false, error: 'Could not send notification email.' });
-      return;
+      if (!intakeResp.ok) {
+        const errText = await intakeResp.text();
+        console.error('Supabase intake_submissions insert error:', intakeResp.status, errText);
+        dbSaveError = 'Could not save intake record to the database.';
+      }
+    } catch (err) {
+      console.error('Unexpected error saving intake to database:', err);
+      dbSaveError = err.message || 'Unexpected database error.';
     }
-
-    res.status(200).json({ ok: true });
-  } catch (err) {
-    console.error('Unexpected error sending intake notification:', err);
-    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
   }
+
+  // ---- Send email notification, if configured ----
+  let emailSendError = null;
+  if (emailConfigured) {
+    const htmlBody = `
+      <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 560px; margin: 0 auto; color: #383334;">
+        <h2 style="font-size: 18px; margin-bottom: 4px;">New patient intake — ${escapeHtml(data.fname)} ${escapeHtml(data.lname)}</h2>
+        <p style="color: #777; font-size: 13px; margin-top: 0;">Submitted ${submittedAt}</p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+          <tr><td style="padding:6px 0; color:#777; width:160px;">Name</td><td style="padding:6px 0;">${escapeHtml(data.fname)} ${escapeHtml(data.lname)}</td></tr>
+          <tr><td style="padding:6px 0; color:#777;">Phone</td><td style="padding:6px 0;">${escapeHtml(data.phone)}</td></tr>
+          <tr><td style="padding:6px 0; color:#777;">Email</td><td style="padding:6px 0;">${escapeHtml(data.email)}</td></tr>
+          <tr><td style="padding:6px 0; color:#777;">Patient type</td><td style="padding:6px 0;">${escapeHtml(patientTypeLabel)}</td></tr>
+          <tr><td style="padding:6px 0; color:#777;">Reason for visit</td><td style="padding:6px 0;">${escapeHtml(reasonLabel)}</td></tr>
+          <tr><td style="padding:6px 0; color:#777;">Preferred date</td><td style="padding:6px 0;">${escapeHtml(data.prefDate) || '—'}</td></tr>
+          <tr><td style="padding:6px 0; color:#777;">Preferred time</td><td style="padding:6px 0;">${escapeHtml(timeLabel)}</td></tr>
+          <tr><td style="padding:6px 0; color:#777; vertical-align:top;">Notes</td><td style="padding:6px 0;">${data.notes ? escapeHtml(data.notes) : '—'}</td></tr>
+        </table>
+        <p style="margin-top: 20px; font-size: 12px; color: #999;">Both consent checkboxes were confirmed at submission.</p>
+      </div>
+    `;
+
+    try {
+      const emailResp = await fetch(RESEND_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: NOTIFY_EMAIL_FROM,
+          to: [NOTIFY_EMAIL_TO],
+          reply_to: data.email,
+          subject: `New intake: ${data.fname} ${data.lname} — ${reasonLabel}`,
+          html: htmlBody,
+        }),
+      });
+
+      if (!emailResp.ok) {
+        const errText = await emailResp.text();
+        console.error('Resend API error:', emailResp.status, errText);
+        emailSendError = 'Could not send notification email.';
+      }
+    } catch (err) {
+      console.error('Unexpected error sending intake notification:', err);
+      emailSendError = err.message || 'Unexpected email error.';
+    }
+  }
+
+  // Overall success: at least one of database-save or email-send worked.
+  // If both were configured and both failed, that's a real failure. If
+  // only one was configured and it failed, that's also a real failure.
+  // If one succeeded even though the other failed, we still tell the
+  // caller ok:true (the submission wasn't lost) but log the partial
+  // failure server-side for follow-up.
+  const dbOk = !dbConfigured || !dbSaveError;
+  const emailOk = !emailConfigured || !emailSendError;
+
+  if (!dbOk && !emailOk) {
+    res.status(502).json({ ok: false, error: 'Could not save or send the intake submission.' });
+    return;
+  }
+
+  if (dbSaveError || emailSendError) {
+    console.error('Intake submission partially failed:', { dbSaveError, emailSendError });
+  }
+
+  res.status(200).json({ ok: true });
 };
