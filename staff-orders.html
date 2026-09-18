@@ -207,6 +207,7 @@
     Staff only — orders
   </div>
   <div class="actions">
+    <a href="staff-catalog.html" class="btn-light">Catalog</a>
     <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
     <a href="order-form.html" class="btn-light">New order</a>
     <button class="btn-ghost" id="logoutBtn">Log out</button>
@@ -239,6 +240,20 @@
 
   function escapeHtml(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function itemsSummary(order) {
+    const items = Array.isArray(order.order_items) ? order.order_items : [];
+    if (items.length > 1) {
+      const first = items[0].item_name || '';
+      return `${escapeHtml(first)} +${items.length - 1} more`;
+    }
+    if (items.length === 1) {
+      return escapeHtml(items[0].item_name || '');
+    }
+    // Fall back to the legacy single-item column for orders saved
+    // before the order_items table existed.
+    return escapeHtml(order.item_name) || '—';
   }
 
   async function checkAuth() {
@@ -286,7 +301,7 @@
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
         <td data-label="Date">${escapeHtml(o.order_date) || '—'}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>
-        <td data-label="Item / Frame">${escapeHtml(o.order_type === 'non_rx' ? o.item_name : o.frame) || '—'}</td>
+        <td data-label="Item / Frame">${o.order_type === 'non_rx' ? itemsSummary(o) : (escapeHtml(o.frame) || '—')}</td>
         <td data-label="Balance">${o.balance ? '₱' + escapeHtml(o.balance) : '—'}</td>
         <td data-label="Payment">
           <select class="payment-select" data-id="${o.id}">

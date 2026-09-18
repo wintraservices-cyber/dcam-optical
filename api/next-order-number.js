@@ -1,12 +1,12 @@
 // Vercel Serverless Function: /api/next-order-number
-// Staff-only. Order number format is YEAR-TYPE-NNNN (e.g. "2025-RX-0001"
-// or "2025-NRX-0001"). Rx and Non-Rx orders each have their OWN counter,
-// and each counter resets to 0001 at the start of each new year.
+// Staff-only. Rx and Non-Rx orders use DIFFERENT formats and DIFFERENT
+// reset periods:
 //
-// Call with ?order_type=rx or ?order_type=non_rx to get the right
-// suggestion for that type (e.g. last Rx order was "2025-RX-0944" ->
-// suggests "2025-RX-0945"; a fresh year or a type with no orders yet
-// suggests "<year>-RX-0001" / "<year>-NRX-0001").
+//   Rx      : YYYY-NNNN        (e.g. "2025-0001")       -- resets YEARLY
+//   Non-Rx  : YYYY-MM-NNNN     (e.g. "2025-01-0001")    -- resets MONTHLY
+//
+// Each type's counter is independent of the other. Call with
+// ?order_type=rx or ?order_type=non_rx to get the right suggestion.
 //
 // Purely a suggestion -- the order form field stays editable, and
 // nothing here reserves or locks the number.
@@ -14,25 +14,20 @@
 const { requireAuth } = require('./_auth');
 const { supabaseRequest } = require('./_supabase');
 
-const TYPE_TOKENS = { rx: 'RX', non_rx: 'NRX' };
+const RX_RE = /^(\d{4})-(\d{4,})$/;
+const NON_RX_RE = /^(\d{4})-(\d{2})-(\d{4,})$/;
 
-function buildOrderNoRegex(token) {
-  // e.g. ^(\d{4})-RX-(\d{4,})$
-  return new RegExp(`^(\\d{4})-${token}-(\\d{4,})$`);
-}
-
-function suggestNext(existingOrderNos, currentYear, token) {
-  const re = buildOrderNoRegex(token);
+function suggestNextRx(existingOrderNos, currentYear) {
   let maxCounter = 0;
   let widestPadding = 4;
 
   for (const orderNo of existingOrderNos) {
     const trimmed = (orderNo || '').trim();
-    const match = trimmed.match(re);
-    if (!match) continue; // skip anything not matching this type's YEAR-TOKEN-NNNN form
+    const match = trimmed.match(RX_RE);
+    if (!match) continue; // skip anything not in plain YEAR-NNNN form (e.g. old Non-Rx or legacy entries)
 
     const [, year, counterStr] = match;
-    if (year !== String(currentYear)) continue; // only this year's orders count toward the counter
+    if (year !== String(currentYear)) continue; // only this year's Rx orders count
 
     const counterValue = parseInt(counterStr, 10);
     if (counterValue > maxCounter) {
@@ -42,7 +37,31 @@ function suggestNext(existingOrderNos, currentYear, token) {
   }
 
   const next = maxCounter + 1;
-  return `${currentYear}-${token}-${String(next).padStart(widestPadding, '0')}`;
+  return `${currentYear}-${String(next).padStart(widestPadding, '0')}`;
+}
+
+function suggestNextNonRx(existingOrderNos, currentYear, currentMonth) {
+  let maxCounter = 0;
+  let widestPadding = 4;
+  const monthStr = String(currentMonth).padStart(2, '0');
+
+  for (const orderNo of existingOrderNos) {
+    const trimmed = (orderNo || '').trim();
+    const match = trimmed.match(NON_RX_RE);
+    if (!match) continue; // skip anything not in YEAR-MM-NNNN form
+
+    const [, year, month, counterStr] = match;
+    if (year !== String(currentYear) || month !== monthStr) continue; // only this year+month's Non-Rx orders count
+
+    const counterValue = parseInt(counterStr, 10);
+    if (counterValue > maxCounter) {
+      maxCounter = counterValue;
+      widestPadding = counterStr.length;
+    }
+  }
+
+  const next = maxCounter + 1;
+  return `${currentYear}-${monthStr}-${String(next).padStart(widestPadding, '0')}`;
 }
 
 module.exports = async (req, res) => {
@@ -62,20 +81,27 @@ module.exports = async (req, res) => {
   if (!requireAuth(req, res)) return;
 
   const { order_type } = req.query || {};
-  const token = TYPE_TOKENS[order_type];
-
-  if (!token) {
+  if (order_type !== 'rx' && order_type !== 'non_rx') {
     res.status(400).json({ ok: false, error: 'order_type must be "rx" or "non_rx".' });
     return;
   }
 
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // JS months are 0-indexed
 
   try {
-    // Filter server-side to this year + this type's prefix, so the
-    // counter is correct even with many historical orders across years
-    // and types -- we only ever need this year+type's rows.
-    const prefix = encodeURIComponent(`${currentYear}-${token}-%`);
+    let prefix, rows;
+
+    if (order_type === 'rx') {
+      // Rx resets yearly -- filter to this year's plain YEAR-NNNN entries.
+      prefix = encodeURIComponent(`${currentYear}-%`);
+    } else {
+      // Non-Rx resets monthly -- filter to this year+month's entries.
+      const monthStr = String(currentMonth).padStart(2, '0');
+      prefix = encodeURIComponent(`${currentYear}-${monthStr}-%`);
+    }
+
     const resp = await supabaseRequest(
       `orders?select=order_no&order_no=ilike.${prefix}&order=order_no.desc&limit=500`,
       { method: 'GET' }
@@ -88,8 +114,13 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const rows = await resp.json();
-    const suggestion = suggestNext(rows.map(r => r.order_no), currentYear, token);
+    rows = await resp.json();
+    const orderNos = rows.map(r => r.order_no);
+
+    const suggestion = order_type === 'rx'
+      ? suggestNextRx(orderNos, currentYear)
+      : suggestNextNonRx(orderNos, currentYear, currentMonth);
+
     res.status(200).json({ ok: true, suggestion });
   } catch (err) {
     console.error('Unexpected error suggesting next order number:', err);

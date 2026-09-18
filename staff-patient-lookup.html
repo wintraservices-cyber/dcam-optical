@@ -217,6 +217,7 @@
   </div>
   <div class="actions">
     <a href="staff-orders.html" class="btn-light">All orders</a>
+    <a href="staff-catalog.html" class="btn-light">Catalog</a>
     <a href="order-form.html" class="btn-light">New order</a>
     <button class="btn-ghost" id="logoutBtn">Log out</button>
   </div>
@@ -241,6 +242,18 @@
 
   function escapeHtml(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function itemsSummary(order) {
+    const items = Array.isArray(order.order_items) ? order.order_items : [];
+    if (items.length > 1) {
+      const names = items.map(i => i.item_name).filter(Boolean).join(', ');
+      return `Items: ${escapeHtml(names)}`;
+    }
+    if (items.length === 1) {
+      return `Item: ${escapeHtml(items[0].item_name || '')}`;
+    }
+    return order.item_name ? `Item: ${escapeHtml(order.item_name)}` : '';
   }
 
   async function checkAuth() {
@@ -325,7 +338,7 @@
             <div class="primary">Order #${escapeHtml(o.order_no)}<span class="status-pill ${o.order_type === 'non_rx' ? 'ordered' : 'ready'}" style="opacity:0.85;">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><span class="status-pill ${escapeHtml(o.status)}">${escapeHtml(o.status)}</span></div>
             <div class="date-badge">${formatDate(o.created_at)}</div>
             <div class="secondary">${o.order_type === 'non_rx'
-              ? (o.item_name ? 'Item: ' + escapeHtml(o.item_name) : '') + (o.item_qty ? ' · Qty: ' + escapeHtml(o.item_qty) : '')
+              ? itemsSummary(o)
               : (o.frame ? 'Frame: ' + escapeHtml(o.frame) : '') + (o.lens_type ? ' · ' + escapeHtml(o.lens_type) : '')
             }${o.balance ? ' · Balance: ₱' + escapeHtml(o.balance) : ''}</div>
             <div class="payment-row">

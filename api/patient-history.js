@@ -57,7 +57,7 @@ module.exports = async (req, res) => {
         { method: 'GET' }
       ),
       supabaseRequest(
-        `orders?patient_id=eq.${encodeURIComponent(patient.id)}&order=created_at.desc`,
+        `orders?select=*,order_items(*)&patient_id=eq.${encodeURIComponent(patient.id)}&order=created_at.desc`,
         { method: 'GET' }
       ),
     ]);

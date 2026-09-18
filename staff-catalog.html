@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catalog — DCAM Optical (Staff)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #B05A9E;
+    --purple-deep: #8F4680;
+    --blue: #5BAFC0;
+    --blue-deep: #458F9E;
+    --ivory: #F7F1E8;
+    --ivory-dim: #EFE6D8;
+    --charcoal: #383334;
+    --charcoal-soft: #4A4547;
+    --line: rgba(56,51,52,0.14);
+    --display: 'Plus Jakarta Sans', sans-serif;
+    --body: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--charcoal); font-family: var(--body); }
+
+  .staff-bar {
+    background: var(--charcoal);
+    color: var(--ivory);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .staff-bar .tag {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .staff-bar .actions { display: flex; gap: 10px; }
+  .staff-bar a, .staff-bar button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-light { background: var(--ivory); color: var(--charcoal); }
+  .btn-ghost { background: transparent; color: var(--ivory); border: 1px solid rgba(247,241,232,0.35) !important; }
+  .btn-primary { background: var(--purple); color: var(--ivory); }
+
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tabs button {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 20px;
+    border-radius: 100px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--charcoal-soft);
+    cursor: pointer;
+  }
+  .tabs button.active { background: var(--purple); color: var(--ivory); border-color: var(--purple); }
+
+  .panel {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-family: var(--display);
+    font-size: 1rem;
+    margin-bottom: 14px;
+  }
+
+  .add-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr 1.5fr auto;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 6px;
+  }
+  .add-row label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    margin-bottom: 4px;
+  }
+  .add-row input {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.9rem;
+  }
+  .add-row input:focus { outline: none; border-color: var(--purple); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+  th { font-family: var(--display); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); }
+  td input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-family: var(--body);
+    font-size: 0.88rem;
+    background: transparent;
+  }
+  td input:hover { border-color: var(--line); }
+  td input:focus { outline: none; border-color: var(--purple); background: #fff; }
+
+  .row-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.78rem;
+  }
+  .icon-btn.save { color: var(--blue-deep); }
+  .icon-btn.delete { color: #B0475A; }
+  .icon-btn.toggle { color: var(--charcoal-soft); }
+  .icon-btn:hover { background: var(--ivory-dim); }
+
+  .inactive-row { opacity: 0.45; }
+
+  .empty-state, .loading-state {
+    text-align: center;
+    padding: 30px;
+    color: var(--charcoal-soft);
+    font-size: 0.9rem;
+  }
+
+  .save-hint {
+    font-size: 0.75rem;
+    color: var(--charcoal-soft);
+    margin-top: 4px;
+  }
+
+  @media (max-width: 700px) {
+    .add-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="staff-bar">
+  <div class="tag">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    Staff only — catalog
+  </div>
+  <div class="actions">
+    <a href="staff-orders.html" class="btn-light">Orders</a>
+    <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
+    <a href="order-form.html" class="btn-light">New order</a>
+    <button class="btn-ghost" id="logoutBtn">Log out</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="active" data-category="lens">Lenses</button>
+    <button data-category="frame">Frames</button>
+  </div>
+
+  <div class="panel">
+    <h2 id="addTitle">Add a new lens</h2>
+    <div class="add-row">
+      <div>
+        <label>Code</label>
+        <input type="text" id="newCode" placeholder="e.g. LNS-001">
+      </div>
+      <div>
+        <label>Name</label>
+        <input type="text" id="newName" placeholder="e.g. Anti-reflective coated, 1.56 index">
+      </div>
+      <div>
+        <label>Price</label>
+        <input type="text" id="newPrice" placeholder="e.g. 1500">
+      </div>
+      <div>
+        <label>Notes (optional)</label>
+        <input type="text" id="newNotes" placeholder="Any extra detail">
+      </div>
+      <div>
+        <button class="btn-primary" id="addBtn" style="width:100%;">Add</button>
+      </div>
+    </div>
+    <div class="save-hint">Price auto-fills into the order form when staff pick this item. Currency is assumed to match what staff already enter elsewhere.</div>
+  </div>
+
+  <div class="panel">
+    <h2 id="listTitle">Lenses</h2>
+    <div id="content"><div class="loading-state">Loading catalog…</div></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const content = document.getElementById('content');
+  const addTitle = document.getElementById('addTitle');
+  const listTitle = document.getElementById('listTitle');
+  const tabButtons = document.querySelectorAll('.tabs button');
+  const newCode = document.getElementById('newCode');
+  const newName = document.getElementById('newName');
+  const newPrice = document.getElementById('newPrice');
+  const newNotes = document.getElementById('newNotes');
+  const addBtn = document.getElementById('addBtn');
+
+  let currentCategory = 'lens';
+  let items = [];
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  async function checkAuth() {
+    try {
+      const resp = await fetch('/api/auth-check');
+      const result = await resp.json();
+      if (!result.authenticated) {
+        window.location.href = 'staff-login.html?next=staff-catalog.html';
+      }
+    } catch (e) {
+      window.location.href = 'staff-login.html?next=staff-catalog.html';
+    }
+  }
+
+  function setCategory(cat) {
+    currentCategory = cat;
+    tabButtons.forEach(b => b.classList.toggle('active', b.dataset.category === cat));
+    const label = cat === 'lens' ? 'lens' : 'frame';
+    addTitle.textContent = `Add a new ${label}`;
+    listTitle.textContent = cat === 'lens' ? 'Lenses' : 'Frames';
+    loadItems();
+  }
+
+  async function loadItems() {
+    content.innerHTML = '<div class="loading-state">Loading catalog…</div>';
+    try {
+      const resp = await fetch(`/api/catalog?category=${currentCategory}`);
+      const result = await resp.json();
+      if (!result.ok) throw new Error(result.error || 'Failed to load');
+      items = result.items || [];
+      renderItems();
+    } catch (e) {
+      content.innerHTML = '<div class="empty-state">Could not load the catalog. Try refreshing.</div>';
+    }
+  }
+
+  function renderItems() {
+    if (items.length === 0) {
+      content.innerHTML = `<div class="empty-state">No ${currentCategory === 'lens' ? 'lenses' : 'frames'} yet — add one above.</div>`;
+      return;
+    }
+    content.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Code</th><th>Name</th><th>Price</th><th>Notes</th><th></th></tr>
+        </thead>
+        <tbody>
+          ${items.map(item => `
+            <tr data-id="${item.id}" class="${item.active === false ? 'inactive-row' : ''}">
+              <td><input type="text" data-field="code" value="${escapeHtml(item.code)}"></td>
+              <td><input type="text" data-field="name" value="${escapeHtml(item.name)}"></td>
+              <td><input type="text" data-field="price" value="${escapeHtml(item.price)}"></td>
+              <td><input type="text" data-field="notes" value="${escapeHtml(item.notes)}"></td>
+              <td>
+                <div class="row-actions">
+                  <button class="icon-btn save" data-action="save">Save</button>
+                  <button class="icon-btn toggle" data-action="toggle">${item.active === false ? 'Activate' : 'Deactivate'}</button>
+                  <button class="icon-btn delete" data-action="delete">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  content.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const row = btn.closest('tr');
+    const id = row.dataset.id;
+    const action = btn.dataset.action;
+
+    if (action === 'save') {
+      const patch = { id };
+      row.querySelectorAll('input[data-field]').forEach(input => {
+        patch[input.dataset.field] = input.value;
+      });
+      btn.textContent = 'Saving…';
+      try {
+        const resp = await fetch('/api/catalog', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+        });
+        const result = await resp.json();
+        if (!result.ok) throw new Error(result.error);
+        btn.textContent = 'Saved';
+        setTimeout(() => { btn.textContent = 'Save'; }, 1200);
+      } catch (err) {
+        alert('Could not save: ' + err.message);
+        btn.textContent = 'Save';
+      }
+    }
+
+    if (action === 'toggle') {
+      const item = items.find(i => i.id === id);
+      const nextActive = item && item.active === false ? true : false;
+      try {
+        const resp = await fetch('/api/catalog', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, active: nextActive }),
+        });
+        const result = await resp.json();
+        if (!result.ok) throw new Error(result.error);
+        loadItems();
+      } catch (err) {
+        alert('Could not update: ' + err.message);
+      }
+    }
+
+    if (action === 'delete') {
+      if (!confirm('Delete this item permanently? This cannot be undone.')) return;
+      try {
+        const resp = await fetch(`/api/catalog?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const result = await resp.json();
+        if (!result.ok) throw new Error(result.error);
+        loadItems();
+      } catch (err) {
+        alert('Could not delete: ' + err.message);
+      }
+    }
+  });
+
+  addBtn.addEventListener('click', async () => {
+    const name = newName.value.trim();
+    if (!name) {
+      alert('Name is required.');
+      return;
+    }
+    addBtn.textContent = 'Adding…';
+    addBtn.disabled = true;
+    try {
+      const resp = await fetch('/api/catalog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: currentCategory,
+          code: newCode.value.trim(),
+          name,
+          price: newPrice.value.trim(),
+          notes: newNotes.value.trim(),
+        }),
+      });
+      const result = await resp.json();
+      if (!result.ok) throw new Error(result.error);
+      newCode.value = '';
+      newName.value = '';
+      newPrice.value = '';
+      newNotes.value = '';
+      loadItems();
+    } catch (err) {
+      alert('Could not add: ' + err.message);
+    } finally {
+      addBtn.textContent = 'Add';
+      addBtn.disabled = false;
+    }
+  });
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => setCategory(btn.dataset.category));
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    try { await fetch('/api/staff-logout', { method: 'POST' }); } catch (e) {}
+    window.location.href = 'staff-login.html';
+  });
+
+  checkAuth();
+  loadItems();
+})();
+</script>
+</body>
+</html>

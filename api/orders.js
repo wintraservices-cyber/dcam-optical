@@ -56,6 +56,28 @@ function isValidRxSubtype(subtype) {
   return ['CMRX', 'L/O', 'F/O'].includes(subtype);
 }
 
+const ITEM_FIELD_LIMITS = {
+  item_name: 200,
+  item_qty: 10,
+  item_unit_price: 20,
+  item_line_total: 20,
+};
+
+function sanitizeItems(rawItems) {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') return null;
+      const cleaned = {};
+      for (const [key, maxLen] of Object.entries(ITEM_FIELD_LIMITS)) {
+        cleaned[key] = sanitize(item[key], maxLen);
+      }
+      cleaned.sort_order = index;
+      return cleaned;
+    })
+    .filter(item => item && item.item_name); // drop empty rows (no name entered)
+}
+
 async function createOrder(req, res) {
   let body = req.body;
   if (typeof body === 'string') {
@@ -102,6 +124,8 @@ async function createOrder(req, res) {
     record.patient_id = null;
   }
 
+  const items = sanitizeItems(body.items);
+
   try {
     const resp = await supabaseRequest('orders', {
       method: 'POST',
@@ -117,6 +141,32 @@ async function createOrder(req, res) {
     }
 
     const [saved] = await resp.json();
+
+    // Write multi-item rows (Non-Rx orders with more than one product)
+    // as a second insert, linked to the order that just saved. If this
+    // fails, the order itself is already saved -- we log the error but
+    // still return success for the order, since losing line items is
+    // recoverable (staff can be told to re-add them) while losing the
+    // whole order is not.
+    if (items.length > 0 && saved && saved.id) {
+      const itemRows = items.map(item => ({ ...item, order_id: saved.id }));
+      try {
+        const itemsResp = await supabaseRequest('order_items', {
+          method: 'POST',
+          headers: { Prefer: 'return=representation' },
+          body: JSON.stringify(itemRows),
+        });
+        if (!itemsResp.ok) {
+          const errText = await itemsResp.text();
+          console.error('Supabase order_items insert error:', itemsResp.status, errText);
+        } else {
+          saved.items = await itemsResp.json();
+        }
+      } catch (itemsErr) {
+        console.error('Unexpected error saving order items:', itemsErr);
+      }
+    }
+
     res.status(200).json({ ok: true, order: saved });
   } catch (err) {
     console.error('Unexpected error creating order:', err);
@@ -127,7 +177,10 @@ async function createOrder(req, res) {
 async function listOrders(req, res) {
   const { q, status } = req.query || {};
 
-  let path = 'orders?order=created_at.desc&limit=100';
+  // order_items(*) embeds each order's line items in the same query,
+  // using PostgREST's resource-embedding (a join via the order_items.order_id
+  // foreign key) -- avoids a separate round-trip per order.
+  let path = 'orders?select=*,order_items(*)&order=created_at.desc&limit=100';
 
   if (status && isValidStatus(status)) {
     path += `&status=eq.${encodeURIComponent(status)}`;

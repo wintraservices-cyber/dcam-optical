@@ -110,14 +110,35 @@ sunglasses, reading glasses off a rack, frame-only sales, repairs).
 
 - **Rx Order** (default): the full Rx grid (SPH/CYL/AXIS/etc.), lens
   material, Add/Seg Ht/PD — unchanged from the original job-order form.
-- **Non-Rx Order**: replaces the Rx grid with item name, quantity, unit
-  price, and an auto-calculated line total (which also flows into the
-  shared Amount field). No prescription fields shown or required.
+- **Non-Rx Order**: replaces the Rx grid with a **repeatable item
+  list** — one order can hold multiple products (e.g. nosepads + lens
+  solution + a chain), each with its own name, quantity, unit price, and
+  auto-calculated line total. An "+ Add item" button adds more rows, each
+  with a remove (×) button; at least one row always stays on screen. A
+  running "Order total (items)" sums every row and mirrors into the
+  shared Amount field (still editable/overridable). No prescription
+  fields shown or required.
 
-Both share the same order number, patient name, date, frame, and
-amount/deposit/balance fields, and both save to the same `orders` table
-with an `order_type` column (`rx` or `non_rx`) so the orders list and
-patient lookup can distinguish them — shown as a small "Rx" / "Non-Rx" tag
+Multi-item orders are stored in their own `order_items` table (one row
+per item, linked to the parent order), rather than crammed into columns
+on the `orders` table — see "Multi-item orders" below for the schema and
+API details.
+
+**Layout also changes with the toggle.** Rx orders keep the original
+two-column slip: a job order on the left, a matching claim stub on the
+right (with the "not claimed within 60 days" forfeiture notice) — this
+makes sense for a fabrication job the patient picks up later. Non-Rx
+orders drop the claim stub entirely and collapse to a **single full-width
+receipt-style layout**, since a straightforward retail sale (nosepads,
+lens solution, sunglasses off the rack) has nothing to "claim" — the
+patient takes it home immediately. The shared Amount/Deposit/Balance and
+Payment status fields live on the order side now (not inside the claim
+stub), so they're present and identical in both layouts.
+
+Both order types share the same order number, patient name, date, frame,
+and amount/deposit/balance fields, and both save to the same `orders`
+table with an `order_type` column (`rx` or `non_rx`) so the orders list
+and patient lookup can distinguish them — shown as a small "Rx" / "Non-Rx" tag
 next to the order number.
 
 ### Rx job sub-type (CMRX / L/O / F/O)
@@ -146,22 +167,68 @@ The order form no longer relies purely on manual typing for two fields:
   that patient's record — arrow keys + Enter work, as does mouse click.
   If nothing matches, staff just keep typing a new name as before;
   nothing blocks manual entry.
-- **Job Order #**: format is **`YEAR-TYPE-NNNN`** — `2025-RX-0001` for Rx
-  orders, `2025-NRX-0001` for Non-Rx orders. **Rx and Non-Rx each have
-  their own independent counter**, both resetting to `0001` at the start
-  of each new year. On page load (and whenever the Rx/Non-Rx toggle is
-  switched), `api/next-order-number.js` looks at the highest existing
-  counter **for the current year and selected type only** and pre-fills
-  the next one — e.g. if the last Rx order this year was `2025-RX-0944`,
-  it suggests `2025-RX-0945`, regardless of how many Non-Rx orders exist
-  in between. Switching the toggle re-fetches the right sequence's next
-  number (unless staff have already typed a custom value, which is always
-  respected and never overwritten). This is a **suggestion only** —
-  nothing is reserved or locked.
+- **Job Order #**: Rx and Non-Rx use **different formats with different
+  reset periods**:
+  - **Rx**: `YYYY-NNNN` (e.g. `2025-0001`) — counter resets **yearly**.
+  - **Non-Rx**: `YYYY-MM-NNNN` (e.g. `2025-01-0001`) — counter resets
+    **monthly**. February's Non-Rx orders start back at `2025-02-0001`
+    regardless of how high January's counter reached.
+
+  The two counters are fully independent of each other — Rx orders never
+  affect the Non-Rx sequence and vice versa, and the formats are
+  distinguishable by structure alone (no letter prefix needed: Non-Rx
+  always has the extra `-MM-` segment Rx doesn't).
+
+  On page load (and whenever the Rx/Non-Rx toggle is switched),
+  `api/next-order-number.js` looks at the highest existing counter for
+  the current period (year for Rx, year+month for Non-Rx) and pre-fills
+  the next one. Switching the toggle re-fetches the right sequence's next
+  number (unless staff have already typed a custom value, which is
+  always respected and never overwritten). This is a **suggestion
+  only** — nothing is reserved or locked.
 
 Both fail silently and safely if their endpoint is unreachable (e.g.
 Supabase misconfigured) — the form still works exactly as a plain manual
 entry form in that case, just without the assist.
+
+## Multi-item orders (order_items table)
+
+Non-Rx orders can hold more than one line item under a single order
+number — like a receipt with several products. This is stored as a
+separate `order_items` table rather than extra columns on `orders`:
+
+```sql
+order_items
+  id            uuid (primary key)
+  order_id      uuid (references orders.id, on delete cascade)
+  item_name     text
+  item_qty      text
+  item_unit_price   text
+  item_line_total   text
+  sort_order    integer   -- preserves the order rows were entered in
+  created_at    timestamptz
+```
+
+- **Saving**: `api/orders.js`'s `createOrder` accepts an `items` array in
+  the request body. It saves the parent order first, then inserts all
+  item rows in one batch, linked by the new order's id. If the item
+  insert fails after the order already saved, the order save still
+  succeeds (the error is logged server-side) — losing line items is
+  recoverable, losing the whole order isn't.
+- **Reading**: both `api/orders.js`'s `listOrders` and
+  `api/patient-history.js` embed `order_items(*)` directly in their
+  Supabase queries (PostgREST resource-embedding via the `order_id`
+  foreign key), so items come back in the same call — no extra
+  round-trips per order.
+- **Backward compatibility**: the original single-item columns
+  (`item_name`, `item_qty`, `item_unit_price`, `item_line_total`) still
+  exist directly on `orders` and are populated from the *first* item for
+  anything that only reads those columns. Orders saved before this
+  feature existed still display correctly — the staff views fall back to
+  those columns when `order_items` is empty.
+- **Display**: `staff-orders.html` shows a compact summary ("Nosepads +2
+  more") in the orders list; `staff-patient-lookup.html` shows the full
+  comma-separated item list in a patient's order history.
 
 ## Payment status (Paid / Unpaid)
 

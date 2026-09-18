@@ -128,8 +128,60 @@ create index if not exists orders_patient_id_idx on orders (patient_id);
 
 alter table orders enable row level security;
 
--- Row Level Security is enabled on all three tables but with no
+-- ---------------------------------------------------------------------
+-- Order items: multiple line items per Non-Rx order (e.g. nosepads +
+-- lens solution + a chain, all on one order number/receipt). The four
+-- item_* columns on the orders table above remain for backward
+-- compatibility with single-item orders saved before this table
+-- existed; new Non-Rx orders with more than one item store their rows
+-- here instead, keyed by order_id.
+-- ---------------------------------------------------------------------
+create table if not exists order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+
+  item_name text not null,
+  item_qty text,
+  item_unit_price text,
+  item_line_total text,
+
+  sort_order integer not null default 0,
+
+  created_at timestamptz not null default now()
+);
+
+create index if not exists order_items_order_id_idx on order_items (order_id);
+
+alter table order_items enable row level security;
+
+-- Row Level Security is enabled on all four tables but with no
 -- policies defined. All access goes through serverless functions using
 -- the Supabase service role key, which bypasses RLS by design. This
 -- just ensures the anon/public API key -- if ever exposed by mistake --
 -- can't read or write these tables directly.
+
+
+-- ---------------------------------------------------------------------
+-- Catalog items: staff-managed list of lenses and frames, each with its
+-- own code, name, and price. Powers the dropdowns on the order form
+-- (frame + lens type) so staff pick from a maintained list instead of
+-- typing free text, and the price can auto-fill into the order.
+-- Fully staff-editable via the staff-catalog.html admin page.
+-- ---------------------------------------------------------------------
+create table if not exists catalog_items (
+  id uuid primary key default gen_random_uuid(),
+  category text not null check (category in ('lens', 'frame')),
+  code text,
+  name text not null,
+  price text,
+  notes text,
+  active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists catalog_items_category_idx on catalog_items (category);
+create index if not exists catalog_items_active_idx on catalog_items (active);
+
+alter table catalog_items enable row level security;
