@@ -261,6 +261,120 @@
   }
   .patient-meta strong { color: var(--charcoal); font-weight: 600; }
 
+  .patient-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .edit-patient-btn {
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: var(--purple-deep);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .edit-patient-btn:hover { background: var(--ivory-dim); }
+
+  .edit-patient-form {
+    display: none;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .edit-patient-form.open { display: block; }
+  .edit-patient-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .edit-patient-grid label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    margin-bottom: 4px;
+  }
+  .edit-patient-grid input {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    padding: 9px 11px;
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.88rem;
+  }
+  .edit-patient-grid input:focus { outline: none; border-color: var(--blue); }
+  .edit-patient-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .edit-patient-save {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: none;
+    background: var(--purple);
+    color: var(--ivory);
+    cursor: pointer;
+  }
+  .edit-patient-status { font-size: 0.8rem; }
+  .edit-patient-status.error { color: #B0405A; }
+  .edit-patient-status.success { color: #3E8E5A; }
+
+  .move-record-btn {
+    background: none;
+    border: none;
+    color: var(--purple-deep);
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.72rem;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 10px;
+    text-decoration: underline;
+  }
+  .move-record-panel {
+    display: none;
+    margin-top: 8px;
+    background: var(--ivory-dim);
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .move-record-panel.open { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .move-record-panel input {
+    flex: 1;
+    min-width: 160px;
+    padding: 6px 9px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-family: var(--body);
+    font-size: 0.82rem;
+  }
+  .move-record-save {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.76rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    background: var(--purple);
+    color: var(--ivory);
+    cursor: pointer;
+  }
+  .move-record-status { font-size: 0.76rem; }
+  .move-record-status.error { color: #B0405A; }
+  .move-record-status.success { color: #3E8E5A; }
+
   .history-section { margin-bottom: 28px; }
   .history-section h3 {
     font-family: var(--display);
@@ -298,6 +412,39 @@
     font-size: 0.75rem;
     color: var(--charcoal-soft);
     white-space: nowrap;
+  }
+
+  .rx-spec-table {
+    grid-column: 1 / -1;
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 0.8rem;
+  }
+  .rx-spec-table th, .rx-spec-table td {
+    text-align: center;
+    padding: 5px 8px;
+    border: 1px solid var(--line);
+  }
+  .rx-spec-table th {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--charcoal-soft);
+    background: var(--ivory-dim);
+  }
+  .rx-spec-table td:first-child, .rx-spec-table th:first-child {
+    text-align: left;
+    font-weight: 600;
+    color: var(--charcoal);
+  }
+  .rx-spec-meta {
+    grid-column: 1 / -1;
+    font-size: 0.78rem;
+    color: var(--charcoal-soft);
+    margin-top: 4px;
   }
   .status-pill {
     display: inline-block;
@@ -612,10 +759,49 @@
                 <option value="unpaid" ${i.payment_status !== 'paid' ? 'selected' : ''}>Unpaid</option>
                 <option value="paid" ${i.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
               </select>
+              <button type="button" class="move-record-btn" data-kind="intake" data-id="${i.id}">Move to different patient</button>
+            </div>
+            <div class="move-record-panel" id="movePanel-intake-${i.id}">
+              <input type="text" class="move-target-input" placeholder="New patient's phone number">
+              <button type="button" class="move-record-save" data-kind="intake" data-id="${i.id}">Move</button>
+              <span class="move-record-status"></span>
             </div>
           </div>
         `).join('')
       : '<p class="empty-sub">No intake requests on file.</p>';
+
+    function rxSpecTable(o) {
+      // Only meaningful for Rx orders, and only worth showing if at
+      // least one spec field was actually filled in -- an Rx order
+      // saved with an empty grid (e.g. a frame-only job) shouldn't
+      // render a table of blank dashes.
+      const hasAnySpec = [
+        o.rx_r_sph, o.rx_r_cyl, o.rx_r_axis, o.rx_r_prism, o.rx_r_base,
+        o.rx_l_sph, o.rx_l_cyl, o.rx_l_axis, o.rx_l_prism, o.rx_l_base,
+      ].some(v => v);
+      if (!hasAnySpec) return '';
+
+      const cell = (v) => escapeHtml(v) || '—';
+      const rows = `
+        <tr><th>Eye</th><th>SPH</th><th>CYL</th><th>AXIS</th><th>PRISM</th><th>BASE</th>${(o.add_r || o.add_l) ? '<th>ADD</th>' : ''}${(o.seg_ht_r || o.seg_ht_l) ? '<th>Seg Ht</th>' : ''}</tr>
+        <tr><td>OD (R)</td><td>${cell(o.rx_r_sph)}</td><td>${cell(o.rx_r_cyl)}</td><td>${cell(o.rx_r_axis)}</td><td>${cell(o.rx_r_prism)}</td><td>${cell(o.rx_r_base)}</td>${(o.add_r || o.add_l) ? `<td>${cell(o.add_r)}</td>` : ''}${(o.seg_ht_r || o.seg_ht_l) ? `<td>${cell(o.seg_ht_r)}</td>` : ''}</tr>
+        <tr><td>OS (L)</td><td>${cell(o.rx_l_sph)}</td><td>${cell(o.rx_l_cyl)}</td><td>${cell(o.rx_l_axis)}</td><td>${cell(o.rx_l_prism)}</td><td>${cell(o.rx_l_base)}</td>${(o.add_r || o.add_l) ? `<td>${cell(o.add_l)}</td>` : ''}${(o.seg_ht_r || o.seg_ht_l) ? `<td>${cell(o.seg_ht_l)}</td>` : ''}</tr>
+      `;
+
+      const pdText = o.pd_mode === 'single'
+        ? (o.pd_r ? `PD: ${escapeHtml(o.pd_r)}` : '')
+        : ((o.pd_r || o.pd_l) ? `PD: R ${escapeHtml(o.pd_r) || '—'} / L ${escapeHtml(o.pd_l) || '—'}` : '');
+      const metaParts = [
+        o.lens_type ? `Lens type: ${escapeHtml(o.lens_type)}` : '',
+        o.lens_material ? `Material: ${escapeHtml(o.lens_material)}` : '',
+        pdText,
+      ].filter(Boolean).join(' · ');
+
+      return `
+        <table class="rx-spec-table"><tbody>${rows}</tbody></table>
+        ${metaParts ? `<div class="rx-spec-meta">${metaParts}</div>` : ''}
+      `;
+    }
 
     const ordersHtml = orders.length
       ? orders.map(o => `
@@ -626,12 +812,19 @@
               ? itemsSummary(o)
               : (o.frame ? 'Frame: ' + escapeHtml(o.frame) : '') + (o.lens_type ? ' · ' + escapeHtml(o.lens_type) : '')
             }${o.balance ? ' · Balance: ₱' + escapeHtml(o.balance) : ''}</div>
+            ${o.order_type !== 'non_rx' ? rxSpecTable(o) : ''}
             <div class="payment-row">
               <span class="payment-row-label">Payment:</span>
               <select class="payment-select" data-kind="order" data-id="${o.id}">
                 <option value="unpaid" ${o.payment_status !== 'paid' ? 'selected' : ''}>Unpaid</option>
                 <option value="paid" ${o.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
               </select>
+              <button type="button" class="move-record-btn" data-kind="order" data-id="${o.id}">Move to different patient</button>
+            </div>
+            <div class="move-record-panel" id="movePanel-order-${o.id}">
+              <input type="text" class="move-target-input" placeholder="New patient's phone number">
+              <button type="button" class="move-record-save" data-kind="order" data-id="${o.id}">Move</button>
+              <span class="move-record-status"></span>
             </div>
           </div>
         `).join('')
@@ -639,11 +832,36 @@
 
     content.innerHTML = `
       <div class="patient-card">
-        <h2>${escapeHtml(patient.name)}</h2>
-        <div class="patient-meta">
-          <span><strong>Phone:</strong> ${escapeHtml(patient.phone)}</span>
-          ${patient.email ? `<span><strong>Email:</strong> ${escapeHtml(patient.email)}</span>` : ''}
-          <span><strong>Patient since:</strong> ${formatDate(patient.created_at)}</span>
+        <div class="patient-card-header">
+          <div>
+            <h2>${escapeHtml(patient.name)}</h2>
+            <div class="patient-meta">
+              <span><strong>Phone:</strong> ${escapeHtml(patient.phone)}</span>
+              ${patient.email ? `<span><strong>Email:</strong> ${escapeHtml(patient.email)}</span>` : ''}
+              <span><strong>Patient since:</strong> ${formatDate(patient.created_at)}</span>
+            </div>
+          </div>
+          <button type="button" class="edit-patient-btn" id="editPatientBtn">Edit</button>
+        </div>
+        <div class="edit-patient-form" id="editPatientForm">
+          <div class="edit-patient-grid">
+            <div>
+              <label>Name</label>
+              <input type="text" id="editName" value="${escapeHtml(patient.name)}">
+            </div>
+            <div>
+              <label>Phone</label>
+              <input type="text" id="editPhone" value="${escapeHtml(patient.phone)}">
+            </div>
+            <div>
+              <label>Email</label>
+              <input type="email" id="editEmail" value="${escapeHtml(patient.email || '')}">
+            </div>
+          </div>
+          <div class="edit-patient-actions">
+            <button type="button" class="edit-patient-save" id="editPatientSave">Save changes</button>
+            <span class="edit-patient-status" id="editPatientStatus"></span>
+          </div>
         </div>
       </div>
 
@@ -677,6 +895,120 @@
           alert(err.message || 'Could not update payment status.');
         } finally {
           sel.disabled = false;
+        }
+      });
+    });
+
+    // ---- Edit patient info ----
+    const editBtn = document.getElementById('editPatientBtn');
+    const editForm = document.getElementById('editPatientForm');
+    editBtn.addEventListener('click', () => {
+      editForm.classList.toggle('open');
+    });
+
+    document.getElementById('editPatientSave').addEventListener('click', async () => {
+      const nameEl = document.getElementById('editName');
+      const phoneEl = document.getElementById('editPhone');
+      const emailEl = document.getElementById('editEmail');
+      const statusEl = document.getElementById('editPatientStatus');
+      const saveBtn = document.getElementById('editPatientSave');
+
+      const name = nameEl.value.trim();
+      const phone = phoneEl.value.trim();
+      if (!name || !phone) {
+        statusEl.textContent = 'Name and phone are required.';
+        statusEl.className = 'edit-patient-status error';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      statusEl.textContent = 'Saving…';
+      statusEl.className = 'edit-patient-status';
+
+      try {
+        const resp = await fetch('/api/patients', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: patient.id, name, phone, email: emailEl.value.trim() }),
+        });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save changes.');
+
+        statusEl.textContent = 'Saved.';
+        statusEl.className = 'edit-patient-status success';
+        // Reload this patient's view so the header reflects the update
+        // (a phone change also means future searches use the new number).
+        setTimeout(() => viewPatient(result.patient.phone), 700);
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.className = 'edit-patient-status error';
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+
+    // ---- Move a record (intake or order) to a different patient ----
+    content.querySelectorAll('.move-record-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const kind = btn.getAttribute('data-kind');
+        const id = btn.getAttribute('data-id');
+        const panel = document.getElementById(`movePanel-${kind}-${id}`);
+        if (panel) panel.classList.toggle('open');
+      });
+    });
+
+    content.querySelectorAll('.move-record-save').forEach(saveBtn => {
+      saveBtn.addEventListener('click', async () => {
+        const kind = saveBtn.getAttribute('data-kind');
+        const id = saveBtn.getAttribute('data-id');
+        const panel = document.getElementById(`movePanel-${kind}-${id}`);
+        const targetInput = panel.querySelector('.move-target-input');
+        const statusEl = panel.querySelector('.move-record-status');
+        const targetPhone = targetInput.value.trim();
+
+        if (!targetPhone) {
+          statusEl.textContent = 'Enter the destination phone number.';
+          statusEl.className = 'move-record-status error';
+          return;
+        }
+
+        saveBtn.disabled = true;
+        statusEl.textContent = 'Looking up patient…';
+        statusEl.className = 'move-record-status';
+
+        try {
+          // Resolve the phone number to a patient id first, using the
+          // same search endpoint the rest of this page already uses.
+          const lookupResp = await fetch('/api/patient-search?q=' + encodeURIComponent(targetPhone));
+          const lookupResult = await lookupResp.json();
+          if (!lookupResp.ok || !lookupResult.ok) throw new Error('Could not look up that phone number.');
+          const targetPatient = (lookupResult.patients || []).find(p => p.phone === targetPhone.replace(/[^\d+]/g, ''));
+          if (!targetPatient) {
+            throw new Error('No patient found with that phone number.');
+          }
+          if (targetPatient.id === patient.id) {
+            throw new Error('That is the same patient this record already belongs to.');
+          }
+
+          statusEl.textContent = 'Moving…';
+          const resp = await fetch('/api/reassign-record', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ record_type: kind, record_id: id, new_patient_id: targetPatient.id }),
+          });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not move this record.');
+
+          statusEl.textContent = `Moved to ${targetPatient.name}.`;
+          statusEl.className = 'move-record-status success';
+          // Refresh this patient's view -- the moved record will now be
+          // gone from this list, confirming the move worked.
+          setTimeout(() => viewPatient(patient.phone), 900);
+        } catch (err) {
+          statusEl.textContent = err.message;
+          statusEl.className = 'move-record-status error';
+        } finally {
+          saveBtn.disabled = false;
         }
       });
     });
