@@ -685,6 +685,7 @@
           <label class="subtype-chip"><input type="radio" name="rxSubtype" value="CMRX" checked><span>CMRX <em>(Complete Rx)</em></span></label>
           <label class="subtype-chip"><input type="radio" name="rxSubtype" value="L/O"><span>L/O <em>(Lenses Only)</em></span></label>
           <label class="subtype-chip"><input type="radio" name="rxSubtype" value="F/O"><span>F/O <em>(Frame Only)</em></span></label>
+          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="CL"><span>CL <em>(Contacts)</em></span></label>
         </div>
       </div>
       <table class="grid">
@@ -791,6 +792,7 @@
           <span></span>
         </div>
         <div id="itemRows"></div>
+        <datalist id="itemCatalogList"></datalist>
         <button type="button" class="add-item-btn" id="addItemBtn">+ Add item</button>
         <div class="items-order-total">
           <span>Order total (items)</span>
@@ -814,6 +816,18 @@
         <span class="payment-status-label">Payment status:</span>
         <label class="payment-chip"><input type="radio" name="paymentStatus" value="unpaid" checked><span>Unpaid</span></label>
         <label class="payment-chip"><input type="radio" name="paymentStatus" value="paid"><span>Paid</span></label>
+      </div>
+
+      <div class="payment-status-row">
+        <span class="payment-status-label">Payment method:</span>
+        <label class="payment-chip"><input type="radio" name="paymentMethod" value="cash" checked><span>Cash</span></label>
+        <label class="payment-chip"><input type="radio" name="paymentMethod" value="gcash_cc"><span>GCash/CC</span></label>
+        <label class="payment-chip"><input type="radio" name="paymentMethod" value="split"><span>Split</span></label>
+      </div>
+      <div class="field-row cols-3" id="splitPaymentRow" style="display:none;">
+        <div class="field-inline"><label>Split — Cash ₱</label><input type="text" id="splitCash" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field-inline"><label>Split — GCash/CC ₱</label><input type="text" id="splitGcash" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field-inline"><label>Split total <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(should match payment today)</span></label><input type="text" id="splitTotalDisplay" inputmode="decimal" placeholder="0.00" readonly></div>
       </div>
 
       <div class="sig-row">
@@ -895,6 +909,11 @@
     applyPdMode('split');
     document.querySelector('input[name="rxSubtype"][value="CMRX"]').checked = true;
     document.querySelector('input[name="paymentStatus"][value="unpaid"]').checked = true;
+    document.querySelector('input[name="paymentMethod"][value="cash"]').checked = true;
+    document.getElementById('splitCash').value = '';
+    document.getElementById('splitGcash').value = '';
+    document.getElementById('splitTotalDisplay').value = '';
+    document.getElementById('splitPaymentRow').style.display = 'none';
     balanceManuallyEdited = false;
     orderNoManuallyEdited = false;
     resetItemRows();
@@ -928,6 +947,7 @@
   // unless staff have already typed something into Amount themselves.
   let frameCatalog = [];
   let lensCatalog = [];
+  let allCatalogItems = []; // combined, for the Non-Rx item-row datalist
   let amountManuallyEdited = false;
   const amountFieldForCatalog = document.getElementById('amount');
   if (amountFieldForCatalog) {
@@ -944,8 +964,14 @@
       const lensResult = await lensResp.json();
       frameCatalog = frameResult.ok ? (frameResult.items || []) : [];
       lensCatalog = lensResult.ok ? (lensResult.items || []) : [];
+      allCatalogItems = [...frameCatalog, ...lensCatalog];
       populateDatalist('frameCatalogList', frameCatalog);
       populateDatalist('lensCatalogList', lensCatalog);
+      populateDatalist('itemCatalogList', allCatalogItems);
+      // Non-Rx item rows may already exist (e.g. the default first row
+      // created on page load, before the catalog finished loading) --
+      // wire up catalog matching on those now that data is here.
+      itemRowsContainer.querySelectorAll('.item-row').forEach(wireItemCatalogMatch);
     } catch (e) {
       // Fail silently -- fields just behave as plain free-text inputs
       // if the catalog can't be reached, same as before this feature existed.
@@ -1187,19 +1213,40 @@
   const itemsOrderTotalEl = document.getElementById('itemsOrderTotal');
   let itemRowCounter = 0;
 
+  // Matches an item row's typed name against the combined catalog. On an
+  // exact match, links the row to that catalog item (for stock decrement
+  // on save) and auto-fills price if the price field is still empty --
+  // never overwrites a price staff already typed, since a sale price can
+  // legitimately differ from the catalog's listed price.
+  function wireItemCatalogMatch(row) {
+    const nameEl = row.querySelector('[data-field="name"]');
+    const priceEl = row.querySelector('[data-field="price"]');
+    if (!nameEl) return;
+    nameEl.addEventListener('change', () => {
+      const match = allCatalogItems.find(item => item.name === nameEl.value);
+      row.dataset.catalogItemId = match ? match.id : '';
+      if (match && match.price && priceEl && !priceEl.value) {
+        priceEl.value = match.price;
+        priceEl.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+  }
+
   function createItemRow() {
     const rowId = 'item-row-' + (itemRowCounter++);
     const row = document.createElement('div');
     row.className = 'item-row';
     row.dataset.rowId = rowId;
     row.innerHTML = `
-      <input type="text" class="item-name-field" placeholder="e.g. Nosepads" data-field="name">
+      <input type="text" class="item-name-field" placeholder="e.g. Nosepads" data-field="name" list="itemCatalogList" autocomplete="off">
       <input type="text" class="item-qty-field" inputmode="numeric" placeholder="1" data-field="qty">
       <input type="text" class="item-price-field" inputmode="decimal" placeholder="0.00" data-field="price">
       <input type="text" class="item-total-field item-line-total" inputmode="decimal" placeholder="0.00" data-field="total" readonly>
       <button type="button" class="remove-item-btn" title="Remove item">×</button>
     `;
     itemRowsContainer.appendChild(row);
+    row.dataset.catalogItemId = ''; // set when the name matches a catalog item exactly
+    wireItemCatalogMatch(row);
 
     const qtyEl = row.querySelector('[data-field="qty"]');
     const priceEl = row.querySelector('[data-field="price"]');
@@ -1256,6 +1303,7 @@
         item_qty: row.querySelector('[data-field="qty"]').value.trim(),
         item_unit_price: row.querySelector('[data-field="price"]').value.trim(),
         item_line_total: row.querySelector('[data-field="total"]').value.trim(),
+        catalog_item_id: row.dataset.catalogItemId || null,
       });
     });
     return rows;
@@ -1310,6 +1358,27 @@
   depositInput.addEventListener('input', recalcBalance);
   balanceInput.addEventListener('input', () => { balanceManuallyEdited = true; });
 
+  // ---- Payment method (Cash / GCash-CC / Split) ----
+  const splitPaymentRow = document.getElementById('splitPaymentRow');
+  const splitCashInput = document.getElementById('splitCash');
+  const splitGcashInput = document.getElementById('splitGcash');
+  const splitTotalDisplay = document.getElementById('splitTotalDisplay');
+
+  function recalcSplitTotal() {
+    const cash = parseFloat(splitCashInput.value) || 0;
+    const gcash = parseFloat(splitGcashInput.value) || 0;
+    const total = cash + gcash;
+    splitTotalDisplay.value = total ? total.toFixed(2) : '';
+  }
+  splitCashInput.addEventListener('input', recalcSplitTotal);
+  splitGcashInput.addEventListener('input', recalcSplitTotal);
+
+  document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      splitPaymentRow.style.display = e.target.value === 'split' ? 'grid' : 'none';
+    });
+  });
+
   // ---- Save to database ----
   function val(id) {
     const el = document.getElementById(id);
@@ -1332,6 +1401,9 @@
       deposit: val('deposit'),
       balance: val('balance'),
       payment_status: (document.querySelector('input[name="paymentStatus"]:checked') || {}).value || 'unpaid',
+      payment_method: (document.querySelector('input[name="paymentMethod"]:checked') || {}).value || 'cash',
+      split_cash: val('splitCash'),
+      split_gcash: val('splitGcash'),
       taken_by: val('takenBy'),
     };
 

@@ -164,6 +164,63 @@
     color: var(--charcoal);
   }
 
+  .log-payment-btn {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--purple);
+    background: #fff;
+    color: var(--purple-deep);
+    cursor: pointer;
+    margin-top: 4px;
+    display: inline-block;
+  }
+  .log-payment-btn:hover { background: rgba(176,90,158,0.08); }
+
+  .payment-panel {
+    display: none;
+    background: var(--ivory-dim);
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 8px;
+  }
+  .payment-panel.open { display: block; }
+  .payment-panel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .payment-panel input, .payment-panel select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-family: var(--body);
+    font-size: 0.82rem;
+  }
+  .payment-panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .payment-panel-save {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: none;
+    background: var(--purple);
+    color: var(--ivory);
+    cursor: pointer;
+  }
+  .payment-panel-status { font-size: 0.78rem; }
+  .payment-panel-status.error { color: #B0405A; }
+  .payment-panel-status.success { color: #3E8E5A; }
+
   .empty-state, .loading-state, .error-state {
     text-align: center;
     padding: 60px 20px;
@@ -302,7 +359,28 @@
         <td data-label="Date">${escapeHtml(o.order_date) || '—'}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>
         <td data-label="Item / Frame">${o.order_type === 'non_rx' ? itemsSummary(o) : (escapeHtml(o.frame) || '—')}</td>
-        <td data-label="Balance">${o.balance ? '₱' + escapeHtml(o.balance) : '—'}</td>
+        <td data-label="Balance">
+          ${o.balance ? '₱' + escapeHtml(o.balance) : '—'}
+          ${o.balance && parseFloat(o.balance) > 0 ? `
+            <button type="button" class="log-payment-btn" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">Log payment</button>
+            <div class="payment-panel" id="paymentPanel-${o.id}">
+              <div class="payment-panel-grid">
+                <input type="text" class="pp-amount" placeholder="Amount ₱" inputmode="decimal">
+                <select class="pp-method">
+                  <option value="cash">Cash</option>
+                  <option value="gcash_cc">GCash/CC</option>
+                  <option value="split">Split</option>
+                </select>
+                <input type="text" class="pp-split-cash" placeholder="Split — Cash ₱" inputmode="decimal" style="display:none;">
+                <input type="text" class="pp-split-gcash" placeholder="Split — GCash/CC ₱" inputmode="decimal" style="display:none;">
+              </div>
+              <div class="payment-panel-actions">
+                <button type="button" class="payment-panel-save" data-order-id="${o.id}">Save payment</button>
+                <span class="payment-panel-status"></span>
+              </div>
+            </div>
+          ` : ''}
+        </td>
         <td data-label="Payment">
           <select class="payment-select" data-id="${o.id}">
             <option value="unpaid" ${o.payment_status !== 'paid' ? 'selected' : ''}>Unpaid</option>
@@ -368,6 +446,72 @@
           alert(err.message || 'Could not update status.');
         } finally {
           sel.disabled = false;
+        }
+      });
+    });
+
+    // ---- Balance payment logging ----
+    content.querySelectorAll('.log-payment-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const orderId = btn.getAttribute('data-order-id');
+        const panel = document.getElementById('paymentPanel-' + orderId);
+        if (panel) panel.classList.toggle('open');
+      });
+    });
+
+    content.querySelectorAll('.pp-method').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const grid = sel.closest('.payment-panel-grid');
+        const isSplit = sel.value === 'split';
+        grid.querySelector('.pp-split-cash').style.display = isSplit ? 'block' : 'none';
+        grid.querySelector('.pp-split-gcash').style.display = isSplit ? 'block' : 'none';
+      });
+    });
+
+    content.querySelectorAll('.payment-panel-save').forEach(saveBtn => {
+      saveBtn.addEventListener('click', async () => {
+        const orderId = saveBtn.getAttribute('data-order-id');
+        const panel = document.getElementById('paymentPanel-' + orderId);
+        const amountEl = panel.querySelector('.pp-amount');
+        const methodEl = panel.querySelector('.pp-method');
+        const splitCashEl = panel.querySelector('.pp-split-cash');
+        const splitGcashEl = panel.querySelector('.pp-split-gcash');
+        const statusEl = panel.querySelector('.payment-panel-status');
+
+        const amount = amountEl.value.trim();
+        if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+          statusEl.textContent = 'Enter a valid amount.';
+          statusEl.className = 'payment-panel-status error';
+          return;
+        }
+
+        saveBtn.disabled = true;
+        statusEl.textContent = 'Saving…';
+        statusEl.className = 'payment-panel-status';
+
+        try {
+          const resp = await fetch('/api/balance-payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              order_id: orderId,
+              amount,
+              payment_method: methodEl.value,
+              split_cash: splitCashEl.value.trim(),
+              split_gcash: splitGcashEl.value.trim(),
+            }),
+          });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not log the payment.');
+
+          statusEl.textContent = 'Saved.';
+          statusEl.className = 'payment-panel-status success';
+          setTimeout(loadOrders, 700); // refresh the list to show the updated balance
+        } catch (err) {
+          statusEl.textContent = err.message;
+          statusEl.className = 'payment-panel-status error';
+        } finally {
+          saveBtn.disabled = false;
         }
       });
     });

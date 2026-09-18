@@ -27,7 +27,33 @@ module.exports = async (req, res) => {
   const { q } = req.query || {};
   const term = (q || '').trim();
 
-  if (!term || term.length < 2) {
+  // No query at all -- staff browsing the patient list from
+  // staff-patient-lookup.html rather than typing a search. Return
+  // everyone, most recently active first, capped at a reasonable page
+  // size. This path isn't used by the order-form autocomplete, which
+  // always passes a real query string.
+  if (!term) {
+    try {
+      const resp = await supabaseRequest(
+        `patients?order=updated_at.desc.nullslast,created_at.desc&limit=200`,
+        { method: 'GET' }
+      );
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.error('Supabase patient list error:', resp.status, errText);
+        res.status(502).json({ ok: false, error: 'Could not load patients.' });
+        return;
+      }
+      const patients = await resp.json();
+      res.status(200).json({ ok: true, patients });
+    } catch (err) {
+      console.error('Unexpected error listing patients:', err);
+      res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+    }
+    return;
+  }
+
+  if (term.length < 2) {
     res.status(200).json({ ok: true, patients: [] });
     return;
   }

@@ -31,6 +31,9 @@ const FIELD_LIMITS = {
   balance: 20,
   status: 20,
   payment_status: 10,
+  payment_method: 10,
+  split_cash: 20,
+  split_gcash: 20,
   taken_by: 100,
 };
 
@@ -48,12 +51,16 @@ function isValidPaymentStatus(status) {
   return ['unpaid', 'paid'].includes(status);
 }
 
+function isValidPaymentMethod(method) {
+  return ['cash', 'gcash_cc', 'split'].includes(method);
+}
+
 function isValidOrderType(type) {
   return ['rx', 'non_rx'].includes(type);
 }
 
 function isValidRxSubtype(subtype) {
-  return ['CMRX', 'L/O', 'F/O'].includes(subtype);
+  return ['CMRX', 'L/O', 'F/O', 'CL'].includes(subtype);
 }
 
 const ITEM_FIELD_LIMITS = {
@@ -62,6 +69,8 @@ const ITEM_FIELD_LIMITS = {
   item_unit_price: 20,
   item_line_total: 20,
 };
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function sanitizeItems(rawItems) {
   if (!Array.isArray(rawItems)) return [];
@@ -72,6 +81,14 @@ function sanitizeItems(rawItems) {
       for (const [key, maxLen] of Object.entries(ITEM_FIELD_LIMITS)) {
         cleaned[key] = sanitize(item[key], maxLen);
       }
+      // Optional link back to the catalog item this line was sold from,
+      // so stock can be decremented. Only accepted if it's actually a
+      // UUID -- a free-text item typed without picking a catalog match
+      // has no id at all, which is the normal, unlinked case.
+      cleaned.catalog_item_id =
+        typeof item.catalog_item_id === 'string' && UUID_RE.test(item.catalog_item_id)
+          ? item.catalog_item_id
+          : null;
       cleaned.sort_order = index;
       return cleaned;
     })
@@ -103,6 +120,7 @@ async function createOrder(req, res) {
 
   record.status = isValidStatus(record.status) ? record.status : 'ordered';
   record.payment_status = isValidPaymentStatus(record.payment_status) ? record.payment_status : 'unpaid';
+  record.payment_method = isValidPaymentMethod(record.payment_method) ? record.payment_method : 'cash';
   record.order_type = isValidOrderType(record.order_type) ? record.order_type : 'rx';
   record.rx_subtype = record.order_type === 'rx'
     ? (isValidRxSubtype(record.rx_subtype) ? record.rx_subtype : 'CMRX')
@@ -161,6 +179,29 @@ async function createOrder(req, res) {
           console.error('Supabase order_items insert error:', itemsResp.status, errText);
         } else {
           saved.items = await itemsResp.json();
+
+          // Decrement stock for any line items sold from the catalog.
+          // Best-effort: a failure here doesn't undo the order or the
+          // line item, since the sale itself already happened -- staff
+          // can correct the catalog quantity by hand if this logs an
+          // error, same recoverable-vs-not-recoverable tradeoff as the
+          // order_items insert above.
+          for (const item of itemRows) {
+            if (!item.catalog_item_id) continue;
+            const soldQty = parseInt(item.item_qty, 10);
+            if (!Number.isFinite(soldQty) || soldQty <= 0) continue;
+            try {
+              const decResp = await supabaseRequest('rpc/decrement_catalog_stock', {
+                method: 'POST',
+                body: JSON.stringify({ item_id: item.catalog_item_id, sold_qty: soldQty }),
+              });
+              if (!decResp.ok) {
+                console.error('Stock decrement failed:', decResp.status, await decResp.text());
+              }
+            } catch (decErr) {
+              console.error('Unexpected error decrementing stock:', decErr);
+            }
+          }
         }
       } catch (itemsErr) {
         console.error('Unexpected error saving order items:', itemsErr);

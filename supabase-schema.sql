@@ -185,3 +185,78 @@ create index if not exists catalog_items_category_idx on catalog_items (category
 create index if not exists catalog_items_active_idx on catalog_items (active);
 
 alter table catalog_items enable row level security;
+
+-- ---------------------------------------------------------------------
+-- Catalog inventory fields: brand name, description, base cost, and
+-- quantity on hand. `name` remains the display/search label (what
+-- shows in the order-form datalist); `brand` and `description` are
+-- additional structured fields for the catalog admin screen.
+-- `base_price` is the item's standalone list price; the order form's
+-- existing `price` field is kept as the auto-fill "sale price" default
+-- but can be overridden per sale, matching how sale price already
+-- differs from catalog price in practice.
+-- `qty` decrements automatically when a catalog-linked item is sold
+-- on an order (see order_items.catalog_item_id below) -- no separate
+-- sales log; the order itself is the record of the sale (job number,
+-- date, and sale price already live on the order/order_items rows).
+-- ---------------------------------------------------------------------
+alter table catalog_items add column if not exists brand text;
+alter table catalog_items add column if not exists description text;
+alter table catalog_items add column if not exists base_price text;
+alter table catalog_items add column if not exists qty integer not null default 0;
+
+-- Links a sold line item back to the catalog entry it came from, so
+-- stock can be decremented on sale. Nullable -- free-text items typed
+-- without picking a catalog match simply have no link, same as before
+-- this feature existed.
+alter table order_items add column if not exists catalog_item_id uuid references catalog_items(id);
+
+-- Atomic stock decrement, called via PostgREST RPC when a catalog-linked
+-- item is sold on an order. Doing this as a single SQL statement avoids
+-- a read-then-write race if two staff sell the last units of the same
+-- item at nearly the same time. Floors at 0 rather than going negative
+-- -- a sale that outpaces recorded stock still saves; it just won't
+-- show a negative quantity on the catalog screen.
+create or replace function decrement_catalog_stock(item_id uuid, sold_qty integer)
+returns void as $$
+begin
+  update catalog_items
+  set qty = greatest(0, qty - sold_qty), updated_at = now()
+  where id = item_id;
+end;
+$$ language plpgsql;
+
+-- Payment method tracking: how an order's payment was collected, and,
+-- for split payments, how much came in via each method. Mirrors the
+-- staff's existing paper log (Payment Method / Cash In / Gcash-CC /
+-- Split Cash / Split Gcash columns) rather than introducing new
+-- concepts -- 'cash' and 'gcash_cc' are whole-amount methods, 'split'
+-- means both split_cash and split_gcash apply and (together) should
+-- equal that payment's amount.
+alter table orders add column if not exists payment_method text default 'cash' check (payment_method in ('cash', 'gcash_cc', 'split'));
+alter table orders add column if not exists split_cash text;
+alter table orders add column if not exists split_gcash text;
+
+-- ---------------------------------------------------------------------
+-- Balance payments: logging a payment against an EXISTING job number
+-- (e.g. staff's paper-log "BALANCE" rows) without editing/duplicating
+-- the original order. Each row here is one payment event; the order's
+-- own balance/payment_status are still the source of truth for "how
+-- much is owed right now" and get updated when a balance payment is
+-- recorded (see api/balance-payments.js).
+-- ---------------------------------------------------------------------
+create table if not exists balance_payments (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+  order_no text not null,
+  amount text not null,
+  payment_method text not null default 'cash' check (payment_method in ('cash', 'gcash_cc', 'split')),
+  split_cash text,
+  split_gcash text,
+  taken_by text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists balance_payments_order_id_idx on balance_payments (order_id);
+
+alter table balance_payments enable row level security;

@@ -102,6 +102,142 @@
   }
   .state-message.error { color: #B0405A; }
 
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .results-header .count {
+    font-size: 0.82rem;
+    color: var(--charcoal-soft);
+  }
+  .back-to-list {
+    background: none;
+    border: none;
+    color: var(--purple-deep);
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0 0 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .back-to-list:hover { text-decoration: underline; }
+
+  .patient-list {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
+    overflow: hidden;
+  }
+  .patient-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .patient-row:last-child { border-bottom: none; }
+  .patient-row:hover { background: var(--ivory-dim); }
+  .patient-row .pname {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--charcoal);
+  }
+  .patient-row .pmeta {
+    font-size: 0.82rem;
+    color: var(--charcoal-soft);
+    margin-top: 2px;
+  }
+  .patient-row .chevron { color: var(--charcoal-soft); }
+
+  .new-patient-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--purple-deep);
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0 0 20px;
+  }
+  .new-patient-toggle:hover { text-decoration: underline; }
+
+  .new-patient-panel {
+    background: #fff;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 24px;
+    display: none;
+  }
+  .new-patient-panel.open { display: block; }
+  .new-patient-panel h3 {
+    font-family: var(--display);
+    font-size: 0.95rem;
+    margin: 0 0 14px;
+  }
+  .new-patient-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .new-patient-grid label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    margin-bottom: 4px;
+  }
+  .new-patient-grid input {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.9rem;
+    color: var(--charcoal);
+    outline: none;
+  }
+  .new-patient-grid input:focus { border-color: var(--blue); }
+  .new-patient-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+  }
+  .new-patient-save {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: none;
+    background: var(--purple);
+    color: var(--ivory);
+    cursor: pointer;
+  }
+  .new-patient-save:hover { background: var(--purple-deep); }
+  .new-patient-save:disabled { opacity: 0.5; cursor: not-allowed; }
+  .new-patient-status { font-size: 0.85rem; }
+  .new-patient-status.error { color: #B0405A; }
+  .new-patient-status.success { color: #3E8E5A; }
+
+  @media (max-width: 640px) {
+    .new-patient-grid { grid-template-columns: 1fr; }
+  }
+
   .patient-card {
     background: #fff;
     border-radius: 16px;
@@ -224,13 +360,40 @@
 </div>
 
 <div class="wrap">
+  <button type="button" class="new-patient-toggle" id="newPatientToggle">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+    Add new patient
+  </button>
+
+  <div class="new-patient-panel" id="newPatientPanel">
+    <h3>New patient</h3>
+    <div class="new-patient-grid">
+      <div>
+        <label>Name *</label>
+        <input type="text" id="newPatientName" placeholder="Full name">
+      </div>
+      <div>
+        <label>Phone *</label>
+        <input type="text" id="newPatientPhone" placeholder="09xx xxx xxxx" inputmode="tel">
+      </div>
+      <div>
+        <label>Email (optional)</label>
+        <input type="email" id="newPatientEmail" placeholder="name@email.com">
+      </div>
+    </div>
+    <div class="new-patient-actions">
+      <button type="button" class="new-patient-save" id="newPatientSave">Save patient</button>
+      <span class="new-patient-status" id="newPatientStatus"></span>
+    </div>
+  </div>
+
   <div class="search-row">
-    <input type="text" id="phoneInput" placeholder="Enter patient phone number…" inputmode="tel">
+    <input type="text" id="phoneInput" placeholder="Search by name or phone number…">
     <button id="searchBtn">Search</button>
   </div>
 
   <div id="content">
-    <div class="state-message">Search a phone number to see that patient's intake requests and order history.</div>
+    <div class="state-message">Loading patients…</div>
   </div>
 </div>
 
@@ -269,6 +432,72 @@
   }
   checkAuth();
 
+  // ---- Add new patient (direct creation, not via intake/order) ----
+  const newPatientToggle = document.getElementById('newPatientToggle');
+  const newPatientPanel = document.getElementById('newPatientPanel');
+  const newPatientName = document.getElementById('newPatientName');
+  const newPatientPhone = document.getElementById('newPatientPhone');
+  const newPatientEmail = document.getElementById('newPatientEmail');
+  const newPatientSave = document.getElementById('newPatientSave');
+  const newPatientStatus = document.getElementById('newPatientStatus');
+
+  newPatientToggle.addEventListener('click', () => {
+    const isOpen = newPatientPanel.classList.toggle('open');
+    if (isOpen) newPatientName.focus();
+  });
+
+  newPatientSave.addEventListener('click', async () => {
+    const name = newPatientName.value.trim();
+    const phone = newPatientPhone.value.trim();
+    const email = newPatientEmail.value.trim();
+
+    newPatientStatus.textContent = '';
+    newPatientStatus.className = 'new-patient-status';
+
+    if (!name || !phone) {
+      newPatientStatus.textContent = 'Name and phone are required.';
+      newPatientStatus.className = 'new-patient-status error';
+      return;
+    }
+
+    newPatientSave.disabled = true;
+    newPatientStatus.textContent = 'Saving…';
+
+    try {
+      const resp = await fetch('/api/patients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, email }),
+      });
+      if (resp.status === 401) {
+        window.location.href = 'staff-login.html?next=staff-patient-lookup.html';
+        return;
+      }
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save this patient.');
+
+      newPatientStatus.textContent = 'Saved.';
+      newPatientStatus.className = 'new-patient-status success';
+
+      // Jump straight into their (likely empty) history so staff get
+      // visual confirmation the record was created.
+      newPatientName.value = '';
+      newPatientPhone.value = '';
+      newPatientEmail.value = '';
+      viewPatient(result.patient.phone);
+
+      setTimeout(() => {
+        newPatientPanel.classList.remove('open');
+        newPatientStatus.textContent = '';
+      }, 1200);
+    } catch (err) {
+      newPatientStatus.textContent = err.message;
+      newPatientStatus.className = 'new-patient-status error';
+    } finally {
+      newPatientSave.disabled = false;
+    }
+  });
+
   const REASON_LABELS = {
     comprehensive: 'Comprehensive eye exam',
     checkup: 'Check up',
@@ -286,12 +515,63 @@
   }
 
   async function search() {
-    const phone = phoneInput.value.trim();
-    if (!phone) return;
+    const term = phoneInput.value.trim();
 
     searchBtn.disabled = true;
-    content.innerHTML = '<div class="state-message">Searching…</div>';
+    content.innerHTML = '<div class="state-message">Loading…</div>';
 
+    try {
+      const resp = await fetch('/api/patient-search?q=' + encodeURIComponent(term));
+      if (resp.status === 401) {
+        window.location.href = 'staff-login.html?next=staff-patient-lookup.html';
+        return;
+      }
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load patients.');
+
+      renderPatientList(result.patients || [], term);
+    } catch (err) {
+      content.innerHTML = `<div class="state-message error">${escapeHtml(err.message)}</div>`;
+    } finally {
+      searchBtn.disabled = false;
+    }
+  }
+
+  function renderPatientList(patients, term) {
+    if (patients.length === 0) {
+      const msg = term
+        ? 'No patients match that search.'
+        : 'No patients on file yet.';
+      content.innerHTML = `<div class="state-message">${escapeHtml(msg)}</div>`;
+      return;
+    }
+
+    const countLabel = term
+      ? `${patients.length} match${patients.length === 1 ? '' : 'es'}`
+      : `${patients.length} patient${patients.length === 1 ? '' : 's'}`;
+
+    content.innerHTML = `
+      <div class="results-header"><span class="count">${escapeHtml(countLabel)}</span></div>
+      <div class="patient-list">
+        ${patients.map(p => `
+          <div class="patient-row" data-phone="${escapeHtml(p.phone)}">
+            <div>
+              <div class="pname">${escapeHtml(p.name || 'Unknown')}</div>
+              <div class="pmeta">${escapeHtml(p.phone || '')}${p.email ? ' · ' + escapeHtml(p.email) : ''}</div>
+            </div>
+            <span class="chevron">›</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    content.querySelectorAll('.patient-row').forEach(row => {
+      row.addEventListener('click', () => viewPatient(row.dataset.phone));
+    });
+  }
+
+  async function viewPatient(phone) {
+    content.innerHTML = '<div class="state-message">Loading patient…</div>';
     try {
       const resp = await fetch('/api/patient-history?phone=' + encodeURIComponent(phone));
       if (resp.status === 401) {
@@ -302,10 +582,15 @@
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not look up this patient.');
 
       renderResult(result);
+
+      const backBtn = document.createElement('button');
+      backBtn.type = 'button';
+      backBtn.className = 'back-to-list';
+      backBtn.innerHTML = '‹ Back to patient list';
+      backBtn.addEventListener('click', search);
+      content.prepend(backBtn);
     } catch (err) {
       content.innerHTML = `<div class="state-message error">${escapeHtml(err.message)}</div>`;
-    } finally {
-      searchBtn.disabled = false;
     }
   }
 
@@ -398,6 +683,7 @@
   }
 
   searchBtn.addEventListener('click', search);
+  search(); // initial load — empty query returns the full patient list
   phoneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {

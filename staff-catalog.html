@@ -92,7 +92,14 @@
 
   .add-row {
     display: grid;
-    grid-template-columns: 1fr 2fr 1fr 1.5fr auto;
+    grid-template-columns: 1fr 1fr 2fr 1fr 1fr 1fr auto;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 6px;
+  }
+  .add-row-2 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
     gap: 10px;
     align-items: end;
     margin-bottom: 6px;
@@ -192,25 +199,39 @@
     <div class="add-row">
       <div>
         <label>Code</label>
-        <input type="text" id="newCode" placeholder="e.g. LNS-001">
+        <input type="text" id="newCode" placeholder="e.g. BRD001">
       </div>
       <div>
-        <label>Name</label>
-        <input type="text" id="newName" placeholder="e.g. Anti-reflective coated, 1.56 index">
+        <label>Brand</label>
+        <input type="text" id="newBrand" placeholder="e.g. Oakley">
       </div>
       <div>
-        <label>Price</label>
-        <input type="text" id="newPrice" placeholder="e.g. 1500">
+        <label>Name / description</label>
+        <input type="text" id="newName" placeholder="e.g. Oakley Frame">
       </div>
       <div>
-        <label>Notes (optional)</label>
-        <input type="text" id="newNotes" placeholder="Any extra detail">
+        <label>Base price</label>
+        <input type="text" id="newBasePrice" placeholder="e.g. 100">
+      </div>
+      <div>
+        <label>Sale price</label>
+        <input type="text" id="newPrice" placeholder="e.g. 200">
+      </div>
+      <div>
+        <label>Qty</label>
+        <input type="text" id="newQty" placeholder="e.g. 1" inputmode="numeric">
       </div>
       <div>
         <button class="btn-primary" id="addBtn" style="width:100%;">Add</button>
       </div>
     </div>
-    <div class="save-hint">Price auto-fills into the order form when staff pick this item. Currency is assumed to match what staff already enter elsewhere.</div>
+    <div class="add-row-2">
+      <div>
+        <label>Notes (optional)</label>
+        <input type="text" id="newNotes" placeholder="Any extra detail">
+      </div>
+    </div>
+    <div class="save-hint">Sale price auto-fills into the order form when staff pick this item (still editable per sale). Qty is stock on hand — it goes down automatically when an item is sold on an order.</div>
   </div>
 
   <div class="panel">
@@ -226,7 +247,10 @@
   const listTitle = document.getElementById('listTitle');
   const tabButtons = document.querySelectorAll('.tabs button');
   const newCode = document.getElementById('newCode');
+  const newBrand = document.getElementById('newBrand');
   const newName = document.getElementById('newName');
+  const newBasePrice = document.getElementById('newBasePrice');
+  const newQty = document.getElementById('newQty');
   const newPrice = document.getElementById('newPrice');
   const newNotes = document.getElementById('newNotes');
   const addBtn = document.getElementById('addBtn');
@@ -280,14 +304,17 @@
     content.innerHTML = `
       <table>
         <thead>
-          <tr><th>Code</th><th>Name</th><th>Price</th><th>Notes</th><th></th></tr>
+          <tr><th>Code</th><th>Brand</th><th>Name</th><th>Base price</th><th>Sale price</th><th>Qty</th><th>Notes</th><th></th></tr>
         </thead>
         <tbody>
           ${items.map(item => `
             <tr data-id="${item.id}" class="${item.active === false ? 'inactive-row' : ''}">
               <td><input type="text" data-field="code" value="${escapeHtml(item.code)}"></td>
+              <td><input type="text" data-field="brand" value="${escapeHtml(item.brand)}"></td>
               <td><input type="text" data-field="name" value="${escapeHtml(item.name)}"></td>
+              <td><input type="text" data-field="base_price" value="${escapeHtml(item.base_price)}"></td>
               <td><input type="text" data-field="price" value="${escapeHtml(item.price)}"></td>
+              <td><input type="text" data-field="qty" value="${escapeHtml(item.qty != null ? item.qty : 0)}" inputmode="numeric" style="width:56px;"></td>
               <td><input type="text" data-field="notes" value="${escapeHtml(item.notes)}"></td>
               <td>
                 <div class="row-actions">
@@ -313,7 +340,11 @@
     if (action === 'save') {
       const patch = { id };
       row.querySelectorAll('input[data-field]').forEach(input => {
-        patch[input.dataset.field] = input.value;
+        if (input.dataset.field === 'qty') {
+          patch.qty = parseInt(input.value, 10) || 0;
+        } else {
+          patch[input.dataset.field] = input.value;
+        }
       });
       btn.textContent = 'Saving…';
       try {
@@ -377,16 +408,22 @@
         body: JSON.stringify({
           category: currentCategory,
           code: newCode.value.trim(),
+          brand: newBrand.value.trim(),
           name,
+          base_price: newBasePrice.value.trim(),
           price: newPrice.value.trim(),
+          qty: parseInt(newQty.value, 10) || 0,
           notes: newNotes.value.trim(),
         }),
       });
       const result = await resp.json();
       if (!result.ok) throw new Error(result.error);
       newCode.value = '';
+      newBrand.value = '';
       newName.value = '';
+      newBasePrice.value = '';
       newPrice.value = '';
+      newQty.value = '';
       newNotes.value = '';
       loadItems();
     } catch (err) {

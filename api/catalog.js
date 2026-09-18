@@ -6,7 +6,10 @@ const FIELD_LIMITS = {
   category: 10,
   code: 40,
   name: 200,
+  brand: 100,
+  description: 300,
   price: 20,
+  base_price: 20,
   notes: 300,
 };
 
@@ -49,6 +52,7 @@ async function createItem(req, res) {
 
   record.active = body.active === false ? false : true;
   record.sort_order = Number.isFinite(body.sort_order) ? body.sort_order : 0;
+  record.qty = Number.isFinite(body.qty) ? Math.max(0, Math.trunc(body.qty)) : 0;
   record.created_at = new Date().toISOString();
   record.updated_at = new Date().toISOString();
 
@@ -131,6 +135,7 @@ async function updateItem(req, res) {
   }
   if (body.active !== undefined) patch.active = !!body.active;
   if (body.sort_order !== undefined && Number.isFinite(body.sort_order)) patch.sort_order = body.sort_order;
+  if (body.qty !== undefined && Number.isFinite(body.qty)) patch.qty = Math.max(0, Math.trunc(body.qty));
 
   if (Object.keys(patch).length === 0) {
     res.status(400).json({ ok: false, error: 'Provide at least one field to update.' });
