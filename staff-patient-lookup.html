@@ -501,6 +501,7 @@
   <div class="actions">
     <a href="staff-orders.html" class="btn-light">All orders</a>
     <a href="staff-catalog.html" class="btn-light">Catalog</a>
+    <a href="staff-settings.html" class="btn-light">Settings</a>
     <a href="order-form.html" class="btn-light">New order</a>
     <button class="btn-ghost" id="logoutBtn">Log out</button>
   </div>
@@ -819,6 +820,7 @@
                 <option value="unpaid" ${o.payment_status !== 'paid' ? 'selected' : ''}>Unpaid</option>
                 <option value="paid" ${o.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
               </select>
+              <a href="order-form.html?id=${o.id}" class="move-record-btn" style="text-decoration:underline;">Edit order</a>
               <button type="button" class="move-record-btn" data-kind="order" data-id="${o.id}">Move to different patient</button>
             </div>
             <div class="move-record-panel" id="movePanel-order-${o.id}">

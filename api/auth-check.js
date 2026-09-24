@@ -1,5 +1,11 @@
-const { isAuthenticated } = require('../lib/auth');
+const { getSessionUser } = require('./_auth');
 
 module.exports = async (req, res) => {
-  res.status(200).json({ ok: true, authenticated: isAuthenticated(req) });
+  const sessionUser = getSessionUser(req);
+  res.status(200).json({
+    ok: true,
+    authenticated: !!sessionUser,
+    role: sessionUser ? sessionUser.role : null,
+    username: sessionUser ? sessionUser.username : null,
+  });
 };

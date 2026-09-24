@@ -1,6 +1,6 @@
-const { requireAuth } = require('../lib/auth');
-const { supabaseRequest } = require('../lib/supabase');
-const { findOrCreatePatient } = require('../lib/patients');
+const { requireAuth } = require('./_auth');
+const { supabaseRequest } = require('./_supabase');
+const { findOrCreatePatient } = require('./_patients');
 
 // Field allow-list + length caps, same defensive pattern as the intake API.
 const FIELD_LIMITS = {
@@ -215,13 +215,164 @@ async function createOrder(req, res) {
   }
 }
 
+async function updateOrderFull(req, res) {
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) {
+      res.status(400).json({ ok: false, error: 'Invalid JSON body' });
+      return;
+    }
+  }
+  if (!body || typeof body !== 'object' || !body.id) {
+    res.status(400).json({ ok: false, error: 'An order id is required.' });
+    return;
+  }
+  const { id } = body;
+
+  const record = {};
+  for (const [key, maxLen] of Object.entries(FIELD_LIMITS)) {
+    if (body[key] !== undefined) record[key] = sanitize(body[key], maxLen);
+  }
+
+  if (body.order_no !== undefined && !record.order_no) {
+    res.status(400).json({ ok: false, error: 'Order number cannot be empty.' });
+    return;
+  }
+  if (body.patient_name !== undefined && !record.patient_name) {
+    res.status(400).json({ ok: false, error: 'Patient name cannot be empty.' });
+    return;
+  }
+
+  if (record.status !== undefined) record.status = isValidStatus(record.status) ? record.status : undefined;
+  if (record.payment_status !== undefined) record.payment_status = isValidPaymentStatus(record.payment_status) ? record.payment_status : undefined;
+  if (record.payment_method !== undefined) record.payment_method = isValidPaymentMethod(record.payment_method) ? record.payment_method : undefined;
+  if (record.order_type !== undefined) {
+    record.order_type = isValidOrderType(record.order_type) ? record.order_type : undefined;
+  }
+  if (body.order_type === 'rx' || (record.order_type === undefined && body.rx_subtype !== undefined)) {
+    record.rx_subtype = isValidRxSubtype(record.rx_subtype) ? record.rx_subtype : 'CMRX';
+  } else if (body.order_type === 'non_rx') {
+    record.rx_subtype = null;
+  }
+  record.updated_at = new Date().toISOString();
+
+  // If the patient's name or phone changed, re-link to the correct
+  // patient record (matched/created by phone) the same way createOrder
+  // does, so an edited order doesn't stay pointed at a stale patient_id.
+  if (body.patient_name !== undefined || body.tel_no !== undefined) {
+    try {
+      const patient = await findOrCreatePatient({
+        phone: record.tel_no,
+        name: record.patient_name,
+        email: null,
+      });
+      record.patient_id = patient ? patient.id : null;
+    } catch (err) {
+      console.error('Patient re-linking failed during order edit:', err);
+    }
+  }
+
+  try {
+    const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify(record),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('Supabase order edit error:', resp.status, errText);
+      res.status(502).json({ ok: false, error: 'Could not save changes to this order.' });
+      return;
+    }
+
+    const [saved] = await resp.json();
+    if (!saved) {
+      res.status(404).json({ ok: false, error: 'Order not found.' });
+      return;
+    }
+
+    // Replace line items wholesale if an items array was sent -- delete
+    // the existing rows and insert the new set, rather than trying to
+    // diff/match individual rows against what's already there. Simple
+    // and correct; the tradeoff is that item ids change on every edit,
+    // which is fine since nothing else references order_items by id.
+    //
+    // Deliberately NOT touching catalog stock here: stock was already
+    // decremented once when the order was first created. Editing
+    // quantities afterward is a correction, not a new sale, and getting
+    // delta math wrong (old qty vs new qty, swapped catalog items) risks
+    // corrupting inventory counts more than it helps. Staff can adjust
+    // catalog quantity by hand in Settings/Catalog if an edit changes
+    // what was actually sold.
+    if (Array.isArray(body.items)) {
+      const items = sanitizeItems(body.items);
+      try {
+        const delResp = await supabaseRequest(`order_items?order_id=eq.${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        });
+        if (!delResp.ok) {
+          console.error('Could not clear existing order items during edit:', delResp.status, await delResp.text());
+        } else if (items.length > 0) {
+          const itemRows = items.map(item => ({ ...item, order_id: id }));
+          const insResp = await supabaseRequest('order_items', {
+            method: 'POST',
+            headers: { Prefer: 'return=representation' },
+            body: JSON.stringify(itemRows),
+          });
+          if (!insResp.ok) {
+            console.error('Could not save new order items during edit:', insResp.status, await insResp.text());
+          } else {
+            saved.items = await insResp.json();
+          }
+        } else {
+          saved.items = [];
+        }
+      } catch (itemsErr) {
+        console.error('Unexpected error replacing order items during edit:', itemsErr);
+      }
+    }
+
+    res.status(200).json({ ok: true, order: saved });
+  } catch (err) {
+    console.error('Unexpected error editing order:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
 async function listOrders(req, res) {
-  const { q, status } = req.query || {};
+  const { q, status, id } = req.query || {};
 
   // order_items(*) embeds each order's line items in the same query,
   // using PostgREST's resource-embedding (a join via the order_items.order_id
   // foreign key) -- avoids a separate round-trip per order.
   let path = 'orders?select=*,order_items(*)&order=created_at.desc&limit=100';
+
+  // Fetching a single order by id -- used to load an existing order
+  // into the order form for editing. Takes priority over q/status
+  // since it identifies exactly one row.
+  if (id && typeof id === 'string') {
+    path = `orders?select=*,order_items(*)&id=eq.${encodeURIComponent(id)}&limit=1`;
+    try {
+      const resp = await supabaseRequest(path, { method: 'GET' });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.error('Supabase order lookup error:', resp.status, errText);
+        res.status(502).json({ ok: false, error: 'Could not load this order.' });
+        return;
+      }
+      const [order] = await resp.json();
+      if (!order) {
+        res.status(404).json({ ok: false, error: 'Order not found.' });
+        return;
+      }
+      res.status(200).json({ ok: true, order });
+    } catch (err) {
+      console.error('Unexpected error loading order:', err);
+      res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+    }
+    return;
+  }
 
   if (status && isValidStatus(status)) {
     path += `&status=eq.${encodeURIComponent(status)}`;
@@ -317,7 +468,18 @@ module.exports = async (req, res) => {
 
   if (req.method === 'POST') return createOrder(req, res);
   if (req.method === 'GET') return listOrders(req, res);
-  if (req.method === 'PATCH') return updateOrderStatus(req, res);
+  if (req.method === 'PATCH') {
+    // Distinguish the full order-form edit from the lightweight
+    // status/payment-only quick-edit used by the staff-orders list's
+    // inline dropdowns -- same route, explicit flag decides which
+    // handler runs, so neither one has to guess from field presence.
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch (e) { body = {}; }
+    }
+    if (body && body.full_edit === true) return updateOrderFull(req, res);
+    return updateOrderStatus(req, res);
+  }
 
   res.status(405).json({ ok: false, error: 'Method not allowed' });
 };

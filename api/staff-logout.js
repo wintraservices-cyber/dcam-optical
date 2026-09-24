@@ -1,4 +1,4 @@
-const { clearSessionCookie } = require('../lib/auth');
+const { clearSessionCookie } = require('./_auth');
 
 module.exports = async (req, res) => {
   clearSessionCookie(res);

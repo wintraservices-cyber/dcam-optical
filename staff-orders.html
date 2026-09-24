@@ -265,6 +265,7 @@
   </div>
   <div class="actions">
     <a href="staff-catalog.html" class="btn-light">Catalog</a>
+    <a href="staff-settings.html" class="btn-light">Settings</a>
     <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
     <a href="order-form.html" class="btn-light">New order</a>
     <button class="btn-ghost" id="logoutBtn">Log out</button>
@@ -354,7 +355,7 @@
 
     const rows = orders.map(o => `
       <tr>
-        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span></td>
+        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a></td>
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
         <td data-label="Date">${escapeHtml(o.order_date) || '—'}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>

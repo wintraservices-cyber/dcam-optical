@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — DCAM Optical (Staff)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #B05A9E;
+    --purple-deep: #8F4680;
+    --blue: #5BAFC0;
+    --blue-deep: #458F9E;
+    --ivory: #F7F1E8;
+    --ivory-dim: #EFE6D8;
+    --charcoal: #383334;
+    --charcoal-soft: #4A4547;
+    --line: rgba(56,51,52,0.14);
+    --display: 'Plus Jakarta Sans', sans-serif;
+    --body: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--charcoal); font-family: var(--body); }
+
+  .staff-bar {
+    background: var(--charcoal);
+    color: var(--ivory);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .staff-bar .tag {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .staff-bar .actions { display: flex; gap: 10px; }
+  .staff-bar a, .staff-bar button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-light { background: var(--ivory); color: var(--charcoal); }
+  .btn-ghost { background: transparent; color: var(--ivory); border: 1px solid rgba(247,241,232,0.35) !important; }
+  .btn-primary { background: var(--purple); color: var(--ivory); }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tabs button {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 20px;
+    border-radius: 100px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--charcoal-soft);
+    cursor: pointer;
+  }
+  .tabs button.active { background: var(--purple); color: var(--ivory); border-color: var(--purple); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    font-family: var(--display);
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+  .card .card-sub {
+    font-size: 0.82rem;
+    color: var(--charcoal-soft);
+    margin-bottom: 16px;
+  }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .field-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .field-grid label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    margin-bottom: 5px;
+  }
+  .field-grid input, .field-grid textarea, .field-grid select {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.9rem;
+    color: var(--charcoal);
+  }
+  .field-grid input:focus, .field-grid textarea:focus, .field-grid select:focus {
+    outline: none;
+    border-color: var(--blue);
+  }
+  .field-grid textarea { resize: vertical; min-height: 70px; }
+
+  .save-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+  }
+  .save-btn {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: none;
+    background: var(--purple);
+    color: var(--ivory);
+    cursor: pointer;
+  }
+  .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .save-status { font-size: 0.82rem; }
+  .save-status.error { color: #B0405A; }
+  .save-status.success { color: #3E8E5A; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 0.85rem; }
+  th { font-family: var(--display); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); }
+  .role-pill {
+    display: inline-block;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+  .role-pill.admin { background: rgba(176,90,158,0.14); color: var(--purple-deep); }
+  .role-pill.staff { background: rgba(56,51,52,0.08); color: var(--charcoal-soft); }
+  .inactive-row { opacity: 0.45; }
+  .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .icon-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 5px 9px;
+    border-radius: 8px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.75rem;
+  }
+  .icon-btn.toggle { color: var(--charcoal-soft); }
+  .icon-btn.reset { color: var(--blue-deep); }
+  .icon-btn:hover { background: var(--ivory-dim); }
+
+  .new-account-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr auto;
+    gap: 10px;
+    align-items: end;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .new-account-grid label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    margin-bottom: 4px;
+  }
+  .new-account-grid input, .new-account-grid select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.88rem;
+  }
+
+  .range-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 16px;
+  }
+  .range-row-label {
+    grid-column: 1 / -1;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--charcoal);
+    margin-bottom: -6px;
+  }
+
+  .loading-state, .empty-state { text-align: center; padding: 30px; color: var(--charcoal-soft); font-size: 0.9rem; }
+  .not-admin-state { text-align: center; padding: 80px 20px; color: var(--charcoal-soft); }
+
+  @media (max-width: 700px) {
+    .field-grid, .field-grid.cols-3, .new-account-grid, .range-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="staff-bar">
+  <div class="tag">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    Staff only — settings
+  </div>
+  <div class="actions">
+    <a href="staff-orders.html" class="btn-light">Orders</a>
+    <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
+    <a href="staff-catalog.html" class="btn-light">Catalog</a>
+    <button class="btn-ghost" id="logoutBtn">Log out</button>
+  </div>
+</div>
+
+<div class="wrap" id="mainWrap" style="display:none;">
+  <div class="tabs">
+    <button class="active" data-tab="rx">Rx ranges</button>
+    <button data-tab="business">Business info</button>
+    <button data-tab="accounts">Staff accounts</button>
+  </div>
+
+  <!-- Rx Ranges -->
+  <div class="panel active" id="panel-rx">
+    <div class="card">
+      <h2>Rx dropdown ranges</h2>
+      <div class="card-sub">Controls the SPH, CYL, AXIS, and ADD dropdown options on the order form. Changes apply immediately, no code deploy needed.</div>
+      <div id="rxRangesForm"><div class="loading-state">Loading…</div></div>
+      <div class="save-row">
+        <button class="save-btn" id="saveRxRanges">Save Rx ranges</button>
+        <span class="save-status" id="rxRangesStatus"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Business Info -->
+  <div class="panel" id="panel-business">
+    <div class="card">
+      <h2>Business info</h2>
+      <div class="card-sub">Name, address, contact details, and hours.</div>
+      <div class="field-grid">
+        <div>
+          <label>Business name</label>
+          <input type="text" id="bizName">
+        </div>
+        <div>
+          <label>Phone</label>
+          <input type="text" id="bizPhone">
+        </div>
+      </div>
+      <div class="field-grid">
+        <div>
+          <label>Email</label>
+          <input type="email" id="bizEmail">
+        </div>
+        <div>
+          <label>Hours</label>
+          <input type="text" id="bizHours" placeholder="e.g. Mon-Sat 9am-6pm">
+        </div>
+      </div>
+      <div class="field-grid" style="grid-template-columns: 1fr;">
+        <div>
+          <label>Address</label>
+          <textarea id="bizAddress"></textarea>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="save-btn" id="saveBizInfo">Save business info</button>
+        <span class="save-status" id="bizInfoStatus"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Staff Accounts -->
+  <div class="panel" id="panel-accounts">
+    <div class="card">
+      <h2>Staff accounts</h2>
+      <div class="card-sub">Create, deactivate, or reset passwords for individual staff logins.</div>
+      <div id="accountsList"><div class="loading-state">Loading…</div></div>
+
+      <div class="new-account-grid">
+        <div>
+          <label>Username</label>
+          <input type="text" id="newUsername" placeholder="e.g. maria">
+        </div>
+        <div>
+          <label>Display name</label>
+          <input type="text" id="newDisplayName" placeholder="e.g. Maria Santos">
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" id="newPassword" placeholder="min. 6 characters">
+        </div>
+        <div>
+          <label>Role</label>
+          <select id="newRole">
+            <option value="staff">Staff</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div>
+          <button class="save-btn" id="addAccountBtn" style="width:100%;">Add</button>
+        </div>
+      </div>
+      <div class="save-row">
+        <span class="save-status" id="accountsStatus"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="not-admin-state" id="notAdminState" style="display:none;">
+  <p>This page requires an admin account.</p>
+</div>
+
+<script>
+(function() {
+  const mainWrap = document.getElementById('mainWrap');
+  const notAdminState = document.getElementById('notAdminState');
+  const tabButtons = document.querySelectorAll('.tabs button');
+  const panels = document.querySelectorAll('.panel');
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabButtons.forEach(b => b.classList.toggle('active', b === btn));
+      panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + btn.dataset.tab));
+    });
+  });
+
+  async function checkAuth() {
+    try {
+      const resp = await fetch('/api/auth-check');
+      const result = await resp.json();
+      if (!result.authenticated) {
+        window.location.href = 'staff-login.html?next=staff-settings.html';
+        return false;
+      }
+      if (result.role !== 'admin') {
+        mainWrap.style.display = 'none';
+        notAdminState.style.display = 'block';
+        return false;
+      }
+      return true;
+    } catch (e) {
+      window.location.href = 'staff-login.html?next=staff-settings.html';
+      return false;
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ---- Rx ranges ----
+  const DEFAULT_RX_RANGES = {
+    sph: { min: -20, max: 20, step: 0.25 },
+    cyl: { min: -8, max: 0, step: 0.25 },
+    add: { min: 0.75, max: 3.5, step: 0.25 },
+    axis: { min: 1, max: 180, step: 1 },
+  };
+
+  function renderRxRangesForm(ranges) {
+    const r = Object.assign({}, DEFAULT_RX_RANGES, ranges || {});
+    const container = document.getElementById('rxRangesForm');
+    const rows = [
+      ['sph', 'SPH (Sphere)'],
+      ['cyl', 'CYL (Cylinder)'],
+      ['add', 'ADD'],
+      ['axis', 'AXIS'],
+    ];
+    container.innerHTML = rows.map(function(pair) {
+      const key = pair[0], label = pair[1];
+      const rr = r[key] || DEFAULT_RX_RANGES[key];
+      return `
+        <div class="range-row">
+          <div class="range-row-label">${label}</div>
+          <div>
+            <label>Min</label>
+            <input type="text" class="rx-range-input" data-key="${key}" data-field="min" value="${escapeHtml(rr.min)}">
+          </div>
+          <div>
+            <label>Max</label>
+            <input type="text" class="rx-range-input" data-key="${key}" data-field="max" value="${escapeHtml(rr.max)}">
+          </div>
+          <div>
+            <label>Step</label>
+            <input type="text" class="rx-range-input" data-key="${key}" data-field="step" value="${escapeHtml(rr.step)}">
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function collectRxRanges() {
+    const ranges = JSON.parse(JSON.stringify(DEFAULT_RX_RANGES));
+    document.querySelectorAll('.rx-range-input').forEach(input => {
+      const key = input.dataset.key;
+      const field = input.dataset.field;
+      const num = parseFloat(input.value);
+      if (Number.isFinite(num)) ranges[key][field] = num;
+    });
+    return ranges;
+  }
+
+  document.getElementById('saveRxRanges').addEventListener('click', async () => {
+    const btn = document.getElementById('saveRxRanges');
+    const statusEl = document.getElementById('rxRangesStatus');
+    btn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    statusEl.className = 'save-status';
+    try {
+      const resp = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'rx_ranges', value: collectRxRanges() }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      statusEl.textContent = 'Saved. Changes apply next time the order form loads.';
+      statusEl.className = 'save-status success';
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---- Business info ----
+  function renderBusinessInfo(info) {
+    const b = info || {};
+    document.getElementById('bizName').value = b.name || '';
+    document.getElementById('bizPhone').value = b.phone || '';
+    document.getElementById('bizEmail').value = b.email || '';
+    document.getElementById('bizHours').value = b.hours || '';
+    document.getElementById('bizAddress').value = b.address || '';
+  }
+
+  document.getElementById('saveBizInfo').addEventListener('click', async () => {
+    const btn = document.getElementById('saveBizInfo');
+    const statusEl = document.getElementById('bizInfoStatus');
+    btn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    statusEl.className = 'save-status';
+    try {
+      const value = {
+        name: document.getElementById('bizName').value.trim(),
+        phone: document.getElementById('bizPhone').value.trim(),
+        email: document.getElementById('bizEmail').value.trim(),
+        hours: document.getElementById('bizHours').value.trim(),
+        address: document.getElementById('bizAddress').value.trim(),
+      };
+      const resp = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'business_info', value }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      statusEl.textContent = 'Saved.';
+      statusEl.className = 'save-status success';
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---- Staff accounts ----
+  let accounts = [];
+
+  async function loadAccounts() {
+    const container = document.getElementById('accountsList');
+    container.innerHTML = '<div class="loading-state">Loading…</div>';
+    try {
+      const resp = await fetch('/api/staff-users');
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load accounts.');
+      accounts = result.users || [];
+      renderAccounts();
+    } catch (err) {
+      container.innerHTML = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderAccounts() {
+    const container = document.getElementById('accountsList');
+    if (accounts.length === 0) {
+      container.innerHTML = '<div class="empty-state">No staff accounts yet — add the first one below.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>Username</th><th>Display name</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${accounts.map(u => `
+            <tr class="${u.active === false ? 'inactive-row' : ''}">
+              <td>${escapeHtml(u.username)}</td>
+              <td>${escapeHtml(u.display_name) || '—'}</td>
+              <td><span class="role-pill ${u.role}">${escapeHtml(u.role)}</span></td>
+              <td>${u.active === false ? 'Deactivated' : 'Active'}</td>
+              <td>
+                <div class="row-actions">
+                  <button class="icon-btn toggle" data-id="${u.id}" data-action="toggle">${u.active === false ? 'Reactivate' : 'Deactivate'}</button>
+                  <button class="icon-btn reset" data-id="${u.id}" data-action="reset">Reset password</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    container.querySelectorAll('button[data-action]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const action = btn.getAttribute('data-action');
+
+        if (action === 'toggle') {
+          const user = accounts.find(u => u.id === id);
+          const nextActive = user && user.active === false ? true : false;
+          try {
+            const resp = await fetch('/api/staff-users', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, active: nextActive }),
+            });
+            const result = await resp.json();
+            if (!resp.ok || !result.ok) throw new Error(result.error);
+            loadAccounts();
+          } catch (err) {
+            alert('Could not update: ' + err.message);
+          }
+        }
+
+        if (action === 'reset') {
+          const newPassword = prompt('Enter a new password for this account (min. 6 characters):');
+          if (!newPassword) return;
+          try {
+            const resp = await fetch('/api/staff-users', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, new_password: newPassword }),
+            });
+            const result = await resp.json();
+            if (!resp.ok || !result.ok) throw new Error(result.error);
+            alert('Password reset.');
+          } catch (err) {
+            alert('Could not reset password: ' + err.message);
+          }
+        }
+      });
+    });
+  }
+
+  document.getElementById('addAccountBtn').addEventListener('click', async () => {
+    const username = document.getElementById('newUsername').value.trim();
+    const displayName = document.getElementById('newDisplayName').value.trim();
+    const password = document.getElementById('newPassword').value;
+    const role = document.getElementById('newRole').value;
+    const statusEl = document.getElementById('accountsStatus');
+    const btn = document.getElementById('addAccountBtn');
+
+    if (!username || !password) {
+      statusEl.textContent = 'Username and password are required.';
+      statusEl.className = 'save-status error';
+      return;
+    }
+
+    btn.disabled = true;
+    statusEl.textContent = 'Adding…';
+    statusEl.className = 'save-status';
+    try {
+      const resp = await fetch('/api/staff-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, display_name: displayName, password, role }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not add this account.');
+
+      document.getElementById('newUsername').value = '';
+      document.getElementById('newDisplayName').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('newRole').value = 'staff';
+      statusEl.textContent = 'Added.';
+      statusEl.className = 'save-status success';
+      loadAccounts();
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    try { await fetch('/api/staff-logout', { method: 'POST' }); } catch (e) {}
+    window.location.href = 'staff-login.html';
+  });
+
+  // ---- Init ----
+  (async function init() {
+    const authed = await checkAuth();
+    if (!authed) return;
+
+    try {
+      const resp = await fetch('/api/settings');
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load settings.');
+
+      mainWrap.style.display = 'block';
+      renderRxRangesForm(result.settings.rx_ranges);
+      renderBusinessInfo(result.settings.business_info);
+      loadAccounts();
+    } catch (err) {
+      mainWrap.style.display = 'block';
+      renderRxRangesForm(null);
+      renderBusinessInfo(null);
+      loadAccounts();
+    }
+  })();
+})();
+</script>
+</body>
+</html>

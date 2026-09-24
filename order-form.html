@@ -597,7 +597,21 @@
   @media print {
     .staff-bar, .form-meta-note, .order-type-toggle { display: none !important; }
     body { background: #fff; }
-    .page-wrap { margin: 0; padding: 0; max-width: 100%; }
+    .page-wrap {
+      margin: 0;
+      padding: 0;
+      max-width: 100%;
+      /* Scales every absolute (rem/px) and relative size in the slip
+         uniformly -- unlike a font-size-only rule, zoom also shrinks
+         padding, borders, and anything set in rem, so headings and
+         labeled inputs shrink along with body text instead of staying
+         full-size while everything else shrinks around them. 0.715
+         matches the ratio of the new A5 landscape printable area
+         (210x148mm, minus margins) to the old A4 landscape one
+         (297x210mm, minus margins), so the same content that used to
+         fill a full sheet now fills the half sheet the same way. */
+      zoom: 0.715;
+    }
     .slip {
       border: 1.5px solid #000;
       width: 100%;
@@ -610,7 +624,11 @@
       border-color: #000;
       color: #000;
     }
-    @page { size: A4 landscape; margin: 10mm; }
+    /* Half of A4 landscape (297mm x 210mm) is A5 landscape
+       (210mm x 148mm) -- the standard way to print at half the size
+       of a normal sheet, rather than shrinking content onto a full
+       sheet with excess blank space around it. */
+    @page { size: A5 landscape; margin: 6mm; }
   }
 
   @media (max-width: 720px) {
@@ -629,6 +647,7 @@
   <div class="actions">
     <a href="staff-orders.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">View orders</a>
     <a href="staff-catalog.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Catalog</a>
+    <a href="staff-settings.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Settings</a>
     <a href="staff-patient-lookup.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Patient lookup</a>
     <button class="btn-new" id="clearBtn">Clear form</button>
     <button class="btn-new" id="saveBtn" style="background:var(--purple); color:#fff; border:none !important;">Save order</button>
@@ -703,9 +722,9 @@
         <tbody>
           <tr>
             <td class="label-cell">R</td>
-            <td><input type="text" id="rx_r_sph" class="rx-field rx-sph" inputmode="decimal" placeholder="-2.25" title="Sphere power, e.g. -2.25 or +1.50, or PL for plano"></td>
-            <td><input type="text" id="rx_r_cyl" class="rx-field rx-cyl" data-eye="r" inputmode="decimal" placeholder="-0.75" title="Cylinder power, e.g. -0.75 or +0.75"></td>
-            <td><input type="text" id="rx_r_axis" class="rx-field rx-axis" data-eye="r" inputmode="numeric" placeholder="90" maxlength="3" title="Axis, 1–180 degrees" disabled></td>
+            <td><select id="rx_r_sph" class="rx-field rx-sph"></select></td>
+            <td><select id="rx_r_cyl" class="rx-field rx-cyl" data-eye="r"></select></td>
+            <td><select id="rx_r_axis" class="rx-field rx-axis" data-eye="r" disabled></select></td>
             <td><input type="text" id="rx_r_prism" class="rx-field rx-prism" data-eye="r" inputmode="decimal" placeholder="0.00" title="Prism power in prism diopters"></td>
             <td>
               <select id="rx_r_base" class="rx-field rx-base" data-eye="r" disabled>
@@ -728,9 +747,9 @@
           </tr>
           <tr>
             <td class="label-cell">L</td>
-            <td><input type="text" id="rx_l_sph" class="rx-field rx-sph" inputmode="decimal" placeholder="-2.25" title="Sphere power, e.g. -2.25 or +1.50, or PL for plano"></td>
-            <td><input type="text" id="rx_l_cyl" class="rx-field rx-cyl" data-eye="l" inputmode="decimal" placeholder="-0.75" title="Cylinder power, e.g. -0.75 or +0.75"></td>
-            <td><input type="text" id="rx_l_axis" class="rx-field rx-axis" data-eye="l" inputmode="numeric" placeholder="90" maxlength="3" title="Axis, 1–180 degrees" disabled></td>
+            <td><select id="rx_l_sph" class="rx-field rx-sph"></select></td>
+            <td><select id="rx_l_cyl" class="rx-field rx-cyl" data-eye="l"></select></td>
+            <td><select id="rx_l_axis" class="rx-field rx-axis" data-eye="l" disabled></select></td>
             <td><input type="text" id="rx_l_prism" class="rx-field rx-prism" data-eye="l" inputmode="decimal" placeholder="0.00" title="Prism power in prism diopters"></td>
             <td>
               <select id="rx_l_base" class="rx-field rx-base" data-eye="l" disabled>
@@ -763,14 +782,14 @@
         <tbody>
           <tr>
             <td class="label-cell">R</td>
-            <td><input type="text" id="add_r" class="rx-field" inputmode="decimal" placeholder="+2.00" title="Addition power, e.g. +2.00"></td>
+            <td><select id="add_r" class="rx-field"></select></td>
             <td><input type="text" id="seg_ht_r" class="rx-field" inputmode="decimal" placeholder="18" title="Segment height in mm"></td>
             <td rowspan="2"><input type="text" id="lens_type" placeholder="e.g. Progressive, Single Vision" list="lensCatalogList" autocomplete="off"><datalist id="lensCatalogList"></datalist></td>
             <td id="pdCellR"><input type="text" id="pd_r" class="rx-field" inputmode="decimal" placeholder="31.5" title="Pupillary distance in mm"></td>
           </tr>
           <tr>
             <td class="label-cell">L</td>
-            <td><input type="text" id="add_l" class="rx-field" inputmode="decimal" placeholder="+2.00" title="Addition power, e.g. +2.00"></td>
+            <td><select id="add_l" class="rx-field"></select></td>
             <td><input type="text" id="seg_ht_l" class="rx-field" inputmode="decimal" placeholder="18" title="Segment height in mm"></td>
             <td id="pdCellL"><input type="text" id="pd_l" class="rx-field" inputmode="decimal" placeholder="31.5" title="Pupillary distance in mm"></td>
           </tr>
@@ -885,15 +904,23 @@
   const stubFrame = document.getElementById('stubFrame');
 
   // Mirror shared fields from the order side to the claim stub automatically,
-  // so staff only type it once.
+  // so staff only type it once. mirrorPairs is also used to force a sync
+  // after programmatic value changes (auto-suggested order numbers,
+  // loading an existing order for edit) that don't fire an `input` event.
+  const mirrorPairs = [
+    [orderNo, claimNoDisplay],
+    [ordName, stubName],
+    [ordDate, stubDate],
+    [ordDue, stubDue],
+    [ordFrame, stubFrame],
+  ];
   function mirror(source, target) {
     source.addEventListener('input', () => { target.value = source.value; });
   }
-  mirror(orderNo, claimNoDisplay);
-  mirror(ordName, stubName);
-  mirror(ordDate, stubDate);
-  mirror(ordDue, stubDue);
-  mirror(ordFrame, stubFrame);
+  function syncMirroredFields() {
+    mirrorPairs.forEach(([source, target]) => { target.value = source.value; });
+  }
+  mirrorPairs.forEach(([source, target]) => mirror(source, target));
 
   document.getElementById('printBtn').addEventListener('click', () => window.print());
 
@@ -929,15 +956,130 @@
         window.location.href = 'staff-login.html?next=order-form.html';
         return;
       }
-      // Only fetch the suggested order number once we know the session
-      // is valid -- avoids a pointless 401 round-trip otherwise.
-      suggestOrderNumber();
+      // If ?id=<uuid> is present, this is an edit of an existing order
+      // rather than a new one -- load it instead of suggesting a fresh
+      // order number.
+      const params = new URLSearchParams(window.location.search);
+      const editId = params.get('id');
+      if (editId) {
+        loadOrderForEdit(editId);
+      } else {
+        // Only fetch the suggested order number once we know the session
+        // is valid -- avoids a pointless 401 round-trip otherwise.
+        suggestOrderNumber();
+      }
       loadCatalog();
     } catch (e) {
       window.location.href = 'staff-login.html?next=order-form.html';
     }
   }
   checkAuth();
+
+  // ---- Editing an existing order (order-form.html?id=<uuid>) ----
+  let editingOrderId = null;
+
+  async function loadOrderForEdit(id) {
+    try {
+      const resp = await fetch('/api/orders?id=' + encodeURIComponent(id));
+      if (resp.status === 401) {
+        window.location.href = 'staff-login.html?next=order-form.html';
+        return;
+      }
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load this order.');
+      populateOrderForm(result.order);
+    } catch (err) {
+      alert('Could not load this order for editing: ' + err.message);
+    }
+  }
+
+  function setVal(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.value = value || '';
+  }
+
+  function populateOrderForm(order) {
+    editingOrderId = order.id;
+    orderNoManuallyEdited = true; // never auto-suggest over an existing order number
+
+    document.querySelector('.page-title, h1')?.scrollIntoView({ block: 'start' });
+    saveBtn.textContent = 'Save changes';
+
+    setOrderType(order.order_type === 'non_rx' ? 'non_rx' : 'rx');
+
+    setVal('orderNo', order.order_no);
+    setVal('ordName', order.patient_name);
+    setVal('ordTel', order.tel_no);
+    setVal('ordDate', order.order_date);
+    setVal('ordDue', order.due_date);
+    setVal('trayNo', order.tray_no);
+    setVal('ordFrame', order.frame);
+    setVal('ordNotes', order.special_instructions);
+    setVal('amount', order.amount);
+    setVal('deposit', order.deposit);
+    setVal('balance', order.balance);
+    setVal('takenBy', order.taken_by);
+    setVal('splitCash', order.split_cash);
+    setVal('splitGcash', order.split_gcash);
+    balanceManuallyEdited = true; // preserve the loaded balance rather than recalculating over it
+
+    const paymentStatusEl = document.querySelector(`input[name="paymentStatus"][value="${order.payment_status || 'unpaid'}"]`);
+    if (paymentStatusEl) paymentStatusEl.checked = true;
+    const paymentMethodEl = document.querySelector(`input[name="paymentMethod"][value="${order.payment_method || 'cash'}"]`);
+    if (paymentMethodEl) paymentMethodEl.checked = true;
+    splitPaymentRow.style.display = (order.payment_method === 'split') ? 'grid' : 'none';
+
+    if (order.order_type === 'non_rx') {
+      itemRowsContainer.innerHTML = '';
+      itemRowCounter = 0;
+      const rows = (order.order_items && order.order_items.length > 0)
+        ? order.order_items
+        : [{ item_name: order.item_name, item_qty: order.item_qty, item_unit_price: order.item_unit_price, item_line_total: order.item_line_total }];
+      rows.forEach(item => {
+        const row = createItemRow();
+        row.querySelector('[data-field="name"]').value = item.item_name || '';
+        row.querySelector('[data-field="qty"]').value = item.item_qty || '';
+        row.querySelector('[data-field="price"]').value = item.item_unit_price || '';
+        row.querySelector('[data-field="total"]').value = item.item_line_total || '';
+        if (item.catalog_item_id) row.dataset.catalogItemId = item.catalog_item_id;
+      });
+      if (itemRowsContainer.children.length === 0) createItemRow();
+      recalcItemsOrderTotal();
+    } else {
+      const rxSubtypeEl = document.querySelector(`input[name="rxSubtype"][value="${order.rx_subtype || 'CMRX'}"]`);
+      if (rxSubtypeEl) rxSubtypeEl.checked = true;
+
+      setVal('rx_r_sph', order.rx_r_sph); setVal('rx_r_cyl', order.rx_r_cyl);
+      setVal('rx_r_prism', order.rx_r_prism);
+      setVal('rx_l_sph', order.rx_l_sph); setVal('rx_l_cyl', order.rx_l_cyl);
+      setVal('rx_l_prism', order.rx_l_prism);
+      setVal('add_r', order.add_r); setVal('add_l', order.add_l);
+      setVal('seg_ht_r', order.seg_ht_r); setVal('seg_ht_l', order.seg_ht_l);
+      setVal('lens_type', order.lens_type);
+      setVal('pd_r', order.pd_r); setVal('pd_l', order.pd_l);
+
+      const lensMaterialEl = document.querySelector(`input[name="lensMaterial"][value="${order.lens_material || ''}"]`);
+      if (lensMaterialEl) lensMaterialEl.checked = true;
+      const pdModeEl = document.querySelector(`input[name="pdMode"][value="${order.pd_mode || 'split'}"]`);
+      if (pdModeEl) { pdModeEl.checked = true; applyPdMode(order.pd_mode || 'split'); }
+
+      // AXIS/BASE are disabled by default and only enabled once CYL/
+      // PRISM has a value -- toggle them now that we've set CYL, then
+      // set AXIS/BASE themselves (toggleAxisBase clears them otherwise).
+      toggleAxisBase('r');
+      toggleAxisBase('l');
+      setVal('rx_r_axis', order.rx_r_axis);
+      setVal('rx_r_base', order.rx_r_base);
+      setVal('rx_l_axis', order.rx_l_axis);
+      setVal('rx_l_base', order.rx_l_base);
+    }
+
+    // setVal() sets .value directly and doesn't fire an `input` event,
+    // so the claim stub's mirrored fields (order #, name, dates, frame)
+    // need an explicit sync here -- otherwise the stub stays blank
+    // until staff happen to touch one of the source fields by hand.
+    syncMirroredFields();
+  }
 
   // ---- Lens/frame catalog (staff-managed via staff-catalog.html) ----
   // Populates the Frame and Lens type fields as datalist-backed text
@@ -1026,6 +1168,7 @@
       if (result.ok && result.suggestion && !orderNoManuallyEdited) {
         orderNoInput.value = result.suggestion;
         orderNoInput.placeholder = result.suggestion;
+        syncMirroredFields();
       }
     } catch (e) {
       // Non-fatal -- the field is always editable regardless.
@@ -1125,10 +1268,14 @@
     setTimeout(() => suggestionsBox.classList.remove('visible'), 150);
   });
 
-  // ---- Rx field soft validation + logical enable/disable ----
-  const SPH_RE = /^[+-]?\d{1,2}(\.\d{1,2})?$|^(pl|plano)$/i;
-  const CYL_RE = /^[+-]?\d{1,2}(\.\d{1,2})?$/;
-  const AXIS_RE = /^(180|1[0-7]\d|[1-9]\d|[1-9])$/;
+  // ---- Rx power dropdowns: standard optical increments, not free text ----
+  // SPH: -20.00 to +20.00 in 0.25 D steps (covers virtually all real Rx).
+  // CYL: 0.00 to -8.00 in 0.25 D steps, minus-cylinder notation (the
+  // convention used in prescribing and lab work here) -- 0.00 means no
+  // astigmatism correction, matching "leave CYL blank" in a paper Rx.
+  // AXIS: 1-180 degrees, whole numbers only -- only enabled once CYL is
+  // non-zero, since an axis without a cylinder isn't a valid combination.
+  // ADD: +0.75 to +3.50 in 0.25 D steps, for presbyopia/reading correction.
   const DECIMAL_RE = /^\d{1,3}(\.\d{1,2})?$/;
 
   function markValidity(el, isValid) {
@@ -1136,14 +1283,66 @@
     el.classList.toggle('field-invalid', !isValid);
   }
 
-  document.querySelectorAll('.rx-sph').forEach(el => {
-    el.addEventListener('blur', () => markValidity(el, SPH_RE.test(el.value.trim())));
-  });
+  function buildRxOptions(values, formatFn) {
+    let html = '<option value=""></option>';
+    for (const v of values) html += `<option value="${v}">${formatFn(v)}</option>`;
+    return html;
+  }
+
+  function rxRange(start, end, step) {
+    const out = [];
+    const decimals = (String(step).split('.')[1] || '').length;
+    const stepsCount = Math.round((end - start) / step);
+    for (let i = 0; i <= stepsCount; i++) {
+      out.push(Number((start + i * step).toFixed(decimals)));
+    }
+    return out;
+  }
+
+  const DEFAULT_RX_RANGES = {
+    sph: { min: -20, max: 20, step: 0.25 },
+    cyl: { min: -8, max: 0, step: 0.25 },
+    add: { min: 0.75, max: 3.5, step: 0.25 },
+    axis: { min: 1, max: 180, step: 1 },
+  };
+
+  function populateRxDropdowns(ranges) {
+    const r = Object.assign({}, DEFAULT_RX_RANGES, ranges || {});
+
+    const sphValues = rxRange(r.sph.min, r.sph.max, r.sph.step);
+    const cylValues = rxRange(r.cyl.max, r.cyl.min, -Math.abs(r.cyl.step)); // cyl runs 0 down to negative
+    const addValues = rxRange(r.add.min, r.add.max, r.add.step);
+    const axisValues = rxRange(r.axis.min, r.axis.max, r.axis.step);
+
+    const sphFormat = (v) => (v > 0 ? `+${v.toFixed(2)}` : v === 0 ? '0.00' : v.toFixed(2));
+    const cylFormat = (v) => (v === 0 ? '0.00 (none)' : v.toFixed(2));
+    const addFormat = (v) => `+${v.toFixed(2)}`;
+    const axisFormat = (v) => `${v}°`;
+
+    const sphOptionsHtml = buildRxOptions(sphValues, sphFormat);
+    const cylOptionsHtml = buildRxOptions(cylValues, cylFormat);
+    const addOptionsHtml = buildRxOptions(addValues, addFormat);
+    const axisOptionsHtml = buildRxOptions(axisValues, axisFormat);
+
+    ['rx_r_sph', 'rx_l_sph'].forEach(id => { document.getElementById(id).innerHTML = sphOptionsHtml; });
+    ['rx_r_cyl', 'rx_l_cyl'].forEach(id => { document.getElementById(id).innerHTML = cylOptionsHtml; });
+    ['rx_r_axis', 'rx_l_axis'].forEach(id => { document.getElementById(id).innerHTML = axisOptionsHtml; });
+    ['add_r', 'add_l'].forEach(id => { document.getElementById(id).innerHTML = addOptionsHtml; });
+  }
+
+  // Populate with hardcoded defaults immediately so the grid isn't
+  // empty while the settings fetch is in flight, then replace with
+  // whatever Settings has stored, if anything, once it resolves.
+  populateRxDropdowns(null);
+  fetch('/api/settings?key=rx_ranges')
+    .then(r => r.ok ? r.json() : null)
+    .then(result => {
+      if (result && result.ok && result.value) populateRxDropdowns(result.value);
+    })
+    .catch(() => { /* keep the defaults already rendered */ });
+
   document.querySelectorAll('.rx-cyl').forEach(el => {
-    el.addEventListener('input', () => {
-      markValidity(el, CYL_RE.test(el.value.trim()));
-      toggleAxisBase(el.getAttribute('data-eye'));
-    });
+    el.addEventListener('change', () => toggleAxisBase(el.getAttribute('data-eye')));
   });
   document.querySelectorAll('.rx-prism').forEach(el => {
     el.addEventListener('input', () => {
@@ -1151,16 +1350,15 @@
       toggleAxisBase(el.getAttribute('data-eye'));
     });
   });
-  document.querySelectorAll('.rx-axis').forEach(el => {
-    el.addEventListener('blur', () => markValidity(el, AXIS_RE.test(el.value.trim())));
-  });
 
   // Axis and Base only make sense once Cylinder or Prism has a value —
   // enable them dynamically per eye rather than leaving them always-on.
+  // This also enforces the CYL-AXIS pairing: a cylinder power without an
+  // axis (or vice versa) isn't a valid prescription combination.
   function toggleAxisBase(eye) {
     const cyl = document.getElementById(`rx_${eye}_cyl`).value.trim();
     const prism = document.getElementById(`rx_${eye}_prism`).value.trim();
-    const shouldEnable = !!cyl || !!prism;
+    const shouldEnable = (!!cyl && cyl !== '0') || !!prism;
     const axisEl = document.getElementById(`rx_${eye}_axis`);
     const baseEl = document.getElementById(`rx_${eye}_base`);
     axisEl.disabled = !shouldEnable;
@@ -1452,13 +1650,17 @@
     }
 
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
+    saveBtn.textContent = editingOrderId ? 'Saving…' : 'Saving…';
 
     try {
+      const payload = editingOrderId
+        ? { ...data, id: editingOrderId, full_edit: true }
+        : data;
+
       const resp = await fetch('/api/orders', {
-        method: 'POST',
+        method: editingOrderId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (resp.status === 401) {
@@ -1472,11 +1674,14 @@
       }
 
       saveBtn.textContent = 'Saved ✓';
-      setTimeout(() => { saveBtn.textContent = 'Save order'; saveBtn.disabled = false; }, 1800);
+      setTimeout(() => {
+        saveBtn.textContent = editingOrderId ? 'Save changes' : 'Save order';
+        saveBtn.disabled = false;
+      }, 1800);
     } catch (err) {
       alert(err.message || 'Could not save the order.');
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save order';
+      saveBtn.textContent = editingOrderId ? 'Save changes' : 'Save order';
     }
   });
 })();

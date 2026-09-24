@@ -3,9 +3,9 @@
 // plus their full intake submission history and order history --
 // letting staff see "what has this person done before" in one place.
 
-const { requireAuth } = require('../lib/auth');
-const { supabaseRequest } = require('../lib/supabase');
-const { normalizePhone } = require('../lib/patients');
+const { requireAuth } = require('./_auth');
+const { supabaseRequest } = require('./_supabase');
+const { normalizePhone } = require('./_patients');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');

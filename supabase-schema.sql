@@ -260,3 +260,69 @@ create table if not exists balance_payments (
 create index if not exists balance_payments_order_id_idx on balance_payments (order_id);
 
 alter table balance_payments enable row level security;
+
+-- ---------------------------------------------------------------------
+-- Individual staff accounts, replacing the single shared password.
+-- Passwords are stored as scrypt hashes (salt + hash, both hex), never
+-- in plaintext. `active` lets an account be revoked without deleting
+-- it (preserves any audit trail tied to that user's id). `role` is
+-- either 'admin' (can manage staff accounts, business info, and Rx
+-- ranges via Settings) or 'staff' (everyday order/patient/catalog work,
+-- no access to Settings).
+-- ---------------------------------------------------------------------
+create table if not exists staff_users (
+  id uuid primary key default gen_random_uuid(),
+  username text not null unique,
+  display_name text,
+  password_hash text not null,
+  password_salt text not null,
+  role text not null default 'staff' check (role in ('admin', 'staff')),
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  last_login_at timestamptz
+);
+
+create index if not exists staff_users_username_idx on staff_users (lower(username));
+
+alter table staff_users enable row level security;
+
+-- ---------------------------------------------------------------------
+-- App-wide settings: a small key/value store for things staff should be
+-- able to change from within the app itself (Rx dropdown ranges,
+-- business name/address/contact/hours, etc.) without a code deploy.
+-- One row per key; `value` holds JSON so a single key can carry a
+-- structured value (e.g. an Rx range's start/end/step together).
+-- ---------------------------------------------------------------------
+create table if not exists app_settings (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
+
+alter table app_settings enable row level security;
+
+-- Fixes a gap where the orders.rx_subtype check constraint never
+-- included 'CL' (Contacts) after that sub-type was added to the order
+-- form -- without this, saving a contacts order fails at the database
+-- level even though the app already validates 'CL' correctly. Finds
+-- whatever check constraint currently covers rx_subtype (by name may
+-- vary) and replaces it, rather than assuming a specific name.
+do $$
+declare
+  constraint_name text;
+begin
+  select con.conname into constraint_name
+  from pg_constraint con
+  join pg_class rel on rel.oid = con.conrelid
+  where rel.relname = 'orders'
+    and con.contype = 'c'
+    and pg_get_constraintdef(con.oid) ilike '%rx_subtype%';
+
+  if constraint_name is not null then
+    execute format('alter table orders drop constraint %I', constraint_name);
+  end if;
+
+  alter table orders add constraint orders_rx_subtype_check check (rx_subtype in ('CMRX', 'L/O', 'F/O', 'CL'));
+end $$;

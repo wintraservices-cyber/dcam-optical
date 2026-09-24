@@ -5,8 +5,8 @@
 // no full history (that's what /api/patient-history.js is for once a
 // specific patient is selected).
 
-const { requireAuth } = require('../lib/auth');
-const { supabaseRequest } = require('../lib/supabase');
+const { requireAuth } = require('./_auth');
+const { supabaseRequest } = require('./_supabase');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
