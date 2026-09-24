@@ -950,7 +950,7 @@
   // ---- Auth gate ----
   async function checkAuth() {
     try {
-      const resp = await fetch('/api/auth-check');
+      const resp = await fetch('/api/staff-auth');
       const result = await resp.json();
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=order-form.html';
@@ -1222,7 +1222,7 @@
 
   async function searchPatients(term) {
     try {
-      const resp = await fetch('/api/patient-search?q=' + encodeURIComponent(term));
+      const resp = await fetch('/api/patients?q=' + encodeURIComponent(term));
       if (!resp.ok) { renderSuggestions([]); return; }
       const result = await resp.json();
       renderSuggestions(result.ok ? (result.patients || []) : []);

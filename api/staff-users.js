@@ -6,9 +6,9 @@
 // Password hashes and salts are never returned to the client -- list
 // and get responses strip them out.
 
-const { requireAdmin } = require('./_auth');
-const { supabaseRequest } = require('./_supabase');
-const { hashPassword } = require('./_password');
+const { requireAdmin } = require('../lib/auth');
+const { supabaseRequest } = require('../lib/supabase');
+const { hashPassword } = require('../lib/password');
 
 function stripSecrets(user) {
   if (!user) return user;

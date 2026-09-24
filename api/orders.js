@@ -1,6 +1,6 @@
-const { requireAuth } = require('./_auth');
-const { supabaseRequest } = require('./_supabase');
-const { findOrCreatePatient } = require('./_patients');
+const { requireAuth } = require('../lib/auth');
+const { supabaseRequest } = require('../lib/supabase');
+const { findOrCreatePatient } = require('../lib/patients-helper');
 
 // Field allow-list + length caps, same defensive pattern as the intake API.
 const FIELD_LIMITS = {

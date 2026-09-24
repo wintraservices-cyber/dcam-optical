@@ -268,7 +268,7 @@ staff can look up a person's full history in one place.
 - `supabase-schema.sql` now creates three tables: `patients`,
   `intake_submissions`, and `orders` (the latter two both reference
   `patients` via `patient_id`).
-- `api/_patients.js` is the shared matching logic — both `api/intake.js`
+- `lib/patients-helper.js` is the shared matching logic — both `api/intake.js`
   and `api/orders.js` call it on save.
 - `api/patient-history.js` returns a patient's full intake + order history
   given a phone number.

@@ -569,7 +569,7 @@
 
   async function checkAuth() {
     try {
-      const resp = await fetch('/api/auth-check');
+      const resp = await fetch('/api/staff-auth');
       const result = await resp.json();
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=staff-patient-lookup.html';
@@ -669,7 +669,7 @@
     content.innerHTML = '<div class="state-message">Loading…</div>';
 
     try {
-      const resp = await fetch('/api/patient-search?q=' + encodeURIComponent(term));
+      const resp = await fetch('/api/patients?q=' + encodeURIComponent(term));
       if (resp.status === 401) {
         window.location.href = 'staff-login.html?next=staff-patient-lookup.html';
         return;
@@ -721,7 +721,7 @@
   async function viewPatient(phone) {
     content.innerHTML = '<div class="state-message">Loading patient…</div>';
     try {
-      const resp = await fetch('/api/patient-history?phone=' + encodeURIComponent(phone));
+      const resp = await fetch('/api/patients?phone=' + encodeURIComponent(phone));
       if (resp.status === 401) {
         window.location.href = 'staff-login.html?next=staff-patient-lookup.html';
         return;
@@ -981,7 +981,7 @@
         try {
           // Resolve the phone number to a patient id first, using the
           // same search endpoint the rest of this page already uses.
-          const lookupResp = await fetch('/api/patient-search?q=' + encodeURIComponent(targetPhone));
+          const lookupResp = await fetch('/api/patients?q=' + encodeURIComponent(targetPhone));
           const lookupResult = await lookupResp.json();
           if (!lookupResp.ok || !lookupResult.ok) throw new Error('Could not look up that phone number.');
           const targetPatient = (lookupResult.patients || []).find(p => p.phone === targetPhone.replace(/[^\d+]/g, ''));
@@ -993,7 +993,7 @@
           }
 
           statusEl.textContent = 'Moving…';
-          const resp = await fetch('/api/reassign-record', {
+          const resp = await fetch('/api/patients?action=reassign', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ record_type: kind, record_id: id, new_patient_id: targetPatient.id }),
@@ -1021,7 +1021,7 @@
   phoneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/staff-logout', { method: 'POST' });
+    await fetch('/api/staff-auth?action=logout', { method: 'POST' });
     window.location.href = 'staff-login.html';
   });
 })();

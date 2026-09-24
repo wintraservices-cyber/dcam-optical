@@ -316,7 +316,7 @@
 
   async function checkAuth() {
     try {
-      const resp = await fetch('/api/auth-check');
+      const resp = await fetch('/api/staff-auth');
       const result = await resp.json();
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=staff-orders.html';
@@ -533,7 +533,7 @@
   });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/staff-logout', { method: 'POST' });
+    await fetch('/api/staff-auth?action=logout', { method: 'POST' });
     window.location.href = 'staff-login.html';
   });
 

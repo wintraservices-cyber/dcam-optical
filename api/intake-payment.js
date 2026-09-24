@@ -4,8 +4,8 @@
 // /api/orders.js since intake submissions and orders are different
 // tables -- this keeps each endpoint focused on one table.
 
-const { requireAuth } = require('./_auth');
-const { supabaseRequest } = require('./_supabase');
+const { requireAuth } = require('../lib/auth');
+const { supabaseRequest } = require('../lib/supabase');
 
 function isValidPaymentStatus(status) {
   return ['unpaid', 'paid'].includes(status);

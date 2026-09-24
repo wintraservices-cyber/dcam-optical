@@ -1,5 +1,5 @@
-const { requireAuth } = require('./_auth');
-const { supabaseRequest } = require('./_supabase');
+const { requireAuth } = require('../lib/auth');
+const { supabaseRequest } = require('../lib/supabase');
 
 // Field allow-list + length caps, same defensive pattern as orders.js.
 const FIELD_LIMITS = {

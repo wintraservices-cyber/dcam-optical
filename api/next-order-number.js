@@ -11,8 +11,8 @@
 // Purely a suggestion -- the order form field stays editable, and
 // nothing here reserves or locks the number.
 
-const { requireAuth } = require('./_auth');
-const { supabaseRequest } = require('./_supabase');
+const { requireAuth } = require('../lib/auth');
+const { supabaseRequest } = require('../lib/supabase');
 
 const RX_RE = /^(\d{4})-(\d{4,})$/;
 const NON_RX_RE = /^(\d{4})-(\d{2})-(\d{4,})$/;

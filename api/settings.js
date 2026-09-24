@@ -8,8 +8,8 @@
 // GET with ?key=X returns just that key's value.
 // PATCH { key, value } upserts one key.
 
-const { requireAuth, requireAdmin } = require('./_auth');
-const { supabaseRequest } = require('./_supabase');
+const { requireAuth, requireAdmin } = require('../lib/auth');
+const { supabaseRequest } = require('../lib/supabase');
 
 const ALLOWED_KEYS = ['rx_ranges', 'business_info'];
 

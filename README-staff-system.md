@@ -60,7 +60,7 @@ environment variable in Vercel (Project Settings → Environment
 Variables) to something less guessable — it automatically overrides the
 hardcoded value, no code changes needed. The same applies to
 `STAFF_SESSION_SECRET` (used to sign session cookies), which also has a
-hardcoded demo fallback in `api/_auth.js`.
+hardcoded demo fallback in `lib/auth.js`.
 
 ## 3b. Environment variables (only needed for email + database)
 

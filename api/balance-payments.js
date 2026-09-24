@@ -5,8 +5,8 @@
 // payment_status so "how much is still owed" stays accurate at a glance
 // everywhere else in the system (staff-orders list, patient history).
 
-const { requireAuth } = require('./_auth');
-const { supabaseRequest } = require('./_supabase');
+const { requireAuth } = require('../lib/auth');
+const { supabaseRequest } = require('../lib/supabase');
 
 function isValidPaymentMethod(method) {
   return ['cash', 'gcash_cc', 'split'].includes(method);

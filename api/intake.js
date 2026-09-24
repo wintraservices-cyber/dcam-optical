@@ -15,8 +15,8 @@
 //        SUPABASE_SERVICE_ROLE_KEY = your Supabase service role key
 //   5. Redeploy after adding env vars.
 
-const { supabaseRequest } = require('./_supabase');
-const { findOrCreatePatient } = require('./_patients');
+const { supabaseRequest } = require('../lib/supabase');
+const { findOrCreatePatient } = require('../lib/patients-helper');
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 

@@ -136,7 +136,7 @@
     btn.textContent = 'Signing in…';
 
     try {
-      const resp = await fetch('/api/staff-login', {
+      const resp = await fetch('/api/staff-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
