@@ -301,6 +301,27 @@
         <span class="save-status" id="bizInfoStatus"></span>
       </div>
     </div>
+
+    <div class="card">
+      <h2>Intake phone number validation</h2>
+      <div class="card-sub">Controls what phone numbers the public intake form accepts.</div>
+      <div class="field-grid" style="grid-template-columns: 1fr;">
+        <div>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
+            <input type="radio" name="phoneValidationMode" value="ph_only" checked style="width:auto;">
+            Philippine mobile numbers only (e.g. 0917 123 4567)
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem;">
+            <input type="radio" name="phoneValidationMode" value="international" style="width:auto;">
+            Accept international numbers too
+          </label>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="save-btn" id="savePhoneValidation">Save</button>
+        <span class="save-status" id="phoneValidationStatus"></span>
+      </div>
+    </div>
   </div>
 
   <!-- Staff Accounts -->
@@ -499,6 +520,38 @@
     }
   });
 
+  // ---- Intake phone number validation mode ----
+  function renderPhoneValidation(setting) {
+    const mode = (setting && setting.mode) || 'ph_only';
+    const radio = document.querySelector(`input[name="phoneValidationMode"][value="${mode}"]`);
+    if (radio) radio.checked = true;
+  }
+
+  document.getElementById('savePhoneValidation').addEventListener('click', async () => {
+    const btn = document.getElementById('savePhoneValidation');
+    const statusEl = document.getElementById('phoneValidationStatus');
+    const mode = (document.querySelector('input[name="phoneValidationMode"]:checked') || {}).value || 'ph_only';
+    btn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    statusEl.className = 'save-status';
+    try {
+      const resp = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'phone_validation', value: { mode } }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      statusEl.textContent = 'Saved.';
+      statusEl.className = 'save-status success';
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   // ---- Staff accounts ----
   let accounts = [];
 
@@ -645,11 +698,13 @@
       mainWrap.style.display = 'block';
       renderRxRangesForm(result.settings.rx_ranges);
       renderBusinessInfo(result.settings.business_info);
+      renderPhoneValidation(result.settings.phone_validation);
       loadAccounts();
     } catch (err) {
       mainWrap.style.display = 'block';
       renderRxRangesForm(null);
       renderBusinessInfo(null);
+      renderPhoneValidation(null);
       loadAccounts();
     }
   })();

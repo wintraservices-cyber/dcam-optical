@@ -16,7 +16,7 @@
 //   5. Redeploy after adding env vars.
 
 const { supabaseRequest } = require('../lib/supabase');
-const { findOrCreatePatient } = require('../lib/patients-helper');
+const { findOrCreatePatient, normalizePhone, isPhilippineMobile, looksLikePhoneNumber } = require('../lib/patients-helper');
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
@@ -134,6 +134,36 @@ module.exports = async (req, res) => {
 
   if (!isValidEmail(data.email)) {
     missing.push('Valid email address');
+  }
+
+  // Phone format enforcement, per the phone_validation setting an admin
+  // can toggle in Settings: 'ph_only' (default) requires a Philippine
+  // mobile number; 'international' accepts any number that's at least
+  // plausible-looking, so patients giving a foreign number (OFW family,
+  // tourists, etc.) aren't rejected outright.
+  const normalizedPhone = normalizePhone(data.phone);
+  let phoneMode = 'ph_only';
+  try {
+    const settingResp = await supabaseRequest('app_settings?key=eq.phone_validation&limit=1', { method: 'GET' });
+    if (settingResp.ok) {
+      const [row] = await settingResp.json();
+      if (row && row.value && row.value.mode) phoneMode = row.value.mode;
+    }
+  } catch (e) {
+    // Fall back to the stricter default (ph_only) if the setting can't
+    // be read, rather than silently accepting anything.
+  }
+
+  const phoneValid = phoneMode === 'international'
+    ? looksLikePhoneNumber(normalizedPhone)
+    : isPhilippineMobile(normalizedPhone);
+
+  if (!phoneValid) {
+    missing.push(
+      phoneMode === 'international'
+        ? 'Valid phone number'
+        : 'Valid Philippine mobile number (e.g. 0917 123 4567)'
+    );
   }
 
   if (missing.length > 0) {

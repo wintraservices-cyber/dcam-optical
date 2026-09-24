@@ -390,6 +390,7 @@
         <div class="field">
           <label for="phone">Phone number</label>
           <input type="tel" id="phone" name="phone" placeholder="09XX XXX XXXX" required>
+          <small id="phoneHint" style="display:block; margin-top:4px; font-size:0.78rem; color:#B0405A;"></small>
         </div>
         <div class="field">
           <label for="email">Email</label>
@@ -490,6 +491,27 @@
   const confirmPanel = document.getElementById('confirmPanel');
   const confirmDetail = document.getElementById('confirmDetail');
   const submitBtn = form.querySelector('.btn-submit');
+
+  // Live, informational-only hint for the common case (a PH mobile
+  // number). This never blocks submission -- the server is the actual
+  // source of truth for whether international numbers are currently
+  // accepted (a Settings toggle), so this is just a helpful nudge for
+  // the majority of patients entering a local number, not a hard rule.
+  const phoneInput = document.getElementById('phone');
+  const phoneHint = document.getElementById('phoneHint');
+  const PH_MOBILE_RE = /^(09\d{9}|\+639\d{9})$/;
+
+  phoneInput.addEventListener('blur', () => {
+    const normalized = phoneInput.value.trim().replace(/[^\d+]/g, '');
+    if (!normalized) {
+      phoneHint.textContent = '';
+      return;
+    }
+    phoneHint.textContent = PH_MOBILE_RE.test(normalized)
+      ? ''
+      : 'If this isn\'t a Philippine mobile number, that\'s fine -- just double check the format (e.g. 0917 123 4567).';
+  });
+  phoneInput.addEventListener('input', () => { phoneHint.textContent = ''; });
 
   // Pre-fill from the "Book an exam" section on the main site, if the
   // person arrived here via that link with their details in the URL.
