@@ -605,16 +605,23 @@
          uniformly -- unlike a font-size-only rule, zoom also shrinks
          padding, borders, and anything set in rem, so headings and
          labeled inputs shrink along with body text instead of staying
-         full-size while everything else shrinks around them. 0.715
-         matches the ratio of the new A5 landscape printable area
-         (210x148mm, minus margins) to the old A4 landscape one
-         (297x210mm, minus margins), so the same content that used to
-         fill a full sheet now fills the half sheet the same way. */
-      zoom: 0.715;
+         full-size while everything else shrinks around them.
+         0.715 (the raw A4->A5 area ratio) was not enough in practice --
+         this form's real content height still overflowed onto a second
+         page at that setting, so this is scaled down further to
+         actually fit one A5 landscape page top to bottom, not just
+         proportioned to the paper-size ratio. */
+      zoom: 0.5;
     }
     .slip {
       border: 1.5px solid #000;
       width: 100%;
+      /* Keep the whole slip together on one page rather than letting
+         the browser split it mid-section if it's still borderline --
+         forces the zoom/sizing above to be the thing that makes it
+         fit, instead of silently spilling a few rows onto page 2. */
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .slip-half.order { border-right: 2px dashed #000; }
     .slip.receipt-mode .slip-half.order { border-right: none; }
@@ -647,6 +654,7 @@
   <div class="actions">
     <a href="staff-orders.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">View orders</a>
     <a href="staff-catalog.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Catalog</a>
+    <a href="staff-reports.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Reports</a>
     <a href="staff-settings.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Settings</a>
     <a href="staff-patient-lookup.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Patient lookup</a>
     <button class="btn-new" id="clearBtn">Clear form</button>

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports — DCAM Optical (Staff)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #B05A9E;
+    --purple-deep: #8F4680;
+    --blue: #5BAFC0;
+    --blue-deep: #458F9E;
+    --ivory: #F7F1E8;
+    --ivory-dim: #EFE6D8;
+    --charcoal: #383334;
+    --charcoal-soft: #4A4547;
+    --line: rgba(56,51,52,0.14);
+    --display: 'Plus Jakarta Sans', sans-serif;
+    --body: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--charcoal); font-family: var(--body); }
+
+  .staff-bar {
+    background: var(--charcoal);
+    color: var(--ivory);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .staff-bar .tag {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .staff-bar .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .staff-bar a, .staff-bar button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-light { background: var(--ivory); color: var(--charcoal); }
+  .btn-ghost { background: transparent; color: var(--ivory); border: 1px solid rgba(247,241,232,0.35) !important; }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .date-filter {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 22px;
+    margin-bottom: 22px;
+    display: flex;
+    align-items: end;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .date-filter .field label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    margin-bottom: 5px;
+  }
+  .date-filter .field input {
+    border: 1.5px solid var(--line);
+    padding: 9px 11px;
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.88rem;
+  }
+  .date-filter .note {
+    font-size: 0.78rem;
+    color: var(--charcoal-soft);
+    flex-basis: 100%;
+  }
+
+  .report-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .report-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 24px;
+  }
+  .report-card h2 {
+    font-family: var(--display);
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+  .report-card .card-sub {
+    font-size: 0.82rem;
+    color: var(--charcoal-soft);
+    margin-bottom: 16px;
+    min-height: 34px;
+  }
+  .download-btn {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    background: var(--purple);
+    color: var(--ivory);
+    cursor: pointer;
+    width: 100%;
+  }
+  .download-btn:hover { background: var(--purple-deep); }
+  .download-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .download-status {
+    font-size: 0.78rem;
+    margin-top: 8px;
+    display: block;
+    min-height: 16px;
+  }
+  .download-status.error { color: #B0405A; }
+  .download-status.success { color: #3E8E5A; }
+
+  @media (max-width: 620px) {
+    .report-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="staff-bar">
+  <div class="tag">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    Staff only — reports
+  </div>
+  <div class="actions">
+    <a href="staff-orders.html" class="btn-light">Orders</a>
+    <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
+    <a href="staff-catalog.html" class="btn-light">Catalog</a>
+    <a href="staff-settings.html" class="btn-light">Settings</a>
+    <button class="btn-ghost" id="logoutBtn">Log out</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="date-filter">
+    <div class="field">
+      <label>From date</label>
+      <input type="date" id="dateFrom">
+    </div>
+    <div class="field">
+      <label>To date</label>
+      <input type="date" id="dateTo">
+    </div>
+    <div class="note">Applies to Orders and Sales reports. Leave both blank to export everything. Patients and Inventory always export the current full list.</div>
+  </div>
+
+  <div class="report-grid">
+    <div class="report-card">
+      <h2>Orders report</h2>
+      <div class="card-sub">Every order — Rx and Non-Rx — with items, pricing, and payment status.</div>
+      <button class="download-btn" data-type="orders">Download CSV</button>
+      <span class="download-status" id="status-orders"></span>
+    </div>
+
+    <div class="report-card">
+      <h2>Sales / revenue report</h2>
+      <div class="card-sub">Money actually collected — order deposits plus balance payments — with cash/GCash totals.</div>
+      <button class="download-btn" data-type="sales">Download CSV</button>
+      <span class="download-status" id="status-sales"></span>
+    </div>
+
+    <div class="report-card">
+      <h2>Patient list</h2>
+      <div class="card-sub">Name, phone, email, and patient-since date for everyone on file.</div>
+      <button class="download-btn" data-type="patients">Download CSV</button>
+      <span class="download-status" id="status-patients"></span>
+    </div>
+
+    <div class="report-card">
+      <h2>Inventory / stock levels</h2>
+      <div class="card-sub">Current catalog: lenses and frames with pricing and quantity on hand.</div>
+      <button class="download-btn" data-type="inventory">Download CSV</button>
+      <span class="download-status" id="status-inventory"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  async function checkAuth() {
+    try {
+      const resp = await fetch('/api/staff-auth');
+      const result = await resp.json();
+      if (!result.authenticated) {
+        window.location.href = 'staff-login.html?next=staff-reports.html';
+      }
+    } catch (e) {
+      window.location.href = 'staff-login.html?next=staff-reports.html';
+    }
+  }
+  checkAuth();
+
+  document.querySelectorAll('.download-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const type = btn.getAttribute('data-type');
+      const statusEl = document.getElementById('status-' + type);
+      const from = document.getElementById('dateFrom').value;
+      const to = document.getElementById('dateTo').value;
+
+      btn.disabled = true;
+      statusEl.textContent = 'Preparing…';
+      statusEl.className = 'download-status';
+
+      try {
+        let url = `/api/reports?type=${encodeURIComponent(type)}`;
+        if ((type === 'orders' || type === 'sales')) {
+          if (from) url += `&from=${encodeURIComponent(from)}`;
+          if (to) url += `&to=${encodeURIComponent(to)}`;
+        }
+
+        const resp = await fetch(url);
+        if (resp.status === 401) {
+          window.location.href = 'staff-login.html?next=staff-reports.html';
+          return;
+        }
+        if (!resp.ok) {
+          const result = await resp.json().catch(() => ({}));
+          throw new Error(result.error || 'Could not generate this report.');
+        }
+
+        const blob = await resp.blob();
+        const disposition = resp.headers.get('Content-Disposition') || '';
+        const match = disposition.match(/filename="([^"]+)"/);
+        const filename = match ? match[1] : `${type}-report.csv`;
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+
+        statusEl.textContent = 'Downloaded.';
+        statusEl.className = 'download-status success';
+        setTimeout(() => { statusEl.textContent = ''; }, 2500);
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.className = 'download-status error';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    try { await fetch('/api/staff-auth?action=logout', { method: 'POST' }); } catch (e) {}
+    window.location.href = 'staff-login.html';
+  });
+})();
+</script>
+</body>
+</html>
