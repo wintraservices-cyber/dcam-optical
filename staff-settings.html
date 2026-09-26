@@ -270,15 +270,25 @@
   <div class="panel" id="panel-business">
     <div class="card">
       <h2>Business info</h2>
-      <div class="card-sub">Name, address, contact details, and hours.</div>
+      <div class="card-sub">Name, branch location, contact details, hours, and social media. Pulled directly into the order form and claim stub header.</div>
       <div class="field-grid">
         <div>
           <label>Business name</label>
           <input type="text" id="bizName">
         </div>
         <div>
-          <label>Phone</label>
-          <input type="text" id="bizPhone">
+          <label>Branch / mall location</label>
+          <input type="text" id="bizBranch" placeholder="e.g. SM North EDSA, 2nd Floor">
+        </div>
+      </div>
+      <div class="field-grid">
+        <div>
+          <label>Tel (landline)</label>
+          <input type="text" id="bizTel" placeholder="e.g. (02) 8123 4567">
+        </div>
+        <div>
+          <label>Mobile</label>
+          <input type="text" id="bizMobile" placeholder="e.g. 0917 123 4567">
         </div>
       </div>
       <div class="field-grid">
@@ -295,6 +305,12 @@
         <div>
           <label>Address</label>
           <textarea id="bizAddress"></textarea>
+        </div>
+      </div>
+      <div class="field-grid" style="grid-template-columns: 1fr;">
+        <div>
+          <label>Social media</label>
+          <textarea id="bizSocial" placeholder="e.g.&#10;Facebook: facebook.com/dcamoptical&#10;Instagram: @dcamoptical"></textarea>
         </div>
       </div>
       <div class="save-row">
@@ -484,10 +500,13 @@
   function renderBusinessInfo(info) {
     const b = info || {};
     document.getElementById('bizName').value = b.name || '';
-    document.getElementById('bizPhone').value = b.phone || '';
+    document.getElementById('bizBranch').value = b.branch || '';
+    document.getElementById('bizTel').value = b.tel || '';
+    document.getElementById('bizMobile').value = b.mobile || '';
     document.getElementById('bizEmail').value = b.email || '';
     document.getElementById('bizHours').value = b.hours || '';
     document.getElementById('bizAddress').value = b.address || '';
+    document.getElementById('bizSocial').value = b.social || '';
   }
 
   document.getElementById('saveBizInfo').addEventListener('click', async () => {
@@ -499,10 +518,13 @@
     try {
       const value = {
         name: document.getElementById('bizName').value.trim(),
-        phone: document.getElementById('bizPhone').value.trim(),
+        branch: document.getElementById('bizBranch').value.trim(),
+        tel: document.getElementById('bizTel').value.trim(),
+        mobile: document.getElementById('bizMobile').value.trim(),
         email: document.getElementById('bizEmail').value.trim(),
         hours: document.getElementById('bizHours').value.trim(),
         address: document.getElementById('bizAddress').value.trim(),
+        social: document.getElementById('bizSocial').value.trim(),
       };
       const resp = await fetch('/api/settings', {
         method: 'PATCH',
