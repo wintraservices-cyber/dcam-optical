@@ -533,36 +533,28 @@ async function updateOrderStatus(req, res, session) {
 async function getOrderAudit(req, res) {
   const { id } = req.query || {};
   try {
-    const [logResp, paymentsResp] = await Promise.all([
-      supabaseRequest(`order_audit_log?order_id=eq.${encodeURIComponent(id)}&order=created_at.asc`, { method: 'GET' }),
-      supabaseRequest(`balance_payments?order_id=eq.${encodeURIComponent(id)}&order=created_at.asc`, { method: 'GET' }),
-    ]);
+    // order_audit_log alone is the full timeline -- every balance
+    // payment already writes a 'balance_payment' row here (see
+    // balance-payments.js), so also fetching the balance_payments
+    // table directly would double up every payment in the list. That
+    // used to happen; fixed by treating order_audit_log as the single
+    // source of truth for this view.
+    const logResp = await supabaseRequest(`order_audit_log?order_id=eq.${encodeURIComponent(id)}&order=created_at.asc`, { method: 'GET' });
 
-    if (!logResp.ok || !paymentsResp.ok) {
-      console.error('Audit trail fetch error:', logResp.status, paymentsResp.status);
+    if (!logResp.ok) {
+      console.error('Audit trail fetch error:', logResp.status);
       res.status(502).json({ ok: false, error: 'Could not load the audit trail.' });
       return;
     }
 
-    const auditEntries = (await logResp.json()).map(row => ({
+    const timeline = (await logResp.json()).map(row => ({
       type: 'audit',
       action: row.action,
       changed_by: row.changed_by,
       changes: row.changes,
       created_at: row.created_at,
     }));
-    const payments = (await paymentsResp.json()).map(row => ({
-      type: 'payment',
-      action: 'balance_payment',
-      changed_by: row.taken_by,
-      amount: row.amount,
-      payment_method: row.payment_method,
-      split_cash: row.split_cash,
-      split_gcash: row.split_gcash,
-      created_at: row.created_at,
-    }));
 
-    const timeline = [...auditEntries, ...payments].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     res.status(200).json({ ok: true, timeline });
   } catch (err) {
     console.error('Unexpected error loading order audit trail:', err);
