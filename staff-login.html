@@ -63,8 +63,12 @@
     color: var(--charcoal);
     margin-bottom: 8px;
   }
+  label:not(:first-child) { margin-top: 18px; }
+  input[type="text"],
   input[type="password"] {
+    display: block;
     width: 100%;
+    box-sizing: border-box;
     border: 1.5px solid var(--line);
     background: #fff;
     padding: 13px 15px;
@@ -74,6 +78,7 @@
     color: var(--charcoal);
     outline: none;
   }
+  input[type="text"]:focus,
   input[type="password"]:focus { border-color: var(--purple); }
   button {
     width: 100%;
@@ -110,7 +115,7 @@
 
   <form id="loginForm">
     <label for="username">Username</label>
-    <input type="text" id="username" autocomplete="username" placeholder="Leave blank for first-time setup">
+    <input type="text" id="username" autocomplete="username" placeholder="e.g. jsmith">
     <label for="password">Password</label>
     <input type="password" id="password" autocomplete="current-password" required>
     <button type="submit" id="loginBtn">Sign in</button>

@@ -49,7 +49,7 @@ function isValidStatus(status) {
 }
 
 function isValidPaymentStatus(status) {
-  return ['unpaid', 'paid'].includes(status);
+  return ['unpaid', 'partial', 'paid'].includes(status);
 }
 
 function isValidPaymentMethod(method) {

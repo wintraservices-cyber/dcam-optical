@@ -385,7 +385,8 @@
         </td>
         <td data-label="Payment">
           <select class="payment-select" data-id="${o.id}">
-            <option value="unpaid" ${o.payment_status !== 'paid' ? 'selected' : ''}>Unpaid</option>
+            <option value="unpaid" ${(!o.payment_status || o.payment_status === 'unpaid') ? 'selected' : ''}>Unpaid</option>
+            <option value="partial" ${o.payment_status === 'partial' ? 'selected' : ''}>Partial</option>
             <option value="paid" ${o.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
           </select>
         </td>

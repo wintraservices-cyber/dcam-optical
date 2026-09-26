@@ -116,6 +116,15 @@ alter table orders add column if not exists item_qty text;
 alter table orders add column if not exists item_unit_price text;
 alter table orders add column if not exists item_line_total text;
 
+-- Adds updated_at to an orders table that already existed from before
+-- order editing was added. The full-edit and status/payment-status
+-- update handlers in api/orders.js have always written to this column,
+-- but it was never actually defined in the create table above -- this
+-- went unnoticed until PostgREST started rejecting the write outright
+-- (PGRST204: "Could not find the 'updated_at' column of 'orders' in
+-- the schema cache"). No-op if already present.
+alter table orders add column if not exists updated_at timestamptz;
+
 -- Adds patient_id to an orders table that already existed from before
 -- this patients-linking feature was added. No-op if the column is
 -- already there (e.g. on a fresh install where the create table above
@@ -366,3 +375,28 @@ alter table order_audit_log enable row level security;
 -- updated_by is overwritten on every full edit or status change.
 alter table orders add column if not exists created_by text;
 alter table orders add column if not exists updated_by text;
+
+-- ---------------------------------------------------------------------
+-- Adds a "Partial" payment status alongside Unpaid/Paid -- staff need
+-- to record that some money has come in against an order (a deposit,
+-- one balance payment of several) without it counting as either fully
+-- unpaid or fully paid. Uses the same find-and-replace pattern as the
+-- rx_subtype fix above, since the constraint's name may vary.
+-- ---------------------------------------------------------------------
+do $$
+declare
+  constraint_name text;
+begin
+  select con.conname into constraint_name
+  from pg_constraint con
+  join pg_class rel on rel.oid = con.conrelid
+  where rel.relname = 'orders'
+    and con.contype = 'c'
+    and pg_get_constraintdef(con.oid) ilike '%payment_status%';
+
+  if constraint_name is not null then
+    execute format('alter table orders drop constraint %I', constraint_name);
+  end if;
+
+  alter table orders add constraint orders_payment_status_check check (payment_status in ('unpaid', 'partial', 'paid'));
+end $$;

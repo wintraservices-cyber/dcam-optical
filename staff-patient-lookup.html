@@ -818,7 +818,8 @@
             <div class="payment-row">
               <span class="payment-row-label">Payment:</span>
               <select class="payment-select" data-kind="order" data-id="${o.id}">
-                <option value="unpaid" ${o.payment_status !== 'paid' ? 'selected' : ''}>Unpaid</option>
+                <option value="unpaid" ${(!o.payment_status || o.payment_status === 'unpaid') ? 'selected' : ''}>Unpaid</option>
+                <option value="partial" ${o.payment_status === 'partial' ? 'selected' : ''}>Partial</option>
                 <option value="paid" ${o.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
               </select>
               <a href="order-form.html?id=${o.id}" class="move-record-btn" style="text-decoration:underline;">Edit order</a>

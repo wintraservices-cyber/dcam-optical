@@ -592,6 +592,11 @@
     background: #3D7A4D;
     color: #fff;
   }
+  .payment-chip input[value="partial"]:checked + span {
+    border-color: #B8860B;
+    background: #B8860B;
+    color: #fff;
+  }
 
   /* ---------- Print styles ---------- */
   @media print {
@@ -884,6 +889,7 @@
       <div class="payment-status-row">
         <span class="payment-status-label">Payment status:</span>
         <label class="payment-chip"><input type="radio" name="paymentStatus" value="unpaid" checked><span>Unpaid</span></label>
+        <label class="payment-chip"><input type="radio" name="paymentStatus" value="partial"><span>Partial</span></label>
         <label class="payment-chip"><input type="radio" name="paymentStatus" value="paid"><span>Paid</span></label>
       </div>
 

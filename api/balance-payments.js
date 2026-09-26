@@ -92,12 +92,15 @@ async function recordPayment(req, res, session) {
     const [logged] = await logResp.json();
 
     // Update the order's own balance (existing balance minus this
-    // payment, floored at 0) and mark it paid once fully settled.
+    // payment, floored at 0) and its payment_status: fully settled once
+    // the balance hits 0, otherwise "partial" once any payment has been
+    // logged against it (rather than leaving it stuck on "unpaid" even
+    // though money has come in).
     const currentBalance = parseFloat(order.balance) || 0;
     const newBalance = Math.max(0, currentBalance - parsedAmount);
     const orderPatch = {
       balance: newBalance ? newBalance.toFixed(2) : '0.00',
-      payment_status: newBalance <= 0 ? 'paid' : order.payment_status,
+      payment_status: newBalance <= 0 ? 'paid' : 'partial',
       updated_at: new Date().toISOString(),
     };
 
