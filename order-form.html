@@ -1085,18 +1085,27 @@
   }
 
   function formatAuditChanges(entry) {
-    if (entry.type === 'payment') {
-      const parts = ['₱' + entry.amount, entry.payment_method];
-      if (entry.payment_method === 'split') {
-        parts.push('cash ₱' + (entry.split_cash || '0') + ' / gcash-cc ₱' + (entry.split_gcash || '0'));
+    if (!entry.changes || typeof entry.changes !== 'object') return '';
+    // A balance_payment entry's "changes" is a flat snapshot of the
+    // payment itself (amount/method/split), not a set of before/after
+    // field diffs like every other action -- render it as a payment
+    // summary instead of trying to read .before/.after off plain values.
+    if (entry.action === 'balance_payment') {
+      const c = entry.changes;
+      const parts = ['₱' + (c.amount ?? ''), c.payment_method ?? ''];
+      if (c.payment_method === 'split') {
+        parts.push('cash ₱' + (c.split_cash || '0') + ' / gcash-cc ₱' + (c.split_gcash || '0'));
       }
       return parts.join(' · ');
     }
-    if (!entry.changes || typeof entry.changes !== 'object') return '';
     const fields = Object.keys(entry.changes);
     if (!fields.length) return '';
     return fields.map(f => {
       const c = entry.changes[f];
+      // Defensive: only render fields that actually look like a
+      // {before, after} diff -- skip anything malformed rather than
+      // throwing and blanking the whole history panel.
+      if (!c || typeof c !== 'object') return f + ': ' + String(c);
       return f + ': "' + (c.before ?? '') + '" → "' + (c.after ?? '') + '"';
     }).join('; ');
   }
@@ -1108,10 +1117,17 @@
       return;
     }
     const rows = timeline.slice().reverse().map(entry => {
-      const when = new Date(entry.created_at).toLocaleString();
-      return '<tr><td>' + escapeHtmlClient(when) + '</td><td>' + escapeHtmlClient(describeAuditAction(entry)) +
-        '</td><td>' + escapeHtmlClient(entry.changed_by || '—') + '</td><td class="hp-changes">' +
-        escapeHtmlClient(formatAuditChanges(entry)) + '</td></tr>';
+      // One malformed/legacy row (an odd shape from before this format
+      // was settled) shouldn't blank the entire history panel -- render
+      // that row as "details unavailable" instead of throwing.
+      try {
+        const when = new Date(entry.created_at).toLocaleString();
+        return '<tr><td>' + escapeHtmlClient(when) + '</td><td>' + escapeHtmlClient(describeAuditAction(entry)) +
+          '</td><td>' + escapeHtmlClient(entry.changed_by || '—') + '</td><td class="hp-changes">' +
+          escapeHtmlClient(formatAuditChanges(entry)) + '</td></tr>';
+      } catch (rowErr) {
+        return '<tr><td colspan="4" class="hp-empty">Could not display one history entry.</td></tr>';
+      }
     }).join('');
     content.innerHTML = '<table><thead><tr><th>When</th><th>What</th><th>By</th><th>Details</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
