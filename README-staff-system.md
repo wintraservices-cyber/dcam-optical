@@ -97,17 +97,37 @@ The session lasts 12 hours, then requires logging in again.
   repo, but is not real access control — before this handles actual
   patient data, move the password to a `STAFF_PASSWORD` environment
   variable (see section 3 above) so it isn't sitting in version control.
-- **One shared password, not individual accounts.** Anyone with the
-  password can see and edit all orders; there's no per-staff audit trail
-  (no record of *which* staff member created or edited a given order,
-  beyond the free-text "By:" field they type in themselves).
-- **No edit-existing-order flow yet.** The form saves new orders; editing a
-  previously saved order (beyond changing its status) isn't wired up. That's
-  a reasonable next addition once this is in daily use and you know what
-  edits actually come up.
 - **No automatic sync between the printed slip and the saved record if
   someone edits after printing.** Print and Save are two independent
   actions on the same filled-in form.
+
+> The two bullets above about a single shared password and no
+> edit-existing-order flow are no longer accurate as of the individual
+> staff accounts, Settings page, and full order-editing features — see
+> "Payment audit trail" below for how staff identity is now tracked.
+
+## Payment audit trail
+
+Every staff account has its own login (Settings → Staff Accounts,
+admin-only), and that identity is what the system trusts for "who did
+this" — never a free-text field staff type in themselves.
+
+- **`taken_by`** (the "By:" field on the printed order slip, and the
+  field on `balance_payments`) is always set server-side from the
+  logged-in session. It's read-only in the order form UI and ignored if
+  a client sends a different value.
+- **`orders.created_by`** / **`orders.updated_by`** record who created
+  the order and who last changed it (status, payment status, or a full
+  edit), also from the session.
+- **`order_audit_log`** table has one row per create / status change /
+  payment-status change / full edit / balance payment, each with a
+  before → after diff of whatever fields actually changed (see
+  `lib/audit.js`).
+- Opening an existing order in `order-form.html?id=...` shows a
+  collapsible "Payment & edit history" panel above the slip — the full
+  timeline of edits and payments for that order, in one place, so a
+  correction made after the fact is visible rather than silently
+  overwriting the original entry.
 
 These are natural next steps once the basic login + database loop is
 running smoothly in practice.

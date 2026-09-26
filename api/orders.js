@@ -1,6 +1,7 @@
 const { requireAuth } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
-const { findOrCreatePatient, validatePhoneForSave } = require('../lib/patients-helper');
+const { findOrCreatePatient } = require('../lib/patients-helper');
+const { logOrderAudit, diffFields } = require('../lib/audit');
 
 // Field allow-list + length caps, same defensive pattern as the intake API.
 const FIELD_LIMITS = {
@@ -95,7 +96,7 @@ function sanitizeItems(rawItems) {
     .filter(item => item && item.item_name); // drop empty rows (no name entered)
 }
 
-async function createOrder(req, res) {
+async function createOrder(req, res, session) {
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch (e) {
@@ -127,18 +128,12 @@ async function createOrder(req, res) {
     : null;
   record.created_at = new Date().toISOString();
 
-  // Phone format enforcement -- only when a phone was actually entered.
-  // Orders can still be saved with no phone at all (matches the existing
-  // design: a staff-entered order isn't required to link to a patient),
-  // but if staff DID type something, it should be a real, correctly
-  // formatted number rather than a typo that silently fails to link.
-  if (record.tel_no) {
-    const phoneCheck = await validatePhoneForSave(record.tel_no);
-    if (!phoneCheck.valid) {
-      res.status(400).json({ ok: false, error: phoneCheck.message });
-      return;
-    }
-  }
+  // "Who took this order" is always the authenticated staff member who
+  // is actually submitting it -- never whatever the client sent, since
+  // a free-text/client-supplied value can't be trusted as an audit
+  // record of who was really at the keyboard.
+  record.taken_by = session.username;
+  record.created_by = session.username;
 
   // Link this order to a patient record, matched by phone number. If no
   // phone was entered, the order still saves -- it just isn't linked to
@@ -172,6 +167,13 @@ async function createOrder(req, res) {
     }
 
     const [saved] = await resp.json();
+
+    logOrderAudit({
+      orderId: saved.id,
+      orderNo: saved.order_no,
+      action: 'created',
+      changedBy: session.username,
+    });
 
     // Write multi-item rows (Non-Rx orders with more than one product)
     // as a second insert, linked to the order that just saved. If this
@@ -228,7 +230,7 @@ async function createOrder(req, res) {
   }
 }
 
-async function updateOrderFull(req, res) {
+async function updateOrderFull(req, res, session) {
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch (e) {
@@ -268,18 +270,16 @@ async function updateOrderFull(req, res) {
     record.rx_subtype = null;
   }
   record.updated_at = new Date().toISOString();
+  record.updated_by = session.username;
+  // taken_by reflects who is on record for this order's payment, not a
+  // free-text field editors can overwrite -- never trust client input
+  // for it; leave the original value in place on an edit.
+  delete record.taken_by;
 
   // If the patient's name or phone changed, re-link to the correct
   // patient record (matched/created by phone) the same way createOrder
   // does, so an edited order doesn't stay pointed at a stale patient_id.
   if (body.patient_name !== undefined || body.tel_no !== undefined) {
-    if (record.tel_no) {
-      const phoneCheck = await validatePhoneForSave(record.tel_no);
-      if (!phoneCheck.valid) {
-        res.status(400).json({ ok: false, error: phoneCheck.message });
-        return;
-      }
-    }
     try {
       const patient = await findOrCreatePatient({
         phone: record.tel_no,
@@ -293,6 +293,19 @@ async function updateOrderFull(req, res) {
   }
 
   try {
+    // Fetch the pre-edit row so the audit log can record an actual
+    // before/after diff, not just "something changed."
+    let beforeRow = null;
+    try {
+      const beforeResp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}&limit=1`, { method: 'GET' });
+      if (beforeResp.ok) {
+        const [row] = await beforeResp.json();
+        beforeRow = row || null;
+      }
+    } catch (beforeErr) {
+      console.error('Could not load pre-edit order for audit diff:', beforeErr);
+    }
+
     const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { Prefer: 'return=representation' },
@@ -310,6 +323,17 @@ async function updateOrderFull(req, res) {
     if (!saved) {
       res.status(404).json({ ok: false, error: 'Order not found.' });
       return;
+    }
+
+    const changes = diffFields(beforeRow, record);
+    if (Object.keys(changes).length > 0) {
+      logOrderAudit({
+        orderId: saved.id,
+        orderNo: saved.order_no,
+        action: 'full_edit',
+        changedBy: session.username,
+        changes,
+      });
     }
 
     // Replace line items wholesale if an items array was sent -- delete
@@ -420,7 +444,7 @@ async function listOrders(req, res) {
   }
 }
 
-async function updateOrderStatus(req, res) {
+async function updateOrderStatus(req, res, session) {
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch (e) { body = {}; }
@@ -451,8 +475,21 @@ async function updateOrderStatus(req, res) {
   const patch = {};
   if (statusProvided) patch.status = status;
   if (paymentStatusProvided) patch.payment_status = payment_status;
+  patch.updated_at = new Date().toISOString();
+  patch.updated_by = session.username;
 
   try {
+    let beforeRow = null;
+    try {
+      const beforeResp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}&limit=1`, { method: 'GET' });
+      if (beforeResp.ok) {
+        const [row] = await beforeResp.json();
+        beforeRow = row || null;
+      }
+    } catch (beforeErr) {
+      console.error('Could not load pre-edit order for audit diff:', beforeErr);
+    }
+
     const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { Prefer: 'return=representation' },
@@ -467,9 +504,68 @@ async function updateOrderStatus(req, res) {
     }
 
     const [updated] = await resp.json();
+
+    const changes = diffFields(beforeRow, patch);
+    if (Object.keys(changes).length > 0) {
+      logOrderAudit({
+        orderId: id,
+        orderNo: updated ? updated.order_no : (beforeRow ? beforeRow.order_no : ''),
+        action: statusProvided && paymentStatusProvided
+          ? 'status_change'
+          : (statusProvided ? 'status_change' : 'payment_status_change'),
+        changedBy: session.username,
+        changes,
+      });
+    }
+
     res.status(200).json({ ok: true, order: updated });
   } catch (err) {
     console.error('Unexpected error updating order:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
+// Returns this order's full audit trail: edit/status-change history from
+// order_audit_log plus its balance_payments, merged into one
+// chronological list so staff can see everything that happened to an
+// order -- who created it, who changed it, who collected each payment,
+// and when -- in one place.
+async function getOrderAudit(req, res) {
+  const { id } = req.query || {};
+  try {
+    const [logResp, paymentsResp] = await Promise.all([
+      supabaseRequest(`order_audit_log?order_id=eq.${encodeURIComponent(id)}&order=created_at.asc`, { method: 'GET' }),
+      supabaseRequest(`balance_payments?order_id=eq.${encodeURIComponent(id)}&order=created_at.asc`, { method: 'GET' }),
+    ]);
+
+    if (!logResp.ok || !paymentsResp.ok) {
+      console.error('Audit trail fetch error:', logResp.status, paymentsResp.status);
+      res.status(502).json({ ok: false, error: 'Could not load the audit trail.' });
+      return;
+    }
+
+    const auditEntries = (await logResp.json()).map(row => ({
+      type: 'audit',
+      action: row.action,
+      changed_by: row.changed_by,
+      changes: row.changes,
+      created_at: row.created_at,
+    }));
+    const payments = (await paymentsResp.json()).map(row => ({
+      type: 'payment',
+      action: 'balance_payment',
+      changed_by: row.taken_by,
+      amount: row.amount,
+      payment_method: row.payment_method,
+      split_cash: row.split_cash,
+      split_gcash: row.split_gcash,
+      created_at: row.created_at,
+    }));
+
+    const timeline = [...auditEntries, ...payments].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    res.status(200).json({ ok: true, timeline });
+  } catch (err) {
+    console.error('Unexpected error loading order audit trail:', err);
     res.status(500).json({ ok: false, error: 'Unexpected server error.' });
   }
 }
@@ -484,10 +580,19 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (!requireAuth(req, res)) return;
+  const session = requireAuth(req, res);
+  if (!session) return;
 
-  if (req.method === 'POST') return createOrder(req, res);
-  if (req.method === 'GET') return listOrders(req, res);
+  if (req.method === 'POST') return createOrder(req, res, session);
+  if (req.method === 'GET') {
+    // ?id=X&audit=1 fetches this order's audit trail (edits + status
+    // changes) instead of the order itself -- used by the order
+    // detail/history views to show a "who changed what, when" log.
+    if (req.query && req.query.audit === '1' && req.query.id) {
+      return getOrderAudit(req, res);
+    }
+    return listOrders(req, res);
+  }
   if (req.method === 'PATCH') {
     // Distinguish the full order-form edit from the lightweight
     // status/payment-only quick-edit used by the staff-orders list's
@@ -497,8 +602,8 @@ module.exports = async (req, res) => {
     if (typeof body === 'string') {
       try { body = JSON.parse(body); } catch (e) { body = {}; }
     }
-    if (body && body.full_edit === true) return updateOrderFull(req, res);
-    return updateOrderStatus(req, res);
+    if (body && body.full_edit === true) return updateOrderFull(req, res, session);
+    return updateOrderStatus(req, res, session);
   }
 
   res.status(405).json({ ok: false, error: 'Method not allowed' });

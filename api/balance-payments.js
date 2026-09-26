@@ -7,6 +7,7 @@
 
 const { requireAuth } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
+const { logOrderAudit } = require('../lib/audit');
 
 function isValidPaymentMethod(method) {
   return ['cash', 'gcash_cc', 'split'].includes(method);
@@ -18,7 +19,7 @@ function sanitizeAmount(value) {
   return trimmed ? trimmed.slice(0, 20) : null;
 }
 
-async function recordPayment(req, res) {
+async function recordPayment(req, res, session) {
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch (e) {
@@ -36,7 +37,12 @@ async function recordPayment(req, res) {
   const paymentMethod = isValidPaymentMethod(body.payment_method) ? body.payment_method : 'cash';
   const splitCash = sanitizeAmount(body.split_cash);
   const splitGcash = sanitizeAmount(body.split_gcash);
-  const takenBy = typeof body.taken_by === 'string' ? body.taken_by.trim().slice(0, 100) || null : null;
+  // Who collected this payment is always the logged-in staff member
+  // submitting the request, never a client-supplied value -- this is
+  // the actual audit-trail fix: "taken_by" used to be free text (or
+  // blank) typed by whoever was at the keyboard, which can't be trusted
+  // as a record of who really collected the money.
+  const takenBy = session.username;
 
   if (!order_id) {
     res.status(400).json({ ok: false, error: 'An order id is required.' });
@@ -109,6 +115,14 @@ async function recordPayment(req, res) {
     }
     const [updatedOrder] = updateResp.ok ? await updateResp.json() : [order];
 
+    logOrderAudit({
+      orderId: order_id,
+      orderNo: order.order_no,
+      action: 'balance_payment',
+      changedBy: session.username,
+      changes: { amount, payment_method: paymentMethod, split_cash: splitCash, split_gcash: splitGcash },
+    });
+
     res.status(200).json({ ok: true, payment: logged, order: updatedOrder });
   } catch (err) {
     console.error('Unexpected error recording balance payment:', err);
@@ -126,9 +140,10 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (!requireAuth(req, res)) return;
+  const session = requireAuth(req, res);
+  if (!session) return;
 
-  if (req.method === 'POST') return recordPayment(req, res);
+  if (req.method === 'POST') return recordPayment(req, res, session);
 
   res.status(405).json({ ok: false, error: 'Method not allowed' });
 };

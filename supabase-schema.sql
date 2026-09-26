@@ -326,3 +326,43 @@ begin
 
   alter table orders add constraint orders_rx_subtype_check check (rx_subtype in ('CMRX', 'L/O', 'F/O', 'CL'));
 end $$;
+
+-- ---------------------------------------------------------------------
+-- Payment audit trail.
+--
+-- Two problems with the paper-log replacement so far: (1) "taken_by" on
+-- both orders and balance_payments was a free-text field the staff
+-- member typed in themselves (or left blank) -- not tied to who was
+-- actually logged in, so it can't be trusted as a record of who
+-- collected a payment; (2) editing an order (full_edit) or changing its
+-- status/payment_status overwrites the row in place with no trace of
+-- what it looked like before, so a correction after the fact is
+-- indistinguishable from the original entry.
+--
+-- Fix for (1) is server-side, in api/orders.js and
+-- api/balance-payments.js -- taken_by/created_by/updated_by are now
+-- always set from the authenticated session, never from client input.
+-- This table is the fix for (2): one row per order create/status
+-- change/payment edit/full edit, capturing who did it, when, and a
+-- before/after snapshot of whatever fields changed.
+-- ---------------------------------------------------------------------
+create table if not exists order_audit_log (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+  order_no text not null,
+  action text not null check (action in ('created', 'status_change', 'payment_status_change', 'full_edit', 'balance_payment')),
+  changed_by text not null,
+  changes jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists order_audit_log_order_id_idx on order_audit_log (order_id);
+create index if not exists order_audit_log_created_at_idx on order_audit_log (created_at);
+
+alter table order_audit_log enable row level security;
+
+-- Who created/last edited an order, taken from the authenticated
+-- session rather than free text. created_by is set once at insert;
+-- updated_by is overwritten on every full edit or status change.
+alter table orders add column if not exists created_by text;
+alter table orders add column if not exists updated_by text;
