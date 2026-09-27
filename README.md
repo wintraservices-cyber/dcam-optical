@@ -365,3 +365,15 @@ Claude-app-only capability, so it works for anyone visiting the live site.
   sums in SQL via `ai_usage_daily()` (Manila calendar days).
 - **Setup:** run the new block at the bottom of `supabase-schema.sql`
   (safe to re-run).
+
+## Customer chat bubble (`site-assistant.js`)
+
+- Floating "Ask us" bubble (bottom-right) on the public pages
+  (`index.html`, `intake.html`). Add it to any new public page with
+  `<script src="site-assistant.js" defer></script>`.
+- On the homepage it also drives the inline "Ask us anything" panel —
+  one shared conversation shown in both places.
+- Checks `GET /api/chat` on load: if Website chat (or All AI features) is
+  off in Settings, the bubble isn't shown and the homepage chat section
+  and its nav links are hidden.
+- Any element with `data-open-chat` opens the bubble.

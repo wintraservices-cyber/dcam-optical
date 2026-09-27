@@ -2,6 +2,7 @@
 // Vercel Hobby limit of 12 functions.
 //
 // PUBLIC website chat (no login):
+//   GET  /api/chat                       -> { enabled } (is it switched on?)
 //   POST /api/chat  { messages: [...] }  -> streams plain text
 //
 // STAFF assistant (staff login required, see lib/staff-ai.js):
@@ -165,8 +166,16 @@ function sanitizeMessages(raw) {
 }
 
 async function publicChat(req, res) {
+  // GET: is the website chat switched on? Used by site-assistant.js to
+  // decide whether to show the chat at all. No AI call, no cost.
+  if (req.method === 'GET') {
+    const access = await loadAiAccess();
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).json({ ok: true, enabled: publicChatOn(access) });
+    return;
+  }
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'GET, POST');
     res.status(405).json({ ok: false, error: 'Method not allowed' });
     return;
   }

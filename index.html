@@ -332,23 +332,6 @@
     font-size: 0.92rem;
     line-height: 1.55;
   }
-  .chat-book-btn {
-    align-self: flex-start;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--purple);
-    color: #fff;
-    font-family: var(--display);
-    font-weight: 600;
-    font-size: 0.85rem;
-    text-decoration: none;
-    padding: 9px 16px;
-    border-radius: 20px;
-    margin-top: -2px;
-    transition: background 0.15s;
-  }
-  .chat-book-btn:hover { background: var(--purple-deep); }
   .msg.bot {
     background: var(--ivory-dim);
     color: var(--charcoal);
@@ -1073,144 +1056,6 @@
   </div>
 </footer>
 
-<script>
-(function() {
-  const chatBody = document.getElementById('chatBody');
-  const chatInput = document.getElementById('chatInput');
-  const chatSend = document.getElementById('chatSend');
-  const chips = document.getElementById('chatChips');
-  const BOOK_MARKER = '[[BOOK]]';
-  const BOOK_URL = 'intake.html';
-
-  // Conversation history sent to /api/chat. The assistant's instructions
-  // and live practice details live on the server, not here.
-  let turns = [];
-
-  function addMsg(text, cls) {
-    const div = document.createElement('div');
-    div.className = 'msg ' + cls;
-    div.textContent = text;
-    chatBody.appendChild(div);
-    chatBody.scrollTop = chatBody.scrollHeight;
-    return div;
-  }
-
-  function addBookButton() {
-    const a = document.createElement('a');
-    a.className = 'chat-book-btn';
-    a.href = BOOK_URL;
-    a.textContent = 'Book an exam →';
-    chatBody.appendChild(a);
-    chatBody.scrollTop = chatBody.scrollHeight;
-  }
-
-  // Hide the booking marker (and any half-streamed start of it) while text arrives.
-  function visibleText(raw) {
-    let t = raw.split(BOOK_MARKER).join('');
-    for (let i = BOOK_MARKER.length - 1; i > 0; i--) {
-      if (t.endsWith(BOOK_MARKER.slice(0, i))) { t = t.slice(0, -i); break; }
-    }
-    return t.trim();
-  }
-
-  // Live path: our own serverless endpoint (works for anyone on the real site).
-  async function askServer(onText) {
-    const resp = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: turns }),
-    });
-    if (!resp.ok) {
-      let msg = null;
-      try { const j = await resp.json(); msg = j.error; } catch (e) {}
-      const err = new Error(msg || 'Request failed');
-      err.status = resp.status;
-      err.userMessage = msg;
-      throw err;
-    }
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let full = '';
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      full += decoder.decode(value, { stream: true });
-      onText(full);
-    }
-    full += decoder.decode();
-    return full;
-  }
-
-  // Fallback for previews opened inside the Claude app (no /api there).
-  async function askClaudeApp(onText) {
-    if (!(window.claude && window.claude.use)) throw new Error('no-fallback');
-    const sample = await window.claude.use('sample');
-    const intro = "You are DCAM Optical's website front-desk assistant (optometry practice, Philippines). Be brief and warm, never diagnose, send possibly urgent symptoms to prompt in-person care, and don't invent prices or phone numbers. If booking is the helpful next step, end with [[BOOK]].";
-    const result = await sample([{ role: 'user', content: intro }, ...turns], {
-      cache: false, modelTier: 'quick', onText: ({ text }) => onText(text),
-    });
-    return result.text;
-  }
-
-  async function send(text) {
-    if (!text || !text.trim()) return;
-    chatInput.value = '';
-    chatSend.disabled = true;
-    chips.style.display = 'none';
-    addMsg(text, 'user');
-    turns.push({ role: 'user', content: text.trim() });
-
-    const thinking = addMsg('Thinking…', 'bot thinking');
-    let bubble = null;
-    const onText = (raw) => {
-      const shown = visibleText(raw);
-      if (!shown) return;
-      if (!bubble) { thinking.remove(); bubble = addMsg('', 'bot'); }
-      bubble.textContent = shown;
-      chatBody.scrollTop = chatBody.scrollHeight;
-    };
-
-    try {
-      let full;
-      try {
-        full = await askServer(onText);
-      } catch (e) {
-        // No backend (404 / offline preview) -> try the Claude-app path.
-        if (e.status === 404 || e instanceof TypeError) {
-          full = await askClaudeApp(onText);
-        } else {
-          throw e;
-        }
-      }
-      const wantsBooking = full.includes(BOOK_MARKER);
-      const clean = visibleText(full);
-      if (!clean) throw new Error('empty');
-      if (!bubble) { thinking.remove(); bubble = addMsg(clean, 'bot'); }
-      bubble.textContent = clean;
-      turns.push({ role: 'assistant', content: clean });
-      if (wantsBooking) addBookButton();
-    } catch (e) {
-      thinking.remove();
-      if (bubble) bubble.remove();
-      turns.pop(); // let them resend the same question
-      addMsg((e && e.userMessage) || "Sorry — I couldn't answer just now. Please try again, or start the intake form and the clinic will get back to you.", 'bot');
-    } finally {
-      chatSend.disabled = false;
-      chatInput.focus();
-    }
-  }
-
-  chatSend.addEventListener('click', () => send(chatInput.value));
-  chatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') send(chatInput.value);
-  });
-  chips.addEventListener('click', (e) => {
-    const btn = e.target.closest('.chip');
-    if (!btn) return;
-    send(btn.getAttribute('data-q'));
-  });
-})();
-</script>
 
 <script>
 (function() {
@@ -1357,5 +1202,6 @@
 })();
 </script>
 
+<script src="site-assistant.js" defer></script>
 </body>
 </html>
