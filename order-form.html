@@ -52,7 +52,9 @@
     gap: 8px;
   }
   .staff-bar .actions { display: flex; gap: 10px; }
-  .staff-bar button {
+  .staff-bar button,
+  .staff-bar a.btn-new,
+  .staff-bar a.btn-print {
     font-family: var(--display);
     font-weight: 600;
     font-size: 0.85rem;
@@ -64,6 +66,32 @@
   .btn-print { background: var(--ivory); color: var(--charcoal); }
   .btn-new { background: transparent; color: var(--ivory); border: 1px solid rgba(247,241,232,0.4) !important; }
   .btn-new:hover { background: rgba(247,241,232,0.1); }
+
+  /* Bottom action bar sits on the plain light page background, not the
+     dark .staff-bar -- reusing .btn-new there made Clear/Print nearly
+     invisible (near-white text, transparent background, faint light
+     border, all on a light page) and gave none of them the toolbar's
+     pill shape/padding, since that only applies inside .staff-bar. This
+     gives the bottom buttons their own look that's clearly clickable on
+     a light background, matching the same pill shape as the top bar. */
+  .bottom-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .bottom-actions button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border-radius: 100px;
+    cursor: pointer;
+  }
+  .btn-bottom-secondary { background: #fff; color: var(--charcoal); border: 1.5px solid var(--charcoal) !important; }
+  .btn-bottom-secondary:hover { background: var(--ivory-dim); }
+  .btn-bottom-primary { background: var(--purple); color: #fff; border: none !important; }
 
   .page-wrap {
     max-width: 980px;
@@ -999,10 +1027,10 @@
     </div>
   </div>
 
-  <div class="actions no-print" style="margin-top:16px; justify-content:flex-end; display:flex; gap:10px;">
-    <button class="btn-new" id="clearBtnBottom">Clear form</button>
-    <button class="btn-new" id="saveBtnBottom" style="background:var(--purple); color:#fff; border:none !important;">Save order</button>
-    <button class="btn-print" id="printBtnBottom">Print order + stub</button>
+  <div class="bottom-actions no-print">
+    <button class="btn-bottom-secondary" id="clearBtnBottom">Clear form</button>
+    <button class="btn-bottom-primary" id="saveBtnBottom">Save order</button>
+    <button class="btn-bottom-secondary" id="printBtnBottom">Print order + stub</button>
   </div>
 </div>
 
