@@ -154,6 +154,7 @@
   <div class="actions">
     <a href="staff-orders.html" class="btn-light">Orders</a>
     <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
+    <a href="staff-expenses.html" class="btn-light">Expenses</a>
     <a href="staff-catalog.html" class="btn-light">Catalog</a>
     <a href="staff-settings.html" class="btn-light">Settings</a>
     <button class="btn-ghost" id="logoutBtn">Log out</button>
@@ -170,7 +171,7 @@
       <label>To date</label>
       <input type="date" id="dateTo">
     </div>
-    <div class="note">Applies to Orders and Sales reports. Leave both blank to export everything. Patients and Inventory always export the current full list.</div>
+    <div class="note">Applies to Orders, Sales, and Expenses reports. Leave both blank to export everything. Patients and Inventory always export the current full list.</div>
   </div>
 
   <div class="report-grid">
@@ -200,6 +201,13 @@
       <div class="card-sub">Current catalog: lenses and frames with pricing and quantity on hand.</div>
       <button class="download-btn" data-type="inventory">Download CSV</button>
       <span class="download-status" id="status-inventory"></span>
+    </div>
+
+    <div class="report-card">
+      <h2>Expenses</h2>
+      <div class="card-sub">Petty cash, payroll advances, supplies, and other business expenses logged in Expenses.</div>
+      <button class="download-btn" data-type="expenses">Download CSV</button>
+      <span class="download-status" id="status-expenses"></span>
     </div>
   </div>
 </div>
@@ -232,7 +240,7 @@
 
       try {
         let url = `/api/reports?type=${encodeURIComponent(type)}`;
-        if ((type === 'orders' || type === 'sales')) {
+        if ((type === 'orders' || type === 'sales' || type === 'expenses')) {
           if (from) url += `&from=${encodeURIComponent(from)}`;
           if (to) url += `&to=${encodeURIComponent(to)}`;
         }

@@ -221,6 +221,37 @@ async function inventoryReport(req, res) {
   }
 }
 
+async function expensesReport(req, res, from, to) {
+  try {
+    const path = `expenses?select=*&order=expense_date.desc,created_at.desc&limit=5000${dateRangeFilter(from, to, 'expense_date')}`;
+    const resp = await supabaseRequest(path, { method: 'GET' });
+    if (!resp.ok) {
+      res.status(502).json({ ok: false, error: 'Could not load expenses for the report.' });
+      return;
+    }
+    const expenses = await resp.json();
+
+    const columns = [
+      { label: 'Date', value: 'expense_date' },
+      { label: 'Type', value: 'type' },
+      { label: 'Recipient / Details', value: 'details' },
+      { label: 'Amount', value: 'amount' },
+      { label: 'Logged By', value: 'created_by' },
+    ];
+
+    const total = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+
+    let csvContent = toCsv(expenses, columns);
+    csvContent += '\r\n\r\n';
+    csvContent += `Total Expenses,${total.toFixed(2)}\r\n`;
+
+    sendCsv(res, `expenses-report-${new Date().toISOString().slice(0, 10)}.csv`, csvContent);
+  } catch (err) {
+    console.error('Unexpected error generating expenses report:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -243,6 +274,7 @@ module.exports = async (req, res) => {
   if (type === 'sales') return salesReport(req, res, from, to);
   if (type === 'patients') return patientsReport(req, res);
   if (type === 'inventory') return inventoryReport(req, res);
+  if (type === 'expenses') return expensesReport(req, res, from, to);
 
-  res.status(400).json({ ok: false, error: 'type must be one of: orders, sales, patients, inventory' });
+  res.status(400).json({ ok: false, error: 'type must be one of: orders, sales, patients, inventory, expenses' });
 };

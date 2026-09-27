@@ -778,6 +778,7 @@
     <a href="staff-reports.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Reports</a>
     <a href="staff-settings.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Settings</a>
     <a href="staff-patient-lookup.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Patient lookup</a>
+    <a href="staff-expenses.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Expenses</a>
     <button class="btn-new" id="clearBtn">Clear form</button>
     <button class="btn-new" id="saveBtn" style="background:var(--purple); color:#fff; border:none !important;">Save order</button>
     <button class="btn-print" id="printBtn">Print order + stub</button>
@@ -1571,7 +1572,7 @@
 
   async function suggestOrderNumber() {
     try {
-      const resp = await fetch('/api/next-order-number?order_type=' + encodeURIComponent(currentOrderType));
+      const resp = await fetch('/api/orders?next_order_number=1&order_type=' + encodeURIComponent(currentOrderType));
       if (!resp.ok) return; // fail silently -- field just stays blank/placeholder, staff can type their own
       const result = await resp.json();
       if (result.ok && result.suggestion && !orderNoManuallyEdited) {

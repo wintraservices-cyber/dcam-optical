@@ -508,3 +508,30 @@ create index if not exists order_lookup_attempts_ip_idx on order_lookup_attempts
 create index if not exists order_lookup_attempts_order_idx on order_lookup_attempts (order_hash, created_at);
 
 alter table order_lookup_attempts enable row level security;
+
+-- ---------------------------------------------------------------------
+-- Business expenses (petty cash, payroll advances, supplies, etc.).
+-- Logged by admin by default; whether ordinary staff can also log
+-- entries is controlled by the app_settings 'expense_access' key
+-- ({staff_enabled: true|false}), checked in api/expenses.js -- not
+-- enforced here, since Postgres has no notion of the app's staff/admin
+-- roles. `type` and `details` are free text (e.g. "PR" / "Doc Kathy",
+-- "PAYMENT" / "Checkbook - 2 booklets") rather than a fixed enum, since
+-- the clinic's own categories may not be known in advance; the API
+-- still returns distinct past `type` values so the entry form can
+-- offer them as autocomplete suggestions.
+-- ---------------------------------------------------------------------
+create table if not exists expenses (
+  id uuid primary key default gen_random_uuid(),
+  expense_date date not null,
+  type text not null,
+  details text,
+  amount numeric(12,2) not null check (amount > 0),
+  created_by text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists expenses_date_idx on expenses (expense_date desc);
+
+alter table expenses enable row level security;
+

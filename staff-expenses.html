@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expenses — DCAM Optical (Staff)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #B05A9E;
+    --purple-deep: #8F4680;
+    --blue: #5BAFC0;
+    --blue-deep: #458F9E;
+    --ivory: #F7F1E8;
+    --ivory-dim: #EFE6D8;
+    --charcoal: #383334;
+    --charcoal-soft: #4A4547;
+    --line: rgba(56,51,52,0.14);
+    --display: 'Plus Jakarta Sans', sans-serif;
+    --body: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--charcoal); font-family: var(--body); }
+
+  .staff-bar {
+    background: var(--charcoal);
+    color: var(--ivory);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .staff-bar .tag {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .staff-bar .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .staff-bar a, .staff-bar button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-light { background: var(--ivory); color: var(--charcoal); }
+  .btn-ghost { background: transparent; color: var(--ivory); border: 1px solid rgba(247,241,232,0.4) !important; }
+  .btn-ghost:hover { background: rgba(247,241,232,0.1); }
+
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .entry-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px 22px;
+    margin-bottom: 22px;
+    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
+  }
+  .entry-card h2 {
+    font-family: var(--display);
+    font-size: 1rem;
+    margin-bottom: 14px;
+  }
+  .entry-grid {
+    display: grid;
+    grid-template-columns: 140px 1fr 1fr 140px auto;
+    gap: 10px;
+    align-items: end;
+  }
+  .entry-grid .field label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--charcoal-soft);
+    margin-bottom: 4px;
+    font-family: var(--display);
+    font-weight: 700;
+  }
+  .entry-grid input {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.9rem;
+    color: var(--charcoal);
+    outline: none;
+  }
+  .entry-grid input:focus { border-color: var(--blue); }
+  .entry-add-btn {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    background: var(--purple);
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .entry-add-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .entry-status {
+    font-size: 0.82rem;
+    margin-top: 10px;
+  }
+  .entry-status.error { color: #B0405A; }
+  .entry-status.success { color: #3E8E5A; }
+
+  .locked-note {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px 22px;
+    margin-bottom: 22px;
+    color: var(--charcoal-soft);
+    font-size: 0.92rem;
+    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+    align-items: end;
+  }
+  .controls .field label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--charcoal-soft);
+    margin-bottom: 4px;
+    font-family: var(--display);
+    font-weight: 700;
+  }
+  .controls input[type="date"] {
+    border: 1.5px solid var(--line);
+    background: #fff;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.9rem;
+    color: var(--charcoal);
+    outline: none;
+  }
+  .controls button.clear-range {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.82rem;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    color: var(--charcoal-soft);
+    cursor: pointer;
+  }
+
+  .total-tile {
+    background: var(--charcoal);
+    color: var(--ivory);
+    border-radius: 12px;
+    padding: 14px 20px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .total-tile .label {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--blue);
+  }
+  .total-tile .value {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.4rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
+  }
+  thead th {
+    text-align: left;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    background: var(--ivory-dim);
+    padding: 12px 16px;
+  }
+  tbody td {
+    padding: 12px 16px;
+    border-top: 1px solid var(--line);
+    font-size: 0.9rem;
+  }
+  tbody tr:hover { background: var(--ivory-dim); }
+
+  .type-chip {
+    display: inline-block;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 3px 10px;
+    border-radius: 100px;
+    background: rgba(176,90,158,0.14);
+    color: var(--purple-deep);
+  }
+
+  .delete-btn {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: 1px solid #B0405A;
+    background: #fff;
+    color: #B0405A;
+    cursor: pointer;
+  }
+  .delete-btn:hover { background: rgba(176,64,90,0.08); }
+
+  .empty-state, .loading-state, .error-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--charcoal-soft);
+    font-size: 0.95rem;
+  }
+  .error-state { color: #B0405A; }
+
+  @media (max-width: 720px) {
+    .entry-grid { grid-template-columns: 1fr 1fr; }
+    .entry-grid .entry-add-btn { grid-column: 1 / -1; }
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tbody tr {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      padding: 10px 14px;
+    }
+    tbody td {
+      border: none;
+      padding: 6px 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    tbody td::before {
+      content: attr(data-label);
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--charcoal-soft);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="staff-bar">
+  <div class="tag">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    Staff only — expenses
+  </div>
+  <div class="actions">
+    <a href="staff-orders.html" class="btn-light">Orders</a>
+    <a href="staff-catalog.html" class="btn-light">Catalog</a>
+    <a href="staff-reports.html" class="btn-light">Reports</a>
+    <a href="staff-settings.html" class="btn-light">Settings</a>
+    <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
+    <button class="btn-ghost" id="logoutBtn">Log out</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="entrySection">
+    <div class="loading-state">Loading…</div>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label>From</label>
+      <input type="date" id="fromDate">
+    </div>
+    <div class="field">
+      <label>To</label>
+      <input type="date" id="toDate">
+    </div>
+    <button type="button" class="clear-range" id="clearRangeBtn">Clear range</button>
+  </div>
+
+  <div class="total-tile">
+    <span class="label">Total for this range</span>
+    <span class="value" id="totalValue">₱0.00</span>
+  </div>
+
+  <div id="content">
+    <div class="loading-state">Loading expenses…</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const entrySection = document.getElementById('entrySection');
+  const content = document.getElementById('content');
+  const totalValue = document.getElementById('totalValue');
+  const fromDate = document.getElementById('fromDate');
+  const toDate = document.getElementById('toDate');
+  const clearRangeBtn = document.getElementById('clearRangeBtn');
+
+  let isAdmin = false;
+  let expenseTypes = [];
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function escapeHtmlAttr(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function todayIso() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  async function checkAuth() {
+    try {
+      const resp = await fetch('/api/staff-auth');
+      const result = await resp.json();
+      if (!result.authenticated) {
+        window.location.href = 'staff-login.html?next=staff-expenses.html';
+        return null;
+      }
+      return result;
+    } catch (e) {
+      window.location.href = 'staff-login.html?next=staff-expenses.html';
+      return null;
+    }
+  }
+
+  async function loadTypes() {
+    try {
+      const resp = await fetch('/api/expenses?types=1');
+      const result = await resp.json();
+      expenseTypes = (result.ok && result.types) ? result.types : [];
+      const list = document.getElementById('expenseTypeList');
+      if (list) list.innerHTML = expenseTypes.map(t => `<option value="${escapeHtmlAttr(t)}"></option>`).join('');
+    } catch (e) { /* non-fatal -- form just has no suggestions */ }
+  }
+
+  function renderEntryForm() {
+    entrySection.innerHTML = `
+      <div class="entry-card">
+        <h2>Log an expense</h2>
+        <div class="entry-grid">
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="expDate" value="${todayIso()}">
+          </div>
+          <div class="field">
+            <label>Type</label>
+            <input type="text" id="expType" list="expenseTypeList" placeholder="e.g. PR, Payment" autocomplete="off">
+            <datalist id="expenseTypeList"></datalist>
+          </div>
+          <div class="field">
+            <label>Recipient / Details</label>
+            <input type="text" id="expDetails" placeholder="e.g. Doc Kathy, Checkbook - 2 booklets">
+          </div>
+          <div class="field">
+            <label>Amount ₱</label>
+            <input type="text" id="expAmount" inputmode="decimal" placeholder="0.00">
+          </div>
+          <button type="button" class="entry-add-btn" id="addExpenseBtn">Add expense</button>
+        </div>
+        <div class="entry-status" id="entryStatus"></div>
+      </div>
+    `;
+    loadTypes();
+
+    document.getElementById('addExpenseBtn').addEventListener('click', async () => {
+      const dateEl = document.getElementById('expDate');
+      const typeEl = document.getElementById('expType');
+      const detailsEl = document.getElementById('expDetails');
+      const amountEl = document.getElementById('expAmount');
+      const statusEl = document.getElementById('entryStatus');
+      const btn = document.getElementById('addExpenseBtn');
+
+      const expense_date = dateEl.value;
+      const type = typeEl.value.trim();
+      const details = detailsEl.value.trim();
+      const amount = parseFloat(amountEl.value);
+
+      if (!expense_date) {
+        statusEl.textContent = 'Date is required.';
+        statusEl.className = 'entry-status error';
+        return;
+      }
+      if (!type) {
+        statusEl.textContent = 'Type is required.';
+        statusEl.className = 'entry-status error';
+        return;
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        statusEl.textContent = 'Enter a valid amount.';
+        statusEl.className = 'entry-status error';
+        return;
+      }
+
+      btn.disabled = true;
+      statusEl.textContent = 'Saving…';
+      statusEl.className = 'entry-status';
+
+      try {
+        const resp = await fetch('/api/expenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expense_date, type, details, amount }),
+        });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save the expense.');
+
+        statusEl.textContent = 'Saved.';
+        statusEl.className = 'entry-status success';
+        typeEl.value = '';
+        detailsEl.value = '';
+        amountEl.value = '';
+        dateEl.value = todayIso();
+        loadExpenses();
+      } catch (err) {
+        statusEl.textContent = err.message || 'Could not save the expense.';
+        statusEl.className = 'entry-status error';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  function renderLockedNote() {
+    entrySection.innerHTML = `
+      <div class="locked-note">
+        Logging expenses is currently admin-only. Ask an admin to enable staff access in Settings if you need to add entries here.
+      </div>
+    `;
+  }
+
+  async function loadExpenses() {
+    content.innerHTML = '<div class="loading-state">Loading expenses…</div>';
+    const params = new URLSearchParams();
+    if (fromDate.value) params.set('from', fromDate.value);
+    if (toDate.value) params.set('to', toDate.value);
+
+    try {
+      const resp = await fetch('/api/expenses?' + params.toString());
+      if (resp.status === 401) {
+        window.location.href = 'staff-login.html?next=staff-expenses.html';
+        return;
+      }
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load expenses.');
+
+      totalValue.textContent = '₱' + Number(result.total || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      renderExpenses(result.expenses || []);
+    } catch (err) {
+      content.innerHTML = `<div class="error-state">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderExpenses(expenses) {
+    if (!expenses.length) {
+      content.innerHTML = '<div class="empty-state">No expenses in this range.</div>';
+      return;
+    }
+
+    const rows = expenses.map(e => `
+      <tr>
+        <td data-label="Date">${escapeHtml(e.expense_date)}</td>
+        <td data-label="Type"><span class="type-chip">${escapeHtml(e.type)}</span></td>
+        <td data-label="Recipient / Details">${escapeHtml(e.details) || '—'}</td>
+        <td data-label="Amount">₱${escapeHtml(Number(e.amount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</td>
+        <td data-label="Logged by">${escapeHtml(e.created_by) || '—'}</td>
+        <td data-label="">${isAdmin ? `<button type="button" class="delete-btn" data-id="${e.id}">Delete</button>` : ''}</td>
+      </tr>
+    `).join('');
+
+    content.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Type</th><th>Recipient / Details</th><th>Amount</th><th>Logged by</th><th></th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    content.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this expense entry? This cannot be undone.')) return;
+        const id = btn.getAttribute('data-id');
+        btn.disabled = true;
+        try {
+          const resp = await fetch('/api/expenses?id=' + encodeURIComponent(id), { method: 'DELETE' });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not delete this expense.');
+          loadExpenses();
+        } catch (err) {
+          alert(err.message || 'Could not delete this expense.');
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  fromDate.addEventListener('change', loadExpenses);
+  toDate.addEventListener('change', loadExpenses);
+  clearRangeBtn.addEventListener('click', () => {
+    fromDate.value = '';
+    toDate.value = '';
+    loadExpenses();
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/staff-auth?action=logout', { method: 'POST' });
+    window.location.href = 'staff-login.html';
+  });
+
+  (async function init() {
+    const auth = await checkAuth();
+    if (!auth) return;
+    isAdmin = auth.role === 'admin';
+
+    try {
+      const accessResp = await fetch('/api/expenses?access=1');
+      const accessResult = await accessResp.json();
+      if (accessResult.ok && accessResult.can_log) {
+        renderEntryForm();
+      } else {
+        renderLockedNote();
+      }
+    } catch (e) {
+      renderLockedNote();
+    }
+
+    loadExpenses();
+  })();
+})();
+</script>
+
+<script src="staff-assistant.js" defer></script>
+</body>
+</html>
