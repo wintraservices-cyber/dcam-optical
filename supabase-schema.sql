@@ -423,9 +423,14 @@ create table if not exists ai_usage_log (
 
 create index if not exists ai_usage_log_created_idx on ai_usage_log (created_at);
 
+-- Test-mode replies (free sample answers, no AI call) are logged with
+-- test = true and $0 cost, and excluded from the usage/cost totals.
+alter table ai_usage_log add column if not exists test boolean not null default false;
+
 alter table ai_usage_log enable row level security;
 
--- Daily totals per channel, by Manila calendar day. Both dates optional
+-- Daily totals per channel (real AI usage only -- Test-mode rows are
+-- excluded), by Manila calendar day. Both dates optional
 -- (null = open-ended), so (null, null) gives all-time. Aggregating in SQL
 -- avoids Supabase's 1,000-row API cap on large logs.
 create or replace function ai_usage_daily(p_from date default null, p_to date default null)
@@ -450,7 +455,8 @@ as $$
     coalesce(sum(output_tokens), 0) as output_tokens,
     coalesce(sum(cost_usd), 0) as cost_usd
   from ai_usage_log
-  where (p_from is null or (created_at at time zone 'Asia/Manila')::date >= p_from)
+  where not test
+    and (p_from is null or (created_at at time zone 'Asia/Manila')::date >= p_from)
     and (p_to is null or (created_at at time zone 'Asia/Manila')::date <= p_to)
   group by 1, 2
   order by 1 desc, 2;

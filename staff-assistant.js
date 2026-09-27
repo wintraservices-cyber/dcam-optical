@@ -206,6 +206,12 @@
       const status = await resp.json();
       if (!status.ok || !status.enabled) return;
       build(status.areas || []);
+      if (status.testMode) {
+        const sub = document.querySelector('.dsa-sub');
+        if (sub) sub.textContent = 'Test mode · keyword lookups, no AI';
+        const foot = document.querySelector('.dsa-foot');
+        if (foot) foot.textContent = 'Test mode — real data, simple keyword matching, no AI cost.';
+      }
     } catch (e) { /* stay hidden */ }
   }
 

@@ -23,7 +23,8 @@
 // live details (it says so rather than inventing them).
 //
 // Env vars:
-//   ANTHROPIC_API_KEY   required
+//   ANTHROPIC_API_KEY   required unless Test mode is on
+//   AI_TEST_MODE        optional; "1" forces free Test mode (lib/ai-test-mode.js)
 //   ANTHROPIC_MODEL     optional, defaults to a fast/cheap model
 //   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY  (already set for the site)
 
@@ -32,6 +33,7 @@ const { requireAuth } = require('../lib/auth');
 const { loadAiAccess, allowedAreas, publicChatOn } = require('../lib/ai-access');
 const { toolsFor, runTool, buildStaffPrompt } = require('../lib/staff-ai');
 const { logUsage } = require('../lib/ai-usage');
+const { isTestMode, publicTestReply, staffTestReply, streamText } = require('../lib/ai-test-mode');
 
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TURNS = 12;          // most recent messages kept from the history
@@ -171,7 +173,7 @@ async function publicChat(req, res) {
   if (req.method === 'GET') {
     const access = await loadAiAccess();
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ ok: true, enabled: publicChatOn(access) });
+    res.status(200).json({ ok: true, enabled: publicChatOn(access), testMode: isTestMode(access) });
     return;
   }
   if (req.method !== 'POST') {
@@ -183,13 +185,6 @@ async function publicChat(req, res) {
   const access = await loadAiAccess();
   if (!publicChatOn(access)) {
     res.status(503).json({ ok: false, error: 'Our online assistant is switched off right now. Please use the intake form or contact the clinic directly.' });
-    return;
-  }
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.error('chat: ANTHROPIC_API_KEY is not set');
-    res.status(503).json({ ok: false, error: 'The assistant isn\'t switched on yet. Please use the intake form or contact the clinic directly.' });
     return;
   }
 
@@ -209,6 +204,22 @@ async function publicChat(req, res) {
   const messages = sanitizeMessages(body && body.messages);
   if (!messages) {
     res.status(400).json({ ok: false, error: 'Send a non-empty message.' });
+    return;
+  }
+
+  // Test mode: free sample reply, no Anthropic call.
+  if (isTestMode(access)) {
+    const reply = await publicTestReply(messages[messages.length - 1].content, access);
+    await streamText(res, reply);
+    await logUsage({ channel: 'website', model: 'test-mode', test: true });
+    res.end();
+    return;
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.error('chat: ANTHROPIC_API_KEY is not set');
+    res.status(503).json({ ok: false, error: 'The assistant isn\'t switched on yet. Please use the intake form or contact the clinic directly.' });
     return;
   }
 
@@ -326,7 +337,7 @@ async function staffChat(req, res) {
   const areas = allowedAreas(access, user.role);
 
   if (req.method === 'GET') {
-    res.status(200).json({ ok: true, enabled: areas.length > 0, areas, role: user.role });
+    res.status(200).json({ ok: true, enabled: areas.length > 0, areas, role: user.role, testMode: isTestMode(access) });
     return;
   }
   if (req.method !== 'POST') {
@@ -337,12 +348,6 @@ async function staffChat(req, res) {
 
   if (!areas.length) {
     res.status(403).json({ ok: false, error: 'The staff assistant is switched off in Settings -> AI assistant.' });
-    return;
-  }
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    res.status(503).json({ ok: false, error: 'The assistant needs ANTHROPIC_API_KEY set in Vercel.' });
     return;
   }
 
@@ -365,6 +370,27 @@ async function staffChat(req, res) {
   }
 
   const ctx = { role: user.role, username: user.username, areas };
+
+  // Test mode: keyword-routed real lookups, no Anthropic call.
+  if (isTestMode(access)) {
+    try {
+      const { reply, lookups: used } = await staffTestReply(history[history.length - 1].content, ctx);
+      console.log(`staff-ai[test]: ${user.username} (${user.role}) lookups=[${used.join(',')}]`);
+      await logUsage({ channel: 'staff', model: 'test-mode', test: true, toolCalls: used.length, username: user.username, role: user.role });
+      res.status(200).json({ ok: true, reply, lookups: used, testMode: true });
+    } catch (err) {
+      console.error('staff-ai[test]: error', err.message);
+      res.status(502).json({ ok: false, error: 'The test-mode lookup failed -- please try again.' });
+    }
+    return;
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ ok: false, error: 'The assistant needs ANTHROPIC_API_KEY set in Vercel (or turn on Test mode in Settings).' });
+    return;
+  }
+
   const tools = toolsFor(areas);
   const messages = history.slice();
   const lookups = [];

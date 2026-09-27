@@ -296,6 +296,17 @@
     registerView({ body, chips: document.getElementById('chatChips'), input, send: sendBtn });
   }
 
+  // Test mode: say so plainly in both chat views so nobody mistakes the
+  // sample answers for the real assistant.
+  function markTestMode() {
+    const sub = document.querySelector('.dca-sub');
+    if (sub) sub.textContent = 'Test mode · sample replies';
+    const foot = document.querySelector('.dca-foot');
+    if (foot) foot.textContent = 'Test mode — sample replies, not the real AI assistant. No AI cost.';
+    const tag = document.querySelector('.chat-panel .chat-head .tag');
+    if (tag) tag.textContent = 'test mode';
+  }
+
   function hideChatEverywhere() {
     const section = document.getElementById('ai');
     if (section) section.style.display = 'none';
@@ -304,11 +315,13 @@
 
   async function init() {
     let enabled = true;
+    let testMode = false;
     try {
       const resp = await fetch('/api/chat', { method: 'GET', cache: 'no-store' });
       if (resp.ok) {
         const s = await resp.json();
         enabled = s.enabled !== false;
+        testMode = s.testMode === true;
       }
       // 404 / non-OK: no backend (e.g. a preview) -> stay on; send() falls back.
     } catch (e) { /* offline preview: stay on */ }
@@ -316,6 +329,7 @@
     if (!enabled) { hideChatEverywhere(); return; }
     attachInline();
     buildBubble();
+    if (testMode) markTestMode();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

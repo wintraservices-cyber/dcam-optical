@@ -377,3 +377,23 @@ Claude-app-only capability, so it works for anyone visiting the live site.
   off in Settings, the bubble isn't shown and the homepage chat section
   and its nav links are hidden.
 - Any element with `data-open-chat` opens the bubble.
+
+## AI Test mode (free)
+
+- **Turn on:** Settings → AI assistant → **Test mode** (saves instantly),
+  or set `AI_TEST_MODE=1` in Vercel to force it on.
+- **No Anthropic calls, no cost, no API key needed.**
+- **Website chat:** keyword-matched sample answers built from your real
+  Business info and in-stock catalog, including the "Book an exam" button
+  and the urgent-symptom reply. Supports common English/Tagalog words.
+- **Staff assistant:** routes simple keyword questions ("orders ready for
+  claim", "who has a balance?", "low stock frames", "sales this week",
+  "patient Juan", "how do I log a payment?") to the same read-only
+  lookups the AI uses, and still follows the per-role switches.
+- Both chats show a **Test mode** label while it's on.
+- Test replies are logged in `ai_usage_log` with `test = true` and $0 cost;
+  the Usage & cost card shows them as a separate count, not in the totals.
+- Replies are literal and simple: they test the plumbing (bubble, toggles,
+  lookups, logging), not the AI's understanding. Turn Test mode off and add
+  `ANTHROPIC_API_KEY` for real answers.
+- Code: `lib/ai-test-mode.js`.

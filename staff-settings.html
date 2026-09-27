@@ -262,6 +262,10 @@
 
   .ai-cards-wrap.off { opacity: 0.45; pointer-events: none; }
   .ai-master.kill .ai-label { font-size: 1rem; }
+  .test-pill { display: inline-block; margin-left: 6px; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em;
+    background: rgba(91,175,192,0.18); color: var(--blue-deep); padding: 2px 7px; border-radius: 100px; vertical-align: 2px; }
+  .ai-help code { font-size: 0.78rem; background: var(--ivory); padding: 1px 5px; border-radius: 4px; }
+  .usage-test-note { font-size: 0.8rem; color: var(--blue-deep); background: rgba(91,175,192,0.1); border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; }
 
   /* ---------- AI usage ---------- */
   .usage-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 18px; }
@@ -454,6 +458,13 @@
         </div>
         <label class="switch"><input type="checkbox" id="aiMasterEnabled"><span class="slider"></span></label>
       </div>
+      <div class="ai-master" style="border-top:1px solid var(--line); border-bottom:none; margin-top:14px; padding:14px 0 0;">
+        <div>
+          <div class="ai-label">Test mode <span class="test-pill">Free</span></div>
+          <div class="ai-help">Saves as soon as you flip it. Both chats give sample answers instead of calling the AI, so there's no cost and no API key needed. The website chat uses your real Business info and stock; the staff assistant runs its real lookups using simple keywords and still follows the switches below. Chats show a "Test mode" label while it's on. It's also forced on if <code>AI_TEST_MODE=1</code> is set in Vercel.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiTestMode"><span class="slider"></span></label>
+      </div>
     </div>
 
     <div class="ai-cards-wrap" id="aiCardsWrap">
@@ -505,7 +516,7 @@
 
     <div class="card">
       <h2>Usage &amp; cost</h2>
-      <div class="card-sub">Every AI reply is logged with the tokens used and an estimated cost in US dollars (what Anthropic bills). Your Anthropic Console billing page is the official figure.</div>
+      <div class="card-sub">Every AI reply is logged with the tokens used and an estimated cost in US dollars (what Anthropic bills). Test-mode replies are counted separately at $0. Your Anthropic Console billing page is the official figure.</div>
       <div class="usage-controls">
         <div>
           <label for="usageRange">Period</label>
@@ -878,6 +889,7 @@
     const staff = Object.assign({}, AI_DEFAULTS.staff, v.staff || {});
     const areas = (v.staff && v.staff.areas) || {};
     document.getElementById('aiMasterEnabled').checked = v.enabled !== false;
+    document.getElementById('aiTestMode').checked = v.test_mode === true;
     document.getElementById('aiPublicEnabled').checked = pub.enabled !== false;
     document.getElementById('aiPublicStock').checked = pub.stock !== false;
     document.getElementById('aiStaffEnabled').checked = staff.enabled !== false;
@@ -902,6 +914,9 @@
   // The master switch is a kill switch: save it the moment it's flipped.
   document.getElementById('aiMasterEnabled').addEventListener('change', () => {
     syncAiMasterState();
+    document.getElementById('saveAiAccess').click();
+  });
+  document.getElementById('aiTestMode').addEventListener('change', () => {
     document.getElementById('saveAiAccess').click();
   });
 
@@ -935,6 +950,7 @@
       });
       const value = {
         enabled: document.getElementById('aiMasterEnabled').checked,
+        test_mode: document.getElementById('aiTestMode').checked,
         public: {
           enabled: document.getElementById('aiPublicEnabled').checked,
           stock: document.getElementById('aiPublicStock').checked,
@@ -998,6 +1014,7 @@
         <div class="usage-tile"><div class="t-label">AI replies</div><div class="t-value">${int(t.total.messages)}</div><div class="t-sub">≈ ${usd(perMsg)} each</div></div>
         <div class="usage-tile"><div class="t-label">Tokens</div><div class="t-value">${int(t.total.input_tokens + t.total.output_tokens)}</div><div class="t-sub">${int(t.total.input_tokens)} in · ${int(t.total.output_tokens)} out</div></div>
       </div>
+      ${r.range.test_replies ? `<div class="usage-test-note">Plus ${int(r.range.test_replies)} Test-mode repl${r.range.test_replies === 1 ? 'y' : 'ies'} in this period — free, not included in the totals.</div>` : ''}
       <table class="usage-split">
         <thead><tr><th>Assistant</th><th class="num">Replies</th><th class="num">Input tokens</th><th class="num">Output tokens</th><th class="num">Est. cost</th></tr></thead>
         <tbody>${row('Website chat', t.website)}${row('Staff assistant', t.staff)}</tbody>
@@ -1008,6 +1025,7 @@
         <span>${int(all.total.messages)} replies</span>
         <span>Website ${usd(all.website.cost_usd)}</span>
         <span>Staff ${usd(all.staff.cost_usd)}</span>
+        ${r.all_time.test_replies ? `<span>Test mode ${int(r.all_time.test_replies)} free</span>` : ''}
       </div>
       ${days}`;
   }
