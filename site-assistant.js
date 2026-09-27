@@ -56,6 +56,16 @@
   .chat-book-btn{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;background:#B05A9E;color:#fff !important;
     font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;font-size:.85rem;text-decoration:none;padding:9px 16px;border-radius:20px;margin-top:-2px}
   .chat-book-btn:hover{background:#8F4680}
+  .dca-chip.order{border-color:#5BAFC0;color:#458F9E;font-weight:600}
+  .dca-order{align-self:stretch;background:#fff;border:1px solid rgba(56,51,52,.12);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+  .dca-order .dca-order-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.84rem}
+  .dca-order label{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:#4A4547;display:block;margin-bottom:3px}
+  .dca-order input{width:100%;box-sizing:border-box;border:1.5px solid rgba(56,51,52,.16);border-radius:10px;padding:9px 11px;font-family:inherit;font-size:.86rem;color:#383334;outline:none}
+  .dca-order input:focus{border-color:#5BAFC0}
+  .dca-order .dca-order-row{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}
+  .dca-order button{align-self:flex-start;background:#383334;color:#F7F1E8;border:none;border-radius:100px;padding:9px 16px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;font-size:.82rem;cursor:pointer}
+  .dca-order button:disabled{opacity:.5;cursor:default}
+  .dca-order .dca-order-note{font-size:.7rem;color:#4A4547;opacity:.8}
   @media (max-width:480px){
     .dca-panel{right:8px;left:8px;width:auto;max-width:none;bottom:82px;height:calc(100vh - 100px);max-height:none}
     .dca-fab{right:14px;bottom:14px}
@@ -213,7 +223,7 @@
   // --------------------------------------------------------------------
   // Floating bubble
   // --------------------------------------------------------------------
-  function buildBubble() {
+  function buildBubble(orderStatusOn) {
     const style = document.createElement('style');
     style.textContent = css;
     document.head.appendChild(style);
@@ -252,6 +262,14 @@
     body.appendChild(greet);
 
     const chips = panel.querySelector('.dca-chips');
+    if (orderStatusOn) {
+      const oc = document.createElement('button');
+      oc.type = 'button';
+      oc.className = 'dca-chip order';
+      oc.textContent = 'Check my order';
+      oc.addEventListener('click', () => showOrderForm(body));
+      chips.appendChild(oc);
+    }
     SUGGESTIONS.forEach(([label, q]) => {
       const c = document.createElement('button');
       c.type = 'button';
@@ -287,6 +305,71 @@
     });
   }
 
+  // "Check my order": order number + last 4 phone digits -> status.
+  // Goes straight to /api/chat?mode=order (no AI, no cost).
+  function showOrderForm(body) {
+    const existing = body.querySelector('.dca-order');
+    if (existing) { existing.querySelector('input').focus(); return; }
+    const card = document.createElement('form');
+    card.className = 'dca-order';
+    card.innerHTML = `
+      <div class="dca-order-title">Check if your glasses are ready</div>
+      <div class="dca-order-row">
+        <div><label for="dcaOrderNo">Order no. (claim stub)</label><input id="dcaOrderNo" inputmode="numeric" autocomplete="off" placeholder="2026-0012" maxlength="20" required></div>
+        <div><label for="dcaLast4">Phone — last 4</label><input id="dcaLast4" inputmode="numeric" autocomplete="off" placeholder="4567" maxlength="4" pattern="[0-9]{4}" required></div>
+      </div>
+      <button type="submit">Check status</button>
+      <div class="dca-order-note">Use the number on your claim stub and the last 4 digits of the phone number you gave us.</div>`;
+    body.appendChild(card);
+    body.scrollTop = body.scrollHeight;
+    const orderIn = card.querySelector('#dcaOrderNo');
+    const last4In = card.querySelector('#dcaLast4');
+    last4In.addEventListener('input', () => { last4In.value = last4In.value.replace(/\D/g, '').slice(0, 4); });
+    orderIn.focus();
+
+    card.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const orderNo = orderIn.value.trim();
+      const last4 = last4In.value.trim();
+      if (!orderNo || last4.length !== 4) {
+        last4In.focus();
+        return;
+      }
+      const btn = card.querySelector('button');
+      btn.disabled = true;
+      card.remove();
+      hideChips();
+      addMsg(`Check order ${orderNo} (phone ending ${last4})`, 'user');
+      const thinking = addMsg('Checking…', 'bot thinking');
+      try {
+        const resp = await fetch('/api/chat?mode=order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_number: orderNo, phone_last4: last4 }),
+        });
+        const r = await resp.json().catch(() => ({}));
+        thinking.remove();
+        const msg = r.message || r.error || "Sorry — I couldn't check that right now. Please contact the clinic.";
+        addMsg(msg, 'bot');
+        turns.push({ role: 'user', content: `Check my order ${orderNo}` });
+        turns.push({ role: 'assistant', content: msg });
+        if (r.result === 'not_found') {
+          const again = document.createElement('button');
+          again.type = 'button';
+          again.className = 'dca-chip order';
+          again.style.alignSelf = 'flex-start';
+          again.textContent = 'Try again';
+          again.addEventListener('click', () => { again.remove(); showOrderForm(body); });
+          body.appendChild(again);
+          body.scrollTop = body.scrollHeight;
+        }
+      } catch (err) {
+        thinking.remove();
+        addMsg("Couldn't reach the clinic system — please try again or contact the clinic.", 'bot');
+      }
+    });
+  }
+
   // Homepage inline panel, if present.
   function attachInline() {
     const body = document.getElementById('chatBody');
@@ -316,19 +399,21 @@
   async function init() {
     let enabled = true;
     let testMode = false;
+    let orderStatus = false;
     try {
       const resp = await fetch('/api/chat', { method: 'GET', cache: 'no-store' });
       if (resp.ok) {
         const s = await resp.json();
         enabled = s.enabled !== false;
         testMode = s.testMode === true;
+        orderStatus = s.orderStatus === true;
       }
       // 404 / non-OK: no backend (e.g. a preview) -> stay on; send() falls back.
     } catch (e) { /* offline preview: stay on */ }
 
     if (!enabled) { hideChatEverywhere(); return; }
     attachInline();
-    buildBubble();
+    buildBubble(orderStatus);
     if (testMode) markTestMode();
   }
 

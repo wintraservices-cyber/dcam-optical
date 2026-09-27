@@ -488,3 +488,23 @@ create index if not exists ai_unanswered_open_idx on ai_unanswered (status, chan
 create index if not exists ai_unanswered_last_idx on ai_unanswered (last_asked_at);
 
 alter table ai_unanswered enable row level security;
+
+-- ---------------------------------------------------------------------
+-- Customer order-status lookups ("are my glasses ready?"): one row per
+-- attempt, used to block guessing (5 failed tries per visitor per 15
+-- min, 8 per order number per hour). Stores only hashed IP / order
+-- number, never the numbers themselves. Rows older than a day are
+-- cleared automatically by lib/order-status.js.
+-- ---------------------------------------------------------------------
+create table if not exists order_lookup_attempts (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  ip_hash text not null,
+  order_hash text not null,
+  success boolean not null default false
+);
+
+create index if not exists order_lookup_attempts_ip_idx on order_lookup_attempts (ip_hash, created_at);
+create index if not exists order_lookup_attempts_order_idx on order_lookup_attempts (order_hash, created_at);
+
+alter table order_lookup_attempts enable row level security;

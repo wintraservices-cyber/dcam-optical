@@ -4,6 +4,7 @@
 // PUBLIC website chat (no login):
 //   GET  /api/chat                       -> { enabled } (is it switched on?)
 //   POST /api/chat  { messages: [...] }  -> streams plain text
+//   POST /api/chat?mode=order { order_number, phone_last4 } -> order status (no AI)
 //
 // STAFF assistant (staff login required, see lib/staff-ai.js):
 //   GET  /api/chat?mode=staff            -> { enabled, areas } for this user
@@ -32,6 +33,7 @@ const { supabaseRequest } = require('../lib/supabase');
 const { requireAuth } = require('../lib/auth');
 const { loadAiAccess, allowedAreas, publicChatOn } = require('../lib/ai-access');
 const { toolsFor, runTool, buildStaffPrompt } = require('../lib/staff-ai');
+const { lookupOrderStatus, describeResult, ORDER_TOOL, extractFromText } = require('../lib/order-status');
 const { logUsage } = require('../lib/ai-usage');
 const { isTestMode, publicTestReply, staffTestReply, streamText } = require('../lib/ai-test-mode');
 const {
@@ -176,7 +178,7 @@ async function publicChat(req, res) {
   if (req.method === 'GET') {
     const access = await loadAiAccess();
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ ok: true, enabled: publicChatOn(access), testMode: isTestMode(access) });
+    res.status(200).json({ ok: true, enabled: publicChatOn(access), testMode: isTestMode(access), orderStatus: publicChatOn(access) && access.public.order_status });
     return;
   }
   if (req.method !== 'POST') {
@@ -213,6 +215,13 @@ async function publicChat(req, res) {
   // Test mode: free sample reply, no Anthropic call.
   if (isTestMode(access)) {
     const question = messages[messages.length - 1].content;
+    const orderReply = await testModeOrderReply(messages, access, req);
+    if (orderReply) {
+      await streamText(res, orderReply);
+      await logUsage({ channel: 'website', model: 'test-mode', test: true });
+      res.end();
+      return;
+    }
     const knowledge = await loadKnowledge();
     const { text, unanswered } = await publicTestReply(question, access, knowledge);
     await streamText(res, text);
@@ -232,51 +241,17 @@ async function publicChat(req, res) {
   const [practiceContext, knowledge] = await Promise.all([loadPracticeContext(access.public.stock), loadKnowledge()]);
   const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
 
-  let upstream;
-  try {
-    upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        system: buildSystemPrompt(practiceContext, knowledgePromptBlock(knowledge, 'website'), access.log_unanswered),
-        messages,
-        stream: true,
-      }),
-    });
-  } catch (err) {
-    console.error('chat: network error calling Anthropic', err);
-    res.status(502).json({ ok: false, error: 'The assistant is unavailable right now -- please try again shortly.' });
-    return;
-  }
+  const orderLookupOn = access.public.order_status;
+  const system = buildSystemPrompt(practiceContext, knowledgePromptBlock(knowledge, 'website'), access.log_unanswered)
+    + orderStatusInstruction(orderLookupOn);
 
-  if (!upstream.ok || !upstream.body) {
-    const errText = await upstream.text().catch(() => '');
-    console.error('chat: Anthropic error', upstream.status, errText.slice(0, 500));
-    res.status(502).json({ ok: false, error: 'The assistant is unavailable right now -- please try again shortly.' });
-    return;
-  }
-
-  // Relay only the text deltas to the browser as a plain-text stream.
+  // Plain-text stream to the browser. The [[UNANSWERED]] marker must never
+  // reach the visitor: hold back any tail that could be the start of it.
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Accel-Buffering', 'no');
-
-  const reader = upstream.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  // Token counts arrive in the stream: input on message_start, output
-  // (cumulative) on message_delta.
-  let inputTokens = 0;
-  let outputTokens = 0;
-  // The [[UNANSWERED]] marker must never reach the visitor: hold back any
-  // tail that could be the start of it until we know.
+  let headersSent = false;
   let fullText = '';
   let pending = '';
   const emit = (final) => {
@@ -289,9 +264,145 @@ async function publicChat(req, res) {
     }
     const out = pending.slice(0, pending.length - hold);
     pending = pending.slice(pending.length - hold);
-    if (out) res.write(out);
+    if (out) { headersSent = true; res.write(out); }
   };
 
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let apiCalls = 0;
+  let toolCalls = 0;
+  const convo = messages.slice();
+
+  // Round 1 may call check_order_status; round 2 (if needed) must answer.
+  for (let round = 0; round < 2; round++) {
+    const payload = { model, max_tokens: MAX_OUTPUT_TOKENS, system, messages: convo, stream: true };
+    if (orderLookupOn && round === 0) payload.tools = [ORDER_TOOL];
+
+    let upstream;
+    try {
+      upstream = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.error('chat: network error calling Anthropic', err);
+      upstream = null;
+    }
+    if (!upstream || !upstream.ok || !upstream.body) {
+      const errText = upstream ? await upstream.text().catch(() => '') : '';
+      console.error('chat: Anthropic error', upstream && upstream.status, errText.slice(0, 500));
+      if (!headersSent) {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(502).json({ ok: false, error: 'The assistant is unavailable right now -- please try again shortly.' });
+        await logUsage({ channel: 'website', model, inputTokens, outputTokens, apiCalls, toolCalls });
+        return;
+      }
+      break;
+    }
+    apiCalls += 1;
+
+    const result = await readAnthropicStream(upstream, (t) => { fullText += t; pending += t; emit(false); });
+    inputTokens += result.inputTokens;
+    outputTokens += result.outputTokens;
+
+    if (result.stopReason !== 'tool_use' || !result.toolUses.length) break;
+
+    // Run the order lookup(s) and hand the results back for the answer.
+    convo.push({ role: 'assistant', content: result.contentBlocks });
+    const toolResults = [];
+    for (const tu of result.toolUses) {
+      toolCalls += 1;
+      let out;
+      if (tu.name === ORDER_TOOL.name && orderLookupOn) {
+        out = await lookupOrderStatus({
+          orderNo: tu.input && tu.input.order_number,
+          phoneLast4: tu.input && tu.input.phone_last4,
+          req,
+          showBalance: access.public.order_balance,
+        });
+      } else {
+        out = { result: 'error', note: 'Order lookup is switched off.' };
+      }
+      toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) });
+    }
+    convo.push({ role: 'user', content: toolResults });
+    if (pending || fullText) { pending += ' '; }
+  }
+
+  emit(true);
+  if (access.log_unanswered && fullText.includes(UNANSWERED_MARKER)) {
+    await logUnanswered({ channel: 'website', question: messages[messages.length - 1].content });
+  }
+  // Logged before ending the response so the serverless function isn't
+  // frozen mid-write; the visitor has already seen the full reply.
+  await logUsage({ channel: 'website', model, inputTokens, outputTokens, apiCalls, toolCalls });
+  res.end();
+}
+
+// ---------------------------------------------------------------------
+// Order status: direct form (no AI) + Test mode
+// ---------------------------------------------------------------------
+const ORDER_INTENT = /\b(ready|pick.?up|claim(ed)?|makuha|kunin|tapos na|my order|order ko|order status|job order|status ng|salamin ko|glasses ko)\b/i;
+
+async function loadBusinessInfo() {
+  try {
+    const resp = await supabaseRequest('app_settings?key=eq.business_info&select=value&limit=1', { method: 'GET' });
+    if (!resp.ok) return {};
+    const rows = await resp.json();
+    return (rows[0] && rows[0].value) || {};
+  } catch (e) { return {}; }
+}
+
+// Test mode: answer order questions from the typed numbers, no AI.
+async function testModeOrderReply(messages, access, req) {
+  const recentUser = messages.filter(m => m.role === 'user').slice(-3).map(m => m.content);
+  const last = recentUser[recentUser.length - 1] || '';
+  const { orderNo, last4 } = extractFromText(recentUser);
+  const intent = ORDER_INTENT.test(last) || /\b\d{4}-\d{2,}/.test(last);
+  if (!intent && !(orderNo && /\d{4}/.test(last))) return null;
+  if (!access.public.order_status) {
+    return "I can't check orders online yet — please contact the clinic and we'll check for you.";
+  }
+  const r = await lookupOrderStatus({ orderNo, phoneLast4: last4, req, showBalance: access.public.order_balance });
+  return describeResult(r, await loadBusinessInfo());
+}
+
+// POST /api/chat?mode=order { order_number, phone_last4 } -- the "Check my
+// order" form in the chat bubble. No AI involved, so no AI cost.
+async function orderStatusForm(req, res) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    res.status(405).json({ ok: false, error: 'Method not allowed' });
+    return;
+  }
+  const access = await loadAiAccess();
+  if (!publicChatOn(access) || !access.public.order_status) {
+    res.status(403).json({ ok: false, error: "Online order checking is switched off — please contact the clinic and we'll check for you." });
+    return;
+  }
+  let body = req.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
+  const r = await lookupOrderStatus({
+    orderNo: body && body.order_number,
+    phoneLast4: body && body.phone_last4,
+    req,
+    showBalance: access.public.order_balance,
+  });
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).json({ ok: true, result: r.result, message: describeResult(r, await loadBusinessInfo()) });
+}
+
+// Reads one streamed Claude response. Calls onText for each text chunk and
+// returns token usage, stop reason, and any tool calls (with parsed input).
+async function readAnthropicStream(upstream, onText) {
+  const reader = upstream.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const blocks = [];      // content blocks in order, for the follow-up call
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let stopReason = null;
   try {
     while (true) {
       const { value, done } = await reader.read();
@@ -306,16 +417,28 @@ async function publicChat(req, res) {
         if (!payload) continue;
         let evt;
         try { evt = JSON.parse(payload); } catch (e) { continue; }
-        if (evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta') {
-          fullText += evt.delta.text;
-          pending += evt.delta.text;
-          emit(false);
-        } else if (evt.type === 'message_start' && evt.message && evt.message.usage) {
+        if (evt.type === 'message_start' && evt.message && evt.message.usage) {
           inputTokens = evt.message.usage.input_tokens || 0;
           outputTokens = evt.message.usage.output_tokens || 0;
-        } else if (evt.type === 'message_delta' && evt.usage) {
-          if (evt.usage.output_tokens != null) outputTokens = evt.usage.output_tokens;
-          if (evt.usage.input_tokens) inputTokens = evt.usage.input_tokens;
+        } else if (evt.type === 'content_block_start' && evt.content_block) {
+          const cb = evt.content_block;
+          blocks[evt.index] = cb.type === 'tool_use'
+            ? { type: 'tool_use', id: cb.id, name: cb.name, _json: '' }
+            : { type: 'text', text: '' };
+        } else if (evt.type === 'content_block_delta' && evt.delta) {
+          const b = blocks[evt.index];
+          if (evt.delta.type === 'text_delta') {
+            if (b) b.text += evt.delta.text;
+            onText(evt.delta.text);
+          } else if (evt.delta.type === 'input_json_delta' && b) {
+            b._json += evt.delta.partial_json || '';
+          }
+        } else if (evt.type === 'message_delta') {
+          if (evt.delta && evt.delta.stop_reason) stopReason = evt.delta.stop_reason;
+          if (evt.usage) {
+            if (evt.usage.output_tokens != null) outputTokens = evt.usage.output_tokens;
+            if (evt.usage.input_tokens) inputTokens = evt.usage.input_tokens;
+          }
         } else if (evt.type === 'error') {
           console.error('chat: stream error', JSON.stringify(evt).slice(0, 500));
         }
@@ -324,14 +447,32 @@ async function publicChat(req, res) {
   } catch (err) {
     console.error('chat: error while streaming', err);
   }
-  emit(true);
-  if (access.log_unanswered && fullText.includes(UNANSWERED_MARKER)) {
-    await logUnanswered({ channel: 'website', question: messages[messages.length - 1].content });
+  const contentBlocks = [];
+  const toolUses = [];
+  blocks.filter(Boolean).forEach(b => {
+    if (b.type === 'tool_use') {
+      let input = {};
+      try { input = b._json ? JSON.parse(b._json) : {}; } catch (e) { input = {}; }
+      const block = { type: 'tool_use', id: b.id, name: b.name, input };
+      contentBlocks.push(block);
+      toolUses.push(block);
+    } else if (b.text) {
+      contentBlocks.push({ type: 'text', text: b.text });
+    }
+  });
+  return { inputTokens, outputTokens, stopReason, contentBlocks, toolUses };
+}
+
+function orderStatusInstruction(on) {
+  if (!on) {
+    return `\n\nORDER STATUS: You cannot check orders. If asked whether glasses are ready or claimed, say you can't check orders online and suggest contacting the clinic (use the contact details above if listed).`;
   }
-  // Logged before ending the response so the serverless function isn't
-  // frozen mid-write; the visitor has already seen the full reply.
-  await logUsage({ channel: 'website', model, inputTokens, outputTokens });
-  res.end();
+  return `\n\nORDER STATUS:
+- You can check if a customer's order is being prepared, ready for pick-up, or already claimed with the check_order_status tool.
+- You need BOTH the job order number printed on their claim stub (e.g. 2026-0012 or 2026-09-0012) AND the last 4 digits of the phone number they gave the clinic. Ask for whichever is missing. Never guess, invent or "try" numbers, and call the tool at most once per message.
+- Report only what the tool returns, in 1-2 friendly sentences. If ready, remind them to bring the claim stub and mention hours if listed. Mention a balance only if the tool returns one.
+- If the result is not_found, say the order number or phone digits didn't match and to double-check the claim stub -- don't reveal which part was wrong. If locked, say there were too many tries and to wait about 15 minutes or contact the clinic.
+- Never look up orders by name, and never share order details with anyone who hasn't given both values.`;
 }
 
 // ---------------------------------------------------------------------
@@ -495,5 +636,6 @@ async function staffChat(req, res) {
 module.exports = async function handler(req, res) {
   const mode = req.query && req.query.mode;
   if (mode === 'staff') return staffChat(req, res);
+  if (mode === 'order') return orderStatusForm(req, res);
   return publicChat(req, res);
 };

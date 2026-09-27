@@ -423,3 +423,24 @@ Claude-app-only capability, so it works for anyone visiting the live site.
   and `POST /api/settings?action=ai_unanswered` (admin only).
 - Code: `lib/ai-knowledge.js`. Setup: run the new `ai_unanswered` block at
   the bottom of `supabase-schema.sql`.
+
+## Customer order status ("Are my glasses ready?")
+
+- **Switch:** Settings → AI assistant → Website assistant → **Order status
+  lookup** (off by default), plus **Include remaining balance** (off).
+- **How customers use it:** type naturally in the chat ("ready na ba order
+  2026-0012? last 4 ko 4567") or tap **Check my order** in the chat bubble.
+- **Proof of ownership:** job order number from the claim stub **and** the
+  last 4 digits of the phone number on the order. Orders are never looked up
+  by name. Tolerates "#", spaces and missing dashes (20260012 → 2026-0012).
+- **Returns only:** being prepared / ready for pick-up / claimed, the due
+  date, and (if allowed) the remaining balance. Never names, Rx, items or
+  phone numbers. A wrong match never says which part was wrong.
+- **Anti-guessing:** 5 failed tries per visitor per 15 min and 8 per order
+  number per hour, stored hashed in `order_lookup_attempts` (cleared daily).
+- **Cost:** the Check my order form uses no AI. Typed questions use the AI
+  with a `check_order_status` tool (one extra short AI call when a lookup
+  happens). Test mode handles both for free.
+- Code: `lib/order-status.js`; routes in `api/chat.js`
+  (`POST /api/chat?mode=order`). Setup: run the new
+  `order_lookup_attempts` block at the bottom of `supabase-schema.sql`.

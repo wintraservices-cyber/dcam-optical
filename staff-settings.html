@@ -521,6 +521,20 @@
         </div>
         <label class="switch"><input type="checkbox" id="aiPublicStock"><span class="slider"></span></label>
       </div>
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">Order status lookup</div>
+          <div class="ai-help">Customers can ask "are my glasses ready?" in the chat, or use its "Check my order" button. They must enter the job order number from their claim stub <strong>and</strong> the last 4 digits of the phone number on the order — orders are never looked up by name. The reply shows only whether it's being prepared, ready for pick-up or claimed, plus the due date. Repeated wrong tries are blocked.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiOrderStatus"><span class="slider"></span></label>
+      </div>
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">Include remaining balance</div>
+          <div class="ai-help">Also tells the customer how much is left to pay (only after both numbers match).</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiOrderBalance"><span class="slider"></span></label>
+      </div>
     </div>
 
     <div class="card">
@@ -989,6 +1003,8 @@
     document.getElementById('aiLogUnanswered').checked = v.log_unanswered === true;
     document.getElementById('aiPublicEnabled').checked = pub.enabled !== false;
     document.getElementById('aiPublicStock').checked = pub.stock !== false;
+    document.getElementById('aiOrderStatus').checked = pub.order_status === true;
+    document.getElementById('aiOrderBalance').checked = pub.order_balance === true;
     document.getElementById('aiStaffEnabled').checked = staff.enabled !== false;
 
     document.getElementById('aiAreasBody').innerHTML = AI_AREAS.map(a => {
@@ -1021,8 +1037,12 @@
     document.getElementById('aiAreasWrap').classList.toggle('off', !document.getElementById('aiStaffEnabled').checked);
   }
   function syncAiPublicState() {
-    document.getElementById('aiPublicStock').disabled = !document.getElementById('aiPublicEnabled').checked;
+    const on = document.getElementById('aiPublicEnabled').checked;
+    document.getElementById('aiPublicStock').disabled = !on;
+    document.getElementById('aiOrderStatus').disabled = !on;
+    document.getElementById('aiOrderBalance').disabled = !on || !document.getElementById('aiOrderStatus').checked;
   }
+  document.getElementById('aiOrderStatus').addEventListener('change', syncAiPublicState);
   document.getElementById('aiStaffEnabled').addEventListener('change', syncAiStaffState);
   document.getElementById('aiPublicEnabled').addEventListener('change', syncAiPublicState);
 
@@ -1052,6 +1072,8 @@
         public: {
           enabled: document.getElementById('aiPublicEnabled').checked,
           stock: document.getElementById('aiPublicStock').checked,
+          order_status: document.getElementById('aiOrderStatus').checked,
+          order_balance: document.getElementById('aiOrderBalance').checked,
         },
         staff: { enabled: document.getElementById('aiStaffEnabled').checked, areas },
       };
