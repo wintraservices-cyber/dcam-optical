@@ -332,6 +332,23 @@
     font-size: 0.92rem;
     line-height: 1.55;
   }
+  .chat-book-btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--purple);
+    color: #fff;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    padding: 9px 16px;
+    border-radius: 20px;
+    margin-top: -2px;
+    transition: background 0.15s;
+  }
+  .chat-book-btn:hover { background: var(--purple-deep); }
   .msg.bot {
     background: var(--ivory-dim);
     color: var(--charcoal);
@@ -828,7 +845,7 @@
         </div>
       </div>
     </div>
-    <p class="chat-note">This demo runs on live AI, scoped to DCAM Optical's info only — same technology we'd wire into the finished site, connected to your real hours, insurance list, and booking system.</p>
+    <p class="chat-note">Answers come from live AI using DCAM Optical's current hours, contact details and in-stock eyewear. It can't diagnose — for urgent eye problems, please seek care right away.</p>
   </div>
 </section>
 
@@ -1062,20 +1079,12 @@
   const chatInput = document.getElementById('chatInput');
   const chatSend = document.getElementById('chatSend');
   const chips = document.getElementById('chatChips');
+  const BOOK_MARKER = '[[BOOK]]';
+  const BOOK_URL = 'intake.html';
 
-  const SYSTEM_CONTEXT = `You are the front-desk AI assistant embedded on the DCAM Optical website — a new, full-service optometry practice in the Philippines (eye exams, contact lens fittings, prescription eyewear, pediatric eye care). This is a sales demo built to show a prospective client what an AI assistant on their real site could do.
-
-Practice facts to use (this is placeholder/demo data — treat it as real for the conversation):
-- Services: comprehensive eye exams, contact lens fittings, prescription lenses (single vision, progressive, blue-light, transitions), frame styling, pediatric eye care, urgent eye concerns.
-- Hours: Mon–Fri 9am–6pm, Sat 9am–2pm, closed Sunday.
-- Insurance: accepts most major HMO and vision plans — exact plan list to be confirmed with the practice.
-- New patients welcome. First visit is a comprehensive exam, roughly 45–60 minutes, includes a vision test, eye health screening, and retinal imaging.
-- Booking: via the "Book an exam" section on this page, or by phone (demo — no real phone number yet).
-
-Tone: warm, clear, concise. Plain sentences, no medical jargon unless asked. Never give a medical diagnosis. If someone describes symptoms that could be urgent (sudden vision loss, eye trauma, chemical exposure, sudden severe pain, flashes/floaters) or has had ongoing pain/redness for more than a day or two, tell them plainly to seek prompt in-person care (this practice or urgent/emergency care) rather than waiting for a routine booking — say this clearly and directly, don't just mention it in passing. Keep answers short — 2-4 sentences unless more detail is genuinely needed. This is a demo, so if asked something with no clear demo answer, say so honestly rather than inventing specifics like exact prices or a real phone number.`;
-
+  // Conversation history sent to /api/chat. The assistant's instructions
+  // and live practice details live on the server, not here.
   let turns = [];
-  let sampleFn = null;
 
   function addMsg(text, cls) {
     const div = document.createElement('div');
@@ -1086,68 +1095,105 @@ Tone: warm, clear, concise. Plain sentences, no medical jargon unless asked. Nev
     return div;
   }
 
-  async function init() {
-    try {
-      if (window.claude && window.claude.use) {
-        sampleFn = await window.claude.use('sample');
-      }
-    } catch (e) {
-      sampleFn = null;
-    }
+  function addBookButton() {
+    const a = document.createElement('a');
+    a.className = 'chat-book-btn';
+    a.href = BOOK_URL;
+    a.textContent = 'Book an exam →';
+    chatBody.appendChild(a);
+    chatBody.scrollTop = chatBody.scrollHeight;
   }
-  init();
+
+  // Hide the booking marker (and any half-streamed start of it) while text arrives.
+  function visibleText(raw) {
+    let t = raw.split(BOOK_MARKER).join('');
+    for (let i = BOOK_MARKER.length - 1; i > 0; i--) {
+      if (t.endsWith(BOOK_MARKER.slice(0, i))) { t = t.slice(0, -i); break; }
+    }
+    return t.trim();
+  }
+
+  // Live path: our own serverless endpoint (works for anyone on the real site).
+  async function askServer(onText) {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: turns }),
+    });
+    if (!resp.ok) {
+      let msg = null;
+      try { const j = await resp.json(); msg = j.error; } catch (e) {}
+      const err = new Error(msg || 'Request failed');
+      err.status = resp.status;
+      err.userMessage = msg;
+      throw err;
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let full = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      full += decoder.decode(value, { stream: true });
+      onText(full);
+    }
+    full += decoder.decode();
+    return full;
+  }
+
+  // Fallback for previews opened inside the Claude app (no /api there).
+  async function askClaudeApp(onText) {
+    if (!(window.claude && window.claude.use)) throw new Error('no-fallback');
+    const sample = await window.claude.use('sample');
+    const intro = "You are DCAM Optical's website front-desk assistant (optometry practice, Philippines). Be brief and warm, never diagnose, send possibly urgent symptoms to prompt in-person care, and don't invent prices or phone numbers. If booking is the helpful next step, end with [[BOOK]].";
+    const result = await sample([{ role: 'user', content: intro }, ...turns], {
+      cache: false, modelTier: 'quick', onText: ({ text }) => onText(text),
+    });
+    return result.text;
+  }
 
   async function send(text) {
     if (!text || !text.trim()) return;
     chatInput.value = '';
     chatSend.disabled = true;
+    chips.style.display = 'none';
     addMsg(text, 'user');
-    turns.push({ role: 'user', content: text });
+    turns.push({ role: 'user', content: text.trim() });
 
     const thinking = addMsg('Thinking…', 'bot thinking');
-
-    if (!sampleFn) {
-      setTimeout(() => {
-        thinking.remove();
-        addMsg("This live demo needs the Claude app's AI capability enabled for this view — in the finished site, this assistant would answer in real time, connected to your real practice info.", 'bot');
-        chatSend.disabled = false;
-      }, 500);
-      return;
-    }
+    let bubble = null;
+    const onText = (raw) => {
+      const shown = visibleText(raw);
+      if (!shown) return;
+      if (!bubble) { thinking.remove(); bubble = addMsg('', 'bot'); }
+      bubble.textContent = shown;
+      chatBody.scrollTop = chatBody.scrollHeight;
+    };
 
     try {
-      const input = [{ role: 'user', content: SYSTEM_CONTEXT }, ...turns];
-      let firstChunk = true;
-      const result = await sampleFn(input, {
-        cache: false,
-        modelTier: 'quick',
-        onText: ({ text }) => {
-          if (firstChunk) {
-            thinking.remove();
-            firstChunk = false;
-            var d = document.createElement('div');
-            d.className = 'msg bot';
-            d.id = 'streamingMsg';
-            chatBody.appendChild(d);
-          }
-          const el = document.getElementById('streamingMsg');
-          if (el) el.textContent = text;
-          chatBody.scrollTop = chatBody.scrollHeight;
+      let full;
+      try {
+        full = await askServer(onText);
+      } catch (e) {
+        // No backend (404 / offline preview) -> try the Claude-app path.
+        if (e.status === 404 || e instanceof TypeError) {
+          full = await askClaudeApp(onText);
+        } else {
+          throw e;
         }
-      });
-      const el = document.getElementById('streamingMsg');
-      if (el) el.removeAttribute('id');
-      turns.push({ role: 'assistant', content: result.text });
+      }
+      const wantsBooking = full.includes(BOOK_MARKER);
+      const clean = visibleText(full);
+      if (!clean) throw new Error('empty');
+      if (!bubble) { thinking.remove(); bubble = addMsg(clean, 'bot'); }
+      bubble.textContent = clean;
+      turns.push({ role: 'assistant', content: clean });
+      if (wantsBooking) addBookButton();
     } catch (e) {
       thinking.remove();
-      let msg = "Something went wrong on this demo — mind trying again?";
-      if (e && e.code === 'not_granted') {
-        msg = "This demo needs your permission to use Claude for this view — try again and allow it when prompted.";
-      } else if (e && e.text) {
-        addMsg(e.text, 'bot');
-        msg = null;
-      }
-      if (msg) addMsg(msg, 'bot');
+      if (bubble) bubble.remove();
+      turns.pop(); // let them resend the same question
+      addMsg((e && e.userMessage) || "Sorry — I couldn't answer just now. Please try again, or start the intake form and the clinic will get back to you.", 'bot');
     } finally {
       chatSend.disabled = false;
       chatInput.focus();
@@ -1162,7 +1208,6 @@ Tone: warm, clear, concise. Plain sentences, no medical jargon unless asked. Nev
     const btn = e.target.closest('.chip');
     if (!btn) return;
     send(btn.getAttribute('data-q'));
-    chips.style.display = 'none';
   });
 })();
 </script>

@@ -10,8 +10,10 @@
 
 const { requireAuth, requireAdmin } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
+const { normalizeAiAccess } = require('../lib/ai-access');
+const { usageReport } = require('../lib/ai-usage');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'ai_access'];
 
 async function getSettings(req, res) {
   const { key } = req.query || {};
@@ -62,6 +64,11 @@ async function putSetting(req, res, sessionUser) {
     return;
   }
 
+  // AI access toggles are always stored in their full, normalized shape
+  // (unknown fields dropped, missing ones filled with safe defaults), so
+  // the assistant never has to guess what a partial value meant.
+  const storedValue = key === 'ai_access' ? normalizeAiAccess(value) : value;
+
   try {
     // Upsert via PostgREST: POST with Prefer: resolution=merge-duplicates
     // against the primary key (key), which updates the row if it exists.
@@ -72,7 +79,7 @@ async function putSetting(req, res, sessionUser) {
       },
       body: JSON.stringify({
         key,
-        value,
+        value: storedValue,
         updated_at: new Date().toISOString(),
         updated_by: sessionUser.username || null,
       }),
@@ -93,6 +100,24 @@ async function putSetting(req, res, sessionUser) {
   }
 }
 
+async function getAiUsage(req, res) {
+  const isDate = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+  const from = isDate(req.query.from) ? req.query.from : today;
+  const to = isDate(req.query.to) ? req.query.to : today;
+  if (from > to) {
+    res.status(400).json({ ok: false, error: 'The start date is after the end date.' });
+    return;
+  }
+  try {
+    const report = await usageReport(from, to);
+    res.status(200).json({ ok: true, ...report });
+  } catch (err) {
+    console.error('AI usage report error:', err.message);
+    res.status(502).json({ ok: false, error: 'Could not load AI usage. Has the latest supabase-schema.sql been run?' });
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, PATCH, OPTIONS');
@@ -101,6 +126,12 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.status(204).end();
     return;
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'ai_usage') {
+    // AI usage + estimated cost -- admin only.
+    if (!requireAdmin(req, res)) return;
+    return getAiUsage(req, res);
   }
 
   if (req.method === 'GET') {

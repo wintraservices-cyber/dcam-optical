@@ -400,3 +400,58 @@ begin
 
   alter table orders add constraint orders_payment_status_check check (payment_status in ('unpaid', 'partial', 'paid'));
 end $$;
+
+-- ---------------------------------------------------------------------
+-- AI usage + cost log. One row per assistant reply (website chat or
+-- staff assistant), written by lib/ai-usage.js with the token counts the
+-- Claude API reported and an estimated USD cost at the time of the call.
+-- Read in Settings -> AI assistant -> Usage & cost.
+-- ---------------------------------------------------------------------
+create table if not exists ai_usage_log (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  channel text not null check (channel in ('website', 'staff')),
+  model text,
+  input_tokens integer not null default 0,
+  output_tokens integer not null default 0,
+  api_calls integer not null default 1,
+  tool_calls integer not null default 0,
+  cost_usd numeric(12,6) not null default 0,
+  username text,
+  role text
+);
+
+create index if not exists ai_usage_log_created_idx on ai_usage_log (created_at);
+
+alter table ai_usage_log enable row level security;
+
+-- Daily totals per channel, by Manila calendar day. Both dates optional
+-- (null = open-ended), so (null, null) gives all-time. Aggregating in SQL
+-- avoids Supabase's 1,000-row API cap on large logs.
+create or replace function ai_usage_daily(p_from date default null, p_to date default null)
+returns table (
+  day date,
+  channel text,
+  messages bigint,
+  api_calls bigint,
+  input_tokens bigint,
+  output_tokens bigint,
+  cost_usd numeric
+)
+language sql
+stable
+as $$
+  select
+    (created_at at time zone 'Asia/Manila')::date as day,
+    channel,
+    count(*) as messages,
+    coalesce(sum(api_calls), 0) as api_calls,
+    coalesce(sum(input_tokens), 0) as input_tokens,
+    coalesce(sum(output_tokens), 0) as output_tokens,
+    coalesce(sum(cost_usd), 0) as cost_usd
+  from ai_usage_log
+  where (p_from is null or (created_at at time zone 'Asia/Manila')::date >= p_from)
+    and (p_to is null or (created_at at time zone 'Asia/Manila')::date <= p_to)
+  group by 1, 2
+  order by 1 desc, 2;
+$$;

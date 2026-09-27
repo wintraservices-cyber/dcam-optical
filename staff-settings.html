@@ -222,6 +222,72 @@
     margin-bottom: -6px;
   }
 
+  /* ---------- AI assistant toggles ---------- */
+  .switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch .slider {
+    position: absolute; inset: 0; cursor: pointer;
+    background: rgba(56,51,52,0.18); border-radius: 100px; transition: background 0.15s;
+  }
+  .switch .slider::before {
+    content: ''; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px;
+    background: #fff; border-radius: 50%; transition: transform 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .switch input:checked + .slider { background: var(--purple); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+  .switch input:focus-visible + .slider { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .switch input:disabled + .slider { opacity: 0.4; cursor: not-allowed; }
+
+  .ai-master {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 12px 0; border-bottom: 1px solid var(--line);
+  }
+  .ai-master:last-of-type { border-bottom: none; }
+  .ai-master .ai-label { font-family: var(--display); font-weight: 700; font-size: 0.9rem; }
+  .ai-master .ai-help { font-size: 0.8rem; color: var(--charcoal-soft); margin-top: 3px; line-height: 1.45; }
+
+  table.ai-areas td { vertical-align: middle; }
+  table.ai-areas th.role-col, table.ai-areas td.role-col { text-align: center; width: 80px; }
+  table.ai-areas .area-name { font-family: var(--display); font-weight: 700; font-size: 0.86rem; }
+  table.ai-areas .area-help { font-size: 0.78rem; color: var(--charcoal-soft); margin-top: 3px; line-height: 1.45; }
+  table.ai-areas tr.sensitive .area-name::after {
+    content: 'Sensitive'; margin-left: 8px; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em;
+    background: rgba(176,64,90,0.12); color: #B0405A; padding: 2px 7px; border-radius: 100px; vertical-align: 1px;
+  }
+  .ai-areas-wrap.off { opacity: 0.45; pointer-events: none; }
+  .ai-note {
+    font-size: 0.78rem; color: var(--charcoal-soft); background: var(--ivory);
+    border-radius: 10px; padding: 10px 12px; margin: 14px 0 16px; line-height: 1.5;
+  }
+
+  .ai-cards-wrap.off { opacity: 0.45; pointer-events: none; }
+  .ai-master.kill .ai-label { font-size: 1rem; }
+
+  /* ---------- AI usage ---------- */
+  .usage-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 18px; }
+  .usage-controls label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); margin-bottom: 4px; }
+  .usage-controls select, .usage-controls input {
+    border: 1.5px solid var(--line); padding: 9px 10px; border-radius: 8px;
+    font-family: var(--body); font-size: 0.86rem; color: var(--charcoal); background: #fff;
+  }
+  .usage-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+  .usage-tile { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--ivory); }
+  .usage-tile .t-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); }
+  .usage-tile .t-value { font-family: var(--display); font-weight: 800; font-size: 1.55rem; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .usage-tile .t-sub { font-size: 0.76rem; color: var(--charcoal-soft); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .usage-split { width: 100%; margin-bottom: 14px; }
+  .usage-split td, .usage-split th { font-variant-numeric: tabular-nums; }
+  .usage-split td.num, .usage-split th.num, .usage-days td.num, .usage-days th.num { text-align: right; }
+  .usage-alltime {
+    display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline;
+    border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; font-size: 0.86rem;
+  }
+  .usage-alltime strong { font-family: var(--display); }
+  .usage-days-wrap { max-height: 320px; overflow-y: auto; margin-top: 14px; }
+  .usage-days td { font-variant-numeric: tabular-nums; }
+  .usage-days thead th { position: sticky; top: 0; background: #fff; }
+  @media (max-width: 700px) { .usage-tiles { grid-template-columns: 1fr; } }
+
   .loading-state, .empty-state { text-align: center; padding: 30px; color: var(--charcoal-soft); font-size: 0.9rem; }
   .not-admin-state { text-align: center; padding: 80px 20px; color: var(--charcoal-soft); }
 
@@ -251,6 +317,7 @@
     <button class="active" data-tab="rx">Rx ranges</button>
     <button data-tab="business">Business info</button>
     <button data-tab="accounts">Staff accounts</button>
+    <button data-tab="ai">AI assistant</button>
   </div>
 
   <!-- Rx Ranges -->
@@ -375,6 +442,90 @@
       <div class="save-row">
         <span class="save-status" id="accountsStatus"></span>
       </div>
+    </div>
+  </div>
+  <!-- AI Assistant -->
+  <div class="panel" id="panel-ai">
+    <div class="card">
+      <div class="ai-master kill" style="border-bottom:none; padding:0;">
+        <div>
+          <div class="ai-label">All AI features</div>
+          <div class="ai-help">Master switch — saves as soon as you flip it. When off, both the website chat and the staff assistant stop right away, whatever the settings below say, so there's no AI usage or cost.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiMasterEnabled"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="ai-cards-wrap" id="aiCardsWrap">
+    <div class="card">
+      <h2>Website assistant</h2>
+      <div class="card-sub">The "Ask us anything" chat on the public website. Always uses the details from the Business info tab.</div>
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">Website chat on</div>
+          <div class="ai-help">When off, visitors see a short message pointing them to the intake form instead.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiPublicEnabled"><span class="slider"></span></label>
+      </div>
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">Share in-stock frames &amp; lenses</div>
+          <div class="ai-help">Lets the website chat mention items in stock and their sale prices. Base (cost) prices are never shared.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiPublicStock"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Staff assistant</h2>
+      <div class="card-sub">The chat bubble on staff pages. Choose exactly what it can look up, separately for admins and staff. It can only read data — it never creates, edits or deletes anything.</div>
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">Staff assistant on</div>
+          <div class="ai-help">Turns the chat bubble on or off for everyone. Changes apply on the next message.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiStaffEnabled"><span class="slider"></span></label>
+      </div>
+      <div class="ai-areas-wrap" id="aiAreasWrap">
+        <table class="ai-areas">
+          <thead><tr><th>Can look up</th><th class="role-col">Admin</th><th class="role-col">Staff</th></tr></thead>
+          <tbody id="aiAreasBody"></tbody>
+        </table>
+      </div>
+      <div class="ai-note">To answer, the assistant sends only the records it looks up to the AI provider (Anthropic). API data isn't used to train their models. If you enable <strong>Patient records</strong>, mention AI-assisted processing in your privacy notice.</div>
+    </div>
+    </div>
+
+    <div class="card">
+      <div class="save-row" style="margin-top:0;">
+        <button class="save-btn" id="saveAiAccess">Save AI settings</button>
+        <span class="save-status" id="aiAccessStatus"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Usage &amp; cost</h2>
+      <div class="card-sub">Every AI reply is logged with the tokens used and an estimated cost in US dollars (what Anthropic bills). Your Anthropic Console billing page is the official figure.</div>
+      <div class="usage-controls">
+        <div>
+          <label for="usageRange">Period</label>
+          <select id="usageRange">
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="7d">Last 7 days</option>
+            <option value="month" selected>This month</option>
+            <option value="lastmonth">Last month</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </div>
+        <div id="usageCustom" style="display:none; gap:10px;">
+          <div><label for="usageFrom">From</label><input type="date" id="usageFrom"></div>
+          <div><label for="usageTo">To</label><input type="date" id="usageTo"></div>
+        </div>
+        <button class="save-btn" id="usageRefresh" type="button">Refresh</button>
+        <span class="save-status" id="usageStatus"></span>
+      </div>
+      <div id="usageBody"><div class="loading-state">Open this tab to load usage.</div></div>
     </div>
   </div>
 </div>
@@ -703,6 +854,196 @@
     }
   });
 
+  // ---- AI assistant access ----
+  const AI_AREAS = [
+    { key: 'orders',   label: 'Orders',               help: 'Order numbers, status, due dates, items and totals. Shows the patient name on each order, but not phone numbers or Rx values.' },
+    { key: 'balances', label: 'Balances & payments',  help: 'Unpaid and partial orders, remaining balances, and balance payments logged.' },
+    { key: 'stock',    label: 'Inventory / stock',    help: 'Catalog frames and lenses with quantities and sale prices. Admins also see base (cost) price.' },
+    { key: 'sales',    label: 'Sales & revenue',      help: 'Money collected in a date range, split by cash and GCash/card.' },
+    { key: 'patients', label: 'Patient records',      help: 'Name/phone lookups, visit history and Rx values.', sensitive: true },
+    { key: 'howto',    label: 'How-to help',          help: 'Explains how to use the staff system. No data is looked up.' },
+  ];
+  const AI_DEFAULTS = {
+    public: { enabled: true, stock: true },
+    staff: { enabled: true, areas: {
+      orders: { admin: true, staff: true }, balances: { admin: true, staff: true },
+      stock: { admin: true, staff: true }, sales: { admin: true, staff: false },
+      patients: { admin: false, staff: false }, howto: { admin: true, staff: true },
+    } },
+  };
+
+  function renderAiAccess(saved) {
+    const v = saved || {};
+    const pub = Object.assign({}, AI_DEFAULTS.public, v.public || {});
+    const staff = Object.assign({}, AI_DEFAULTS.staff, v.staff || {});
+    const areas = (v.staff && v.staff.areas) || {};
+    document.getElementById('aiMasterEnabled').checked = v.enabled !== false;
+    document.getElementById('aiPublicEnabled').checked = pub.enabled !== false;
+    document.getElementById('aiPublicStock').checked = pub.stock !== false;
+    document.getElementById('aiStaffEnabled').checked = staff.enabled !== false;
+
+    document.getElementById('aiAreasBody').innerHTML = AI_AREAS.map(a => {
+      const cur = Object.assign({}, AI_DEFAULTS.staff.areas[a.key], areas[a.key] || {});
+      const sw = (role) => `<label class="switch"><input type="checkbox" data-area="${a.key}" data-role="${role}" ${cur[role] ? 'checked' : ''} aria-label="${escapeHtml(a.label)} for ${role}"><span class="slider"></span></label>`;
+      return `<tr class="${a.sensitive ? 'sensitive' : ''}">
+        <td><div class="area-name">${escapeHtml(a.label)}</div><div class="area-help">${escapeHtml(a.help)}</div></td>
+        <td class="role-col">${sw('admin')}</td>
+        <td class="role-col">${sw('staff')}</td>
+      </tr>`;
+    }).join('');
+    syncAiPublicState();
+    syncAiStaffState();
+    syncAiMasterState();
+  }
+
+  function syncAiMasterState() {
+    document.getElementById('aiCardsWrap').classList.toggle('off', !document.getElementById('aiMasterEnabled').checked);
+  }
+  // The master switch is a kill switch: save it the moment it's flipped.
+  document.getElementById('aiMasterEnabled').addEventListener('change', () => {
+    syncAiMasterState();
+    document.getElementById('saveAiAccess').click();
+  });
+
+  function syncAiStaffState() {
+    document.getElementById('aiAreasWrap').classList.toggle('off', !document.getElementById('aiStaffEnabled').checked);
+  }
+  function syncAiPublicState() {
+    document.getElementById('aiPublicStock').disabled = !document.getElementById('aiPublicEnabled').checked;
+  }
+  document.getElementById('aiStaffEnabled').addEventListener('change', syncAiStaffState);
+  document.getElementById('aiPublicEnabled').addEventListener('change', syncAiPublicState);
+
+  document.getElementById('aiAreasBody').addEventListener('change', (e) => {
+    const box = e.target;
+    if (box.dataset.area !== 'patients' || !box.checked) return;
+    const ok = confirm('Allow the assistant to look up patient records?\n\nPatient names, phone numbers and Rx values it looks up will be sent to the AI provider to answer questions. Only enable this if your privacy notice covers it.');
+    if (!ok) box.checked = false;
+  });
+
+  document.getElementById('saveAiAccess').addEventListener('click', async () => {
+    const btn = document.getElementById('saveAiAccess');
+    const statusEl = document.getElementById('aiAccessStatus');
+    btn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    statusEl.className = 'save-status';
+    try {
+      const areas = {};
+      AI_AREAS.forEach(a => { areas[a.key] = { admin: false, staff: false }; });
+      document.querySelectorAll('#aiAreasBody input[data-area]').forEach(box => {
+        areas[box.dataset.area][box.dataset.role] = box.checked;
+      });
+      const value = {
+        enabled: document.getElementById('aiMasterEnabled').checked,
+        public: {
+          enabled: document.getElementById('aiPublicEnabled').checked,
+          stock: document.getElementById('aiPublicStock').checked,
+        },
+        staff: { enabled: document.getElementById('aiStaffEnabled').checked, areas },
+      };
+      const resp = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'ai_access', value }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      statusEl.textContent = 'Saved — applies on the next message.';
+      statusEl.className = 'save-status success';
+    } catch (err) {
+      statusEl.textContent = err.message || 'Could not save.';
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---- AI usage & cost ----
+  const usd = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: (Number(n) || 0) < 1 ? 4 : 2 });
+  const int = (n) => (Number(n) || 0).toLocaleString('en-US');
+  const ymd = (d) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+
+  function usageDates() {
+    const now = new Date();
+    const today = ymd(now);
+    const [y, m] = today.split('-').map(Number);
+    const shift = (days) => ymd(new Date(now.getTime() + days * 86400000));
+    switch (document.getElementById('usageRange').value) {
+      case 'today': return [today, today];
+      case 'yesterday': return [shift(-1), shift(-1)];
+      case '7d': return [shift(-6), today];
+      case 'lastmonth': {
+        const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
+        const last = new Date(Date.UTC(py, pm, 0)).getUTCDate();
+        return [`${py}-${String(pm).padStart(2, '0')}-01`, `${py}-${String(pm).padStart(2, '0')}-${last}`];
+      }
+      case 'custom': return [document.getElementById('usageFrom').value || today, document.getElementById('usageTo').value || today];
+      default: return [`${today.slice(0, 7)}-01`, today];
+    }
+  }
+
+  function renderUsage(r) {
+    const t = r.range.totals, all = r.all_time.totals;
+    const perMsg = t.total.messages ? t.total.cost_usd / t.total.messages : 0;
+    const row = (name, b) => `<tr><td>${name}</td><td class="num">${int(b.messages)}</td><td class="num">${int(b.input_tokens)}</td><td class="num">${int(b.output_tokens)}</td><td class="num">${usd(b.cost_usd)}</td></tr>`;
+    const days = r.range.days.length
+      ? `<div class="usage-days-wrap"><table class="usage-days"><thead><tr><th>Day</th><th class="num">Website msgs</th><th class="num">Staff msgs</th><th class="num">Est. cost</th></tr></thead><tbody>${
+          r.range.days.map(d => `<tr><td>${escapeHtml(d.day)}</td><td class="num">${int(d.website_messages)}</td><td class="num">${int(d.staff_messages)}</td><td class="num">${usd(d.cost_usd)}</td></tr>`).join('')
+        }</tbody></table></div>`
+      : '<div class="empty-state">No AI usage in this period.</div>';
+
+    document.getElementById('usageBody').innerHTML = `
+      <div class="usage-tiles">
+        <div class="usage-tile"><div class="t-label">Est. cost</div><div class="t-value">${usd(t.total.cost_usd)}</div><div class="t-sub">${escapeHtml(r.range.from)} → ${escapeHtml(r.range.to)}</div></div>
+        <div class="usage-tile"><div class="t-label">AI replies</div><div class="t-value">${int(t.total.messages)}</div><div class="t-sub">≈ ${usd(perMsg)} each</div></div>
+        <div class="usage-tile"><div class="t-label">Tokens</div><div class="t-value">${int(t.total.input_tokens + t.total.output_tokens)}</div><div class="t-sub">${int(t.total.input_tokens)} in · ${int(t.total.output_tokens)} out</div></div>
+      </div>
+      <table class="usage-split">
+        <thead><tr><th>Assistant</th><th class="num">Replies</th><th class="num">Input tokens</th><th class="num">Output tokens</th><th class="num">Est. cost</th></tr></thead>
+        <tbody>${row('Website chat', t.website)}${row('Staff assistant', t.staff)}</tbody>
+      </table>
+      <div class="usage-alltime">
+        <span><strong>All time</strong>${r.all_time.since ? ' (since ' + escapeHtml(r.all_time.since) + ')' : ''}:</span>
+        <span>${usd(all.total.cost_usd)} total</span>
+        <span>${int(all.total.messages)} replies</span>
+        <span>Website ${usd(all.website.cost_usd)}</span>
+        <span>Staff ${usd(all.staff.cost_usd)}</span>
+      </div>
+      ${days}`;
+  }
+
+  let usageLoaded = false;
+  async function loadUsage() {
+    const statusEl = document.getElementById('usageStatus');
+    const [from, to] = usageDates();
+    statusEl.textContent = 'Loading…';
+    statusEl.className = 'save-status';
+    try {
+      const resp = await fetch(`/api/settings?view=ai_usage&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load usage.');
+      renderUsage(result);
+      usageLoaded = true;
+      statusEl.textContent = '';
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    }
+  }
+  document.getElementById('usageRange').addEventListener('change', (e) => {
+    const custom = e.target.value === 'custom';
+    document.getElementById('usageCustom').style.display = custom ? 'flex' : 'none';
+    if (custom) {
+      const [f, t] = usageDates();
+      document.getElementById('usageFrom').value = document.getElementById('usageFrom').value || f;
+      document.getElementById('usageTo').value = document.getElementById('usageTo').value || t;
+    } else {
+      loadUsage();
+    }
+  });
+  document.getElementById('usageRefresh').addEventListener('click', loadUsage);
+  document.querySelector('.tabs button[data-tab="ai"]').addEventListener('click', () => { if (!usageLoaded) loadUsage(); });
+
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     try { await fetch('/api/staff-auth?action=logout', { method: 'POST' }); } catch (e) {}
     window.location.href = 'staff-login.html';
@@ -722,16 +1063,19 @@
       renderRxRangesForm(result.settings.rx_ranges);
       renderBusinessInfo(result.settings.business_info);
       renderPhoneValidation(result.settings.phone_validation);
+      renderAiAccess(result.settings.ai_access);
       loadAccounts();
     } catch (err) {
       mainWrap.style.display = 'block';
       renderRxRangesForm(null);
       renderBusinessInfo(null);
       renderPhoneValidation(null);
+      renderAiAccess(null);
       loadAccounts();
     }
   })();
 })();
 </script>
+<script src="staff-assistant.js" defer></script>
 </body>
 </html>

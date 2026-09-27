@@ -70,6 +70,8 @@ disallowing `/staff-*` — happy to add that if useful.
    | `NOTIFY_EMAIL_FROM` | Verified sending address |
    | `SUPABASE_URL` | Your Supabase project URL — **now required for both the intake form and the staff order system**, since intake submissions save to the database too |
    | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only) |
+   | `ANTHROPIC_API_KEY` | Powers the public "Ask us anything" assistant (`api/chat.js`). Without it the chat politely says it isn't switched on yet. |
+   | `ANTHROPIC_MODEL` | Optional. Defaults to `claude-haiku-4-5-20251001` (fast, low cost). |
 
    `STAFF_PASSWORD` and `STAFF_SESSION_SECRET` are **not required** —
    staff login currently uses a hardcoded demo password (`dcam-optical`),
@@ -287,3 +289,79 @@ the new `supabase-schema.sql` again is safe — it only adds what's missing
 (new tables, and a `patient_id` column added to the existing `orders`
 table via `alter table ... add column if not exists`).
 
+
+
+## AI front-desk assistant (`api/chat.js`)
+
+The homepage chat now calls our own serverless endpoint instead of the
+Claude-app-only capability, so it works for anyone visiting the live site.
+
+- **Grounded in live data.** The server builds the assistant's instructions
+  from `app_settings.business_info` (name, branch, address, hours, phones,
+  email, social — edited in Staff → Settings) and active, in-stock
+  `catalog_items` (sale price only; base/cost price is never sent). Cached
+  for 5 minutes, so Settings edits show up in the chat within that window.
+- **Instructions stay server-side.** The browser only sends the conversation;
+  it can't change what the assistant is told to do.
+- **Safety rules.** No diagnosis; possibly urgent symptoms get "seek care now"
+  first; no invented prices/phone numbers/plans; stays on eye-care topics;
+  steers personal/medical details to the intake form.
+- **Booking hand-off.** When booking is the right next step the assistant
+  emits `[[BOOK]]`, which the page turns into a "Book an exam →" button
+  linking to `intake.html`.
+- **Guardrails on cost.** Last 12 messages kept, 1,000 chars per message,
+  450 output tokens, ~30 messages per 10 minutes per IP (best effort).
+- **Function count:** this is the 12th file in `/api` — exactly the Vercel
+  Hobby limit. Any future endpoint must be merged into an existing file.
+  The staff assistant below lives in this same file for that reason.
+
+## Staff assistant + AI access controls
+
+- **Where:** a chat bubble (bottom-right) on every staff page, loaded by
+  `staff-assistant.js`. Hidden automatically when switched off, when the
+  user's role has no areas enabled, or when not logged in. Hidden when
+  printing.
+- **Endpoint:** `/api/chat?mode=staff` — requires a staff login. `GET`
+  returns what this user may use; `POST` answers a question.
+- **Read-only by design.** The model can only call fixed lookup tools in
+  `lib/staff-ai.js` (orders, balances, stock, sales, patients). It never
+  writes queries and there is no tool that changes data.
+- **Settings → AI assistant (admin only)** controls everything, stored as
+  `app_settings.ai_access` (normalized in `lib/ai-access.js`):
+  - Website chat on/off, and whether it may mention in-stock items.
+  - Staff assistant on/off.
+  - Per area, per role (Admin / Staff): Orders, Balances & payments,
+    Inventory / stock, Sales & revenue, Patient records, How-to help.
+  - Defaults: everything on except Sales for Staff, and Patient records
+    off for both roles.
+- **Enforced server-side, twice:** the model is only offered tools for
+  enabled areas, and every tool re-checks its area before querying.
+  Turning off Balances also strips deposit/balance/payment status from
+  order lookups. Base (cost) price is only ever returned to admins.
+- **Changes apply on the next message** — read fresh each time.
+- **Privacy:** only the records a lookup returns are sent to Anthropic.
+  If Patient records is enabled, cover AI-assisted processing in the
+  clinic's privacy notice.
+- Each staff question is logged in Vercel's function logs as
+  `staff-ai: <username> (<role>) lookups=[...]` (question text is not logged).
+
+## AI master switch + usage & cost log
+
+- **All AI features** (top of Settings → AI assistant) is a kill switch that
+  saves instantly. Off = website chat and staff assistant both stop, no API
+  calls, no cost. Stored as `ai_access.enabled`.
+- **Usage log:** every AI reply writes a row to `ai_usage_log` (channel,
+  model, input/output tokens, API calls, lookups, estimated USD cost,
+  and the staff username for staff questions). Question text is not stored.
+- **Cost** is estimated from token counts using the price table in
+  `lib/ai-usage.js`, frozen at the time of each call. The Anthropic Console
+  billing page remains the official figure. If you change `ANTHROPIC_MODEL`,
+  check its price is listed there.
+- **Settings → AI assistant → Usage & cost (admin only):** pick Today /
+  Yesterday / Last 7 days / This month / Last month / custom range to see
+  estimated cost, replies and tokens, split by website vs staff, a
+  per-day table, and all-time totals. Served by
+  `GET /api/settings?view=ai_usage&from=YYYY-MM-DD&to=YYYY-MM-DD`, which
+  sums in SQL via `ai_usage_daily()` (Manila calendar days).
+- **Setup:** run the new block at the bottom of `supabase-schema.sql`
+  (safe to re-run).
