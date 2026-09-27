@@ -61,7 +61,8 @@ async function ordersReport(req, res, from, to) {
 
     const columns = [
       { label: 'Order #', value: 'order_no' },
-      { label: 'Date', value: (o) => o.order_date || (o.created_at || '').slice(0, 10) },
+      { label: 'Order Date', value: (o) => o.order_date || '' },
+      { label: 'Created Date', value: (o) => (o.created_at || '').slice(0, 10) },
       { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
       { label: 'Patient', value: 'patient_name' },
       { label: 'Phone', value: 'tel_no' },
