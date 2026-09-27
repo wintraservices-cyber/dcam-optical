@@ -34,6 +34,9 @@ const { loadAiAccess, allowedAreas, publicChatOn } = require('../lib/ai-access')
 const { toolsFor, runTool, buildStaffPrompt } = require('../lib/staff-ai');
 const { logUsage } = require('../lib/ai-usage');
 const { isTestMode, publicTestReply, staffTestReply, streamText } = require('../lib/ai-test-mode');
+const {
+  loadKnowledge, knowledgePromptBlock, unansweredInstruction, stripMarker, logUnanswered, UNANSWERED_MARKER,
+} = require('../lib/ai-knowledge');
 
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TURNS = 12;          // most recent messages kept from the history
@@ -121,7 +124,7 @@ async function loadPracticeContext(includeStock) {
   return text;
 }
 
-function buildSystemPrompt(practiceContext) {
+function buildSystemPrompt(practiceContext, knowledgeBlock, logGaps) {
   return `You are the front-desk assistant on the DCAM Optical website -- a full-service optometry practice in the Philippines (comprehensive eye exams, contact lens fittings, prescription eyewear, frame styling, pediatric eye care).
 
 ${practiceContext || 'PRACTICE DETAILS: not available right now. If asked for hours, phone numbers, address, stock or prices, say you don\'t have the exact details at the moment and suggest starting the intake form or visiting the branch.'}
@@ -130,7 +133,7 @@ GENERAL FACTS:
 - New patients are welcome. A first visit is a comprehensive exam of roughly 45-60 minutes: vision test, eye health screening, and a prescription check.
 - Patients can start online: the "Book an exam" section / patient intake form on this site. Staff confirm by phone or text.
 - HMO / vision-plan coverage varies by plan -- the practice confirms coverage for the specific plan.
-
+${knowledgeBlock ? '\n' + knowledgeBlock + '\n' : ''}
 HOW TO ANSWER:
 - Warm, clear and brief: 2-4 short sentences unless more detail is genuinely needed. Plain language, no markdown headings or tables.
 - Reply in the visitor's language (English, Filipino/Tagalog or Taglish are all fine).
@@ -141,7 +144,7 @@ HOW TO ANSWER:
 - Do not ask for or store sensitive personal details (full medical history, ID numbers, payment info) in chat; point them to the intake form instead.
 
 BOOKING HAND-OFF:
-When the visitor wants to book, asks how to get an appointment, or booking is clearly the helpful next step, end your reply with the exact marker [[BOOK]] on its own. The website turns it into a "Book an exam" button. Use it at most once per reply, and not for urgent-symptom replies where they should seek care right away.`;
+When the visitor wants to book, asks how to get an appointment, or booking is clearly the helpful next step, end your reply with the exact marker [[BOOK]] on its own. The website turns it into a "Book an exam" button. Use it at most once per reply, and not for urgent-symptom replies where they should seek care right away.${unansweredInstruction(logGaps)}`;
 }
 
 function sanitizeMessages(raw) {
@@ -209,9 +212,12 @@ async function publicChat(req, res) {
 
   // Test mode: free sample reply, no Anthropic call.
   if (isTestMode(access)) {
-    const reply = await publicTestReply(messages[messages.length - 1].content, access);
-    await streamText(res, reply);
+    const question = messages[messages.length - 1].content;
+    const knowledge = await loadKnowledge();
+    const { text, unanswered } = await publicTestReply(question, access, knowledge);
+    await streamText(res, text);
     await logUsage({ channel: 'website', model: 'test-mode', test: true });
+    if (unanswered && access.log_unanswered) await logUnanswered({ channel: 'website', question });
     res.end();
     return;
   }
@@ -223,7 +229,7 @@ async function publicChat(req, res) {
     return;
   }
 
-  const practiceContext = await loadPracticeContext(access.public.stock);
+  const [practiceContext, knowledge] = await Promise.all([loadPracticeContext(access.public.stock), loadKnowledge()]);
   const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
 
   let upstream;
@@ -238,7 +244,7 @@ async function publicChat(req, res) {
       body: JSON.stringify({
         model,
         max_tokens: MAX_OUTPUT_TOKENS,
-        system: buildSystemPrompt(practiceContext),
+        system: buildSystemPrompt(practiceContext, knowledgePromptBlock(knowledge, 'website'), access.log_unanswered),
         messages,
         stream: true,
       }),
@@ -269,6 +275,22 @@ async function publicChat(req, res) {
   // (cumulative) on message_delta.
   let inputTokens = 0;
   let outputTokens = 0;
+  // The [[UNANSWERED]] marker must never reach the visitor: hold back any
+  // tail that could be the start of it until we know.
+  let fullText = '';
+  let pending = '';
+  const emit = (final) => {
+    pending = pending.split(UNANSWERED_MARKER).join('');
+    let hold = 0;
+    if (!final) {
+      for (let i = Math.min(UNANSWERED_MARKER.length - 1, pending.length); i > 0; i--) {
+        if (pending.endsWith(UNANSWERED_MARKER.slice(0, i))) { hold = i; break; }
+      }
+    }
+    const out = pending.slice(0, pending.length - hold);
+    pending = pending.slice(pending.length - hold);
+    if (out) res.write(out);
+  };
 
   try {
     while (true) {
@@ -285,7 +307,9 @@ async function publicChat(req, res) {
         let evt;
         try { evt = JSON.parse(payload); } catch (e) { continue; }
         if (evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta') {
-          res.write(evt.delta.text);
+          fullText += evt.delta.text;
+          pending += evt.delta.text;
+          emit(false);
         } else if (evt.type === 'message_start' && evt.message && evt.message.usage) {
           inputTokens = evt.message.usage.input_tokens || 0;
           outputTokens = evt.message.usage.output_tokens || 0;
@@ -299,6 +323,10 @@ async function publicChat(req, res) {
     }
   } catch (err) {
     console.error('chat: error while streaming', err);
+  }
+  emit(true);
+  if (access.log_unanswered && fullText.includes(UNANSWERED_MARKER)) {
+    await logUnanswered({ channel: 'website', question: messages[messages.length - 1].content });
   }
   // Logged before ending the response so the serverless function isn't
   // frozen mid-write; the visitor has already seen the full reply.
@@ -369,12 +397,22 @@ async function staffChat(req, res) {
     return;
   }
 
-  const ctx = { role: user.role, username: user.username, areas };
+  const knowledge = await loadKnowledge();
+  const ctx = {
+    role: user.role, username: user.username, areas,
+    knowledgeBlock: knowledgePromptBlock(knowledge, 'staff'),
+    logGaps: access.log_unanswered,
+  };
+  const question = history[history.length - 1].content;
+  const noteGap = (reply) => (access.log_unanswered
+    ? logUnanswered({ channel: 'staff', question, username: user.username, role: user.role })
+    : Promise.resolve());
 
   // Test mode: keyword-routed real lookups, no Anthropic call.
   if (isTestMode(access)) {
     try {
-      const { reply, lookups: used } = await staffTestReply(history[history.length - 1].content, ctx);
+      const { reply, lookups: used, unanswered } = await staffTestReply(question, ctx, knowledge);
+      if (unanswered) await noteGap();
       console.log(`staff-ai[test]: ${user.username} (${user.role}) lookups=[${used.join(',')}]`);
       await logUsage({ channel: 'staff', model: 'test-mode', test: true, toolCalls: used.length, username: user.username, role: user.role });
       res.status(200).json({ ok: true, reply, lookups: used, testMode: true });
@@ -437,7 +475,9 @@ async function staffChat(req, res) {
         continue;
       }
 
-      const reply = content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+      const rawReply = content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+      if (rawReply.includes(UNANSWERED_MARKER)) await noteGap();
+      const reply = stripMarker(rawReply);
       console.log(`staff-ai: ${user.username} (${user.role}) lookups=[${lookups.join(',')}]`);
       await logStaff();
       res.status(200).json({ ok: true, reply: reply || 'I could not find an answer to that.', lookups });

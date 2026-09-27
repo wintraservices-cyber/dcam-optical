@@ -397,3 +397,29 @@ Claude-app-only capability, so it works for anyone visiting the live site.
   lookups, logging), not the AI's understanding. Turn Test mode off and add
   `ANTHROPIC_API_KEY` for real answers.
 - Code: `lib/ai-test-mode.js`.
+
+## Clinic knowledge + questions it couldn't answer
+
+**Clinic knowledge** (Settings → AI assistant → Clinic knowledge, admin only)
+- Question/answer entries (HMOs accepted, exam prices, promos, warranty…)
+  stored as `app_settings.ai_knowledge`. Each entry is for Website + staff,
+  Website only, or Staff only, and can be paused without deleting it.
+- Active entries are added to the assistant's instructions on every
+  message, so edits apply immediately (no retraining). Test mode answers
+  from them too, so you can try entries for free.
+- Capped at 60 entries / 12,000 characters (about 3,000 tokens, roughly
+  $0.003 extra per reply at most); the card shows current size and cost.
+
+**Questions it couldn't answer** (same tab, admin only)
+- Switch "Log questions it couldn't answer" — off by default (`ai_access.log_unanswered`).
+- When on, the AI adds a hidden `[[UNANSWERED]]` marker if your info didn't
+  cover a clinic question; the server strips it before anyone sees the reply
+  and saves the question to `ai_unanswered`. In Test mode, questions no rule
+  or entry matched are saved.
+- Phone numbers and emails are removed first; repeats increase "Asked N×";
+  rows not asked again for 90 days are deleted automatically.
+- "Add answer" turns a question into a knowledge entry and marks it
+  answered; "Dismiss" hides it. API: `GET /api/settings?view=ai_unanswered`
+  and `POST /api/settings?action=ai_unanswered` (admin only).
+- Code: `lib/ai-knowledge.js`. Setup: run the new `ai_unanswered` block at
+  the bottom of `supabase-schema.sql`.

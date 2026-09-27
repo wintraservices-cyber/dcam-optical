@@ -461,3 +461,30 @@ as $$
   group by 1, 2
   order by 1 desc, 2;
 $$;
+
+-- ---------------------------------------------------------------------
+-- Questions the AI assistants couldn't answer from the clinic's info.
+-- Only written when Settings -> AI assistant -> "Log questions it
+-- couldn't answer" is on (off by default). Phone numbers and emails are
+-- stripped before saving; repeats bump times_asked; rows not asked again
+-- for 90 days are deleted automatically by lib/ai-knowledge.js.
+-- ---------------------------------------------------------------------
+create table if not exists ai_unanswered (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  last_asked_at timestamptz not null default now(),
+  channel text not null check (channel in ('website', 'staff')),
+  question text not null,
+  question_norm text not null,
+  times_asked integer not null default 1,
+  asked_by text,
+  asked_by_role text,
+  status text not null default 'open' check (status in ('open', 'resolved', 'dismissed')),
+  resolved_by text,
+  resolved_at timestamptz
+);
+
+create index if not exists ai_unanswered_open_idx on ai_unanswered (status, channel, question_norm);
+create index if not exists ai_unanswered_last_idx on ai_unanswered (last_asked_at);
+
+alter table ai_unanswered enable row level security;

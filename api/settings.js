@@ -12,8 +12,9 @@ const { requireAuth, requireAdmin } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport } = require('../lib/ai-usage');
+const { normalizeKnowledge, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'ai_access'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'ai_access', 'ai_knowledge'];
 
 async function getSettings(req, res) {
   const { key } = req.query || {};
@@ -67,7 +68,9 @@ async function putSetting(req, res, sessionUser) {
   // AI access toggles are always stored in their full, normalized shape
   // (unknown fields dropped, missing ones filled with safe defaults), so
   // the assistant never has to guess what a partial value meant.
-  const storedValue = key === 'ai_access' ? normalizeAiAccess(value) : value;
+  const storedValue = key === 'ai_access' ? normalizeAiAccess(value)
+    : key === 'ai_knowledge' ? normalizeKnowledge(value)
+    : value;
 
   try {
     // Upsert via PostgREST: POST with Prefer: resolution=merge-duplicates
@@ -120,11 +123,39 @@ async function getAiUsage(req, res) {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     res.status(204).end();
+    return;
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'ai_unanswered') {
+    // Questions the assistants couldn't answer -- admin only.
+    if (!requireAdmin(req, res)) return;
+    try {
+      const rows = await listUnanswered(req.query.status || 'open');
+      res.status(200).json({ ok: true, questions: rows });
+    } catch (err) {
+      console.error('ai_unanswered list error:', err.message);
+      res.status(502).json({ ok: false, error: 'Could not load questions. Has the latest supabase-schema.sql been run?' });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && req.query && req.query.action === 'ai_unanswered') {
+    // Mark a question resolved / dismissed / open again -- admin only.
+    const sessionUser = requireAdmin(req, res);
+    if (!sessionUser) return;
+    let body = req.body;
+    if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
+    try {
+      await setUnansweredStatus(body && body.id, body && body.status, sessionUser.username);
+      res.status(200).json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ ok: false, error: 'Could not update that question.' });
+    }
     return;
   }
 

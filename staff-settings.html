@@ -222,6 +222,112 @@
     margin-bottom: -6px;
   }
 
+  /* ---------- AI assistant toggles ---------- */
+  .switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch .slider {
+    position: absolute; inset: 0; cursor: pointer;
+    background: rgba(56,51,52,0.18); border-radius: 100px; transition: background 0.15s;
+  }
+  .switch .slider::before {
+    content: ''; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px;
+    background: #fff; border-radius: 50%; transition: transform 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .switch input:checked + .slider { background: var(--purple); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+  .switch input:focus-visible + .slider { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .switch input:disabled + .slider { opacity: 0.4; cursor: not-allowed; }
+
+  .ai-master {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 12px 0; border-bottom: 1px solid var(--line);
+  }
+  .ai-master:last-of-type { border-bottom: none; }
+  .ai-master .ai-label { font-family: var(--display); font-weight: 700; font-size: 0.9rem; }
+  .ai-master .ai-help { font-size: 0.8rem; color: var(--charcoal-soft); margin-top: 3px; line-height: 1.45; }
+
+  table.ai-areas td { vertical-align: middle; }
+  table.ai-areas th.role-col, table.ai-areas td.role-col { text-align: center; width: 80px; }
+  table.ai-areas .area-name { font-family: var(--display); font-weight: 700; font-size: 0.86rem; }
+  table.ai-areas .area-help { font-size: 0.78rem; color: var(--charcoal-soft); margin-top: 3px; line-height: 1.45; }
+  table.ai-areas tr.sensitive .area-name::after {
+    content: 'Sensitive'; margin-left: 8px; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em;
+    background: rgba(176,64,90,0.12); color: #B0405A; padding: 2px 7px; border-radius: 100px; vertical-align: 1px;
+  }
+  .ai-areas-wrap.off { opacity: 0.45; pointer-events: none; }
+  .ai-note {
+    font-size: 0.78rem; color: var(--charcoal-soft); background: var(--ivory);
+    border-radius: 10px; padding: 10px 12px; margin: 14px 0 16px; line-height: 1.5;
+  }
+
+  .ai-cards-wrap.off { opacity: 0.45; pointer-events: none; }
+  .ai-master.kill .ai-label { font-size: 1rem; }
+  .test-pill { display: inline-block; margin-left: 6px; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em;
+    background: rgba(91,175,192,0.18); color: var(--blue-deep); padding: 2px 7px; border-radius: 100px; vertical-align: 2px; }
+  .ai-help code { font-size: 0.78rem; background: var(--ivory); padding: 1px 5px; border-radius: 4px; }
+  .usage-test-note { font-size: 0.8rem; color: var(--blue-deep); background: rgba(91,175,192,0.1); border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; }
+
+  /* ---------- AI usage ---------- */
+  .usage-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 18px; }
+  .usage-controls label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); margin-bottom: 4px; }
+  .usage-controls select, .usage-controls input {
+    border: 1.5px solid var(--line); padding: 9px 10px; border-radius: 8px;
+    font-family: var(--body); font-size: 0.86rem; color: var(--charcoal); background: #fff;
+  }
+  .usage-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+  .usage-tile { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--ivory); }
+  .usage-tile .t-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); }
+  .usage-tile .t-value { font-family: var(--display); font-weight: 800; font-size: 1.55rem; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .usage-tile .t-sub { font-size: 0.76rem; color: var(--charcoal-soft); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .usage-split { width: 100%; margin-bottom: 14px; }
+  .usage-split td, .usage-split th { font-variant-numeric: tabular-nums; }
+  .usage-split td.num, .usage-split th.num, .usage-days td.num, .usage-days th.num { text-align: right; }
+  .usage-alltime {
+    display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline;
+    border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; font-size: 0.86rem;
+  }
+  .usage-alltime strong { font-family: var(--display); }
+  .usage-days-wrap { max-height: 320px; overflow-y: auto; margin-top: 14px; }
+  .usage-days td { font-variant-numeric: tabular-nums; }
+  .usage-days thead th { position: sticky; top: 0; background: #fff; }
+  @media (max-width: 700px) { .usage-tiles { grid-template-columns: 1fr; } }
+
+  /* ---------- Clinic knowledge ---------- */
+  .kb-meter { font-size: 0.78rem; color: var(--charcoal-soft); margin-bottom: 12px; }
+  .kb-meter .bar { height: 6px; background: var(--ivory-dim); border-radius: 100px; overflow: hidden; margin-top: 5px; }
+  .kb-meter .bar span { display: block; height: 100%; background: var(--blue); border-radius: 100px; }
+  .kb-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+  .kb-item { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: start; }
+  .kb-item.inactive { opacity: 0.5; }
+  .kb-item .kb-q { font-family: var(--display); font-weight: 700; font-size: 0.88rem; }
+  .kb-item .kb-a { font-size: 0.82rem; color: var(--charcoal-soft); white-space: pre-wrap; line-height: 1.5; grid-column: 1 / 2; }
+  .kb-item .kb-side { display: flex; align-items: center; gap: 8px; grid-row: 1 / 3; grid-column: 2; }
+  .aud-pill { font-family: var(--display); font-weight: 700; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 100px; white-space: nowrap; }
+  .aud-pill.both { background: rgba(176,90,158,0.12); color: var(--purple-deep); }
+  .aud-pill.website { background: rgba(91,175,192,0.16); color: var(--blue-deep); }
+  .aud-pill.staff { background: rgba(56,51,52,0.08); color: var(--charcoal-soft); }
+  .kb-form { border-top: 1px solid var(--line); padding-top: 16px; }
+  .kb-form h3 { font-family: var(--display); font-size: 0.9rem; margin-bottom: 10px; }
+  .kb-suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .kb-suggest button { font-family: var(--body); font-size: 0.74rem; background: var(--ivory); border: 1px solid var(--line); border-radius: 100px; padding: 5px 11px; cursor: pointer; color: var(--charcoal); }
+  .kb-suggest button:hover { border-color: var(--purple); }
+  .kb-count { font-size: 0.72rem; color: var(--charcoal-soft); text-align: right; margin-top: 3px; }
+  .link-btn { background: none; border: none; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-family: var(--display); font-weight: 600; font-size: 0.76rem; color: var(--blue-deep); }
+  .link-btn:hover { background: var(--ivory-dim); }
+  .link-btn.danger { color: #B0405A; }
+  .save-btn.secondary { background: #fff; color: var(--charcoal); border: 1.5px solid var(--line); }
+
+  /* ---------- Unanswered questions ---------- */
+  .uq-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0 12px; }
+  .uq-toolbar select { border: 1.5px solid var(--line); padding: 8px 10px; border-radius: 8px; font-family: var(--body); font-size: 0.85rem; background: #fff; }
+  .uq-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
+  .uq-item { border: 1px solid var(--line); border-radius: 12px; padding: 11px 14px; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+  .uq-item .uq-text { font-size: 0.88rem; line-height: 1.45; }
+  .uq-item .uq-meta { font-size: 0.74rem; color: var(--charcoal-soft); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+  .uq-item .uq-actions { display: flex; gap: 2px; flex-shrink: 0; }
+  .count-badge { display: inline-block; min-width: 20px; text-align: center; font-size: 0.7rem; font-weight: 700; background: var(--purple); color: #fff; border-radius: 100px; padding: 1px 7px; margin-left: 6px; vertical-align: 2px; }
+  @media (max-width: 700px) { .kb-item { grid-template-columns: 1fr; } .kb-item .kb-side { grid-row: auto; grid-column: 1; } .uq-item { flex-direction: column; } }
+
   .loading-state, .empty-state { text-align: center; padding: 30px; color: var(--charcoal-soft); font-size: 0.9rem; }
   .not-admin-state { text-align: center; padding: 80px 20px; color: var(--charcoal-soft); }
 
@@ -251,6 +357,7 @@
     <button class="active" data-tab="rx">Rx ranges</button>
     <button data-tab="business">Business info</button>
     <button data-tab="accounts">Staff accounts</button>
+    <button data-tab="ai">AI assistant</button>
   </div>
 
   <!-- Rx Ranges -->
@@ -375,6 +482,157 @@
       <div class="save-row">
         <span class="save-status" id="accountsStatus"></span>
       </div>
+    </div>
+  </div>
+  <!-- AI Assistant -->
+  <div class="panel" id="panel-ai">
+    <div class="card">
+      <div class="ai-master kill" style="border-bottom:none; padding:0;">
+        <div>
+          <div class="ai-label">All AI features</div>
+          <div class="ai-help">Master switch — saves as soon as you flip it. When off, both the website chat and the staff assistant stop right away, whatever the settings below say, so there's no AI usage or cost.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiMasterEnabled"><span class="slider"></span></label>
+      </div>
+      <div class="ai-master" style="border-top:1px solid var(--line); border-bottom:none; margin-top:14px; padding:14px 0 0;">
+        <div>
+          <div class="ai-label">Test mode <span class="test-pill">Free</span></div>
+          <div class="ai-help">Saves as soon as you flip it. Both chats give sample answers instead of calling the AI, so there's no cost and no API key needed. The website chat uses your real Business info and stock; the staff assistant runs its real lookups using simple keywords and still follows the switches below. Chats show a "Test mode" label while it's on. It's also forced on if <code>AI_TEST_MODE=1</code> is set in Vercel.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiTestMode"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="ai-cards-wrap" id="aiCardsWrap">
+    <div class="card">
+      <h2>Website assistant</h2>
+      <div class="card-sub">The "Ask us anything" chat on the public website. Always uses the details from the Business info tab.</div>
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">Website chat on</div>
+          <div class="ai-help">When off, visitors see a short message pointing them to the intake form instead.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiPublicEnabled"><span class="slider"></span></label>
+      </div>
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">Share in-stock frames &amp; lenses</div>
+          <div class="ai-help">Lets the website chat mention items in stock and their sale prices. Base (cost) prices are never shared.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiPublicStock"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Staff assistant</h2>
+      <div class="card-sub">The chat bubble on staff pages. Choose exactly what it can look up, separately for admins and staff. It can only read data — it never creates, edits or deletes anything.</div>
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">Staff assistant on</div>
+          <div class="ai-help">Turns the chat bubble on or off for everyone. Changes apply on the next message.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiStaffEnabled"><span class="slider"></span></label>
+      </div>
+      <div class="ai-areas-wrap" id="aiAreasWrap">
+        <table class="ai-areas">
+          <thead><tr><th>Can look up</th><th class="role-col">Admin</th><th class="role-col">Staff</th></tr></thead>
+          <tbody id="aiAreasBody"></tbody>
+        </table>
+      </div>
+      <div class="ai-note">To answer, the assistant sends only the records it looks up to the AI provider (Anthropic). API data isn't used to train their models. If you enable <strong>Patient records</strong>, mention AI-assisted processing in your privacy notice.</div>
+    </div>
+    </div>
+
+    <div class="card">
+      <div class="save-row" style="margin-top:0;">
+        <button class="save-btn" id="saveAiAccess">Save AI settings</button>
+        <span class="save-status" id="aiAccessStatus"></span>
+      </div>
+    </div>
+
+    <div class="card" id="kbCard">
+      <h2>Clinic knowledge</h2>
+      <div class="card-sub">Facts the assistants should know that aren't in Business info — accepted HMOs, exam prices, promos, warranty, how long glasses take. Written like a question and answer. Changes apply to the next message; no retraining needed.</div>
+      <div class="kb-meter" id="kbMeter"></div>
+      <div class="kb-list" id="kbList"></div>
+      <div class="kb-form">
+        <h3 id="kbFormTitle">Add an entry</h3>
+        <div class="kb-suggest" id="kbSuggest"></div>
+        <div class="field-grid" style="grid-template-columns: 2fr 1fr;">
+          <div>
+            <label for="kbQ">Question or topic</label>
+            <input type="text" id="kbQ" maxlength="150" placeholder="e.g. Which HMOs do you accept?">
+          </div>
+          <div>
+            <label for="kbAud">Who can use it</label>
+            <select id="kbAud">
+              <option value="both">Website + staff</option>
+              <option value="website">Website only</option>
+              <option value="staff">Staff only</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-grid" style="grid-template-columns: 1fr;">
+          <div>
+            <label for="kbA">Answer</label>
+            <textarea id="kbA" maxlength="1500" rows="4" placeholder="e.g. We accept Maxicare, Intellicare and Medicard. Bring your HMO card and a valid ID. Coverage is confirmed at the front desk."></textarea>
+            <div class="kb-count" id="kbCount">0 / 1500</div>
+          </div>
+        </div>
+        <div class="save-row">
+          <button class="save-btn" id="kbSave" type="button">Add entry</button>
+          <button class="save-btn secondary" id="kbCancel" type="button" style="display:none;">Cancel</button>
+          <span class="save-status" id="kbStatus"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="uqCard">
+      <h2>Questions it couldn't answer<span class="count-badge" id="uqBadge" style="display:none;"></span></h2>
+      <div class="card-sub">When the assistants can't answer from your info, the question is saved here so you can add the answer to Clinic knowledge.</div>
+      <div class="ai-master" style="border-bottom:none; padding-top:0;">
+        <div>
+          <div class="ai-label">Log questions it couldn't answer</div>
+          <div class="ai-help">Saves as soon as you flip it. Stores the question text (phone numbers and emails are removed), not the conversation. Entries not asked again for 90 days are deleted automatically. Visitors may mention health details, so mention this in your privacy notice before switching it on.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiLogUnanswered"><span class="slider"></span></label>
+      </div>
+      <div class="uq-toolbar">
+        <select id="uqFilter" aria-label="Show">
+          <option value="open" selected>Open</option>
+          <option value="resolved">Answered</option>
+          <option value="dismissed">Dismissed</option>
+          <option value="all">All</option>
+        </select>
+        <button class="save-btn secondary" id="uqRefresh" type="button">Refresh</button>
+        <span class="save-status" id="uqStatus"></span>
+      </div>
+      <div class="uq-list" id="uqList"><div class="empty-state">Open this tab to load questions.</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Usage &amp; cost</h2>
+      <div class="card-sub">Every AI reply is logged with the tokens used and an estimated cost in US dollars (what Anthropic bills). Test-mode replies are counted separately at $0. Your Anthropic Console billing page is the official figure.</div>
+      <div class="usage-controls">
+        <div>
+          <label for="usageRange">Period</label>
+          <select id="usageRange">
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="7d">Last 7 days</option>
+            <option value="month" selected>This month</option>
+            <option value="lastmonth">Last month</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </div>
+        <div id="usageCustom" style="display:none; gap:10px;">
+          <div><label for="usageFrom">From</label><input type="date" id="usageFrom"></div>
+          <div><label for="usageTo">To</label><input type="date" id="usageTo"></div>
+        </div>
+        <button class="save-btn" id="usageRefresh" type="button">Refresh</button>
+        <span class="save-status" id="usageStatus"></span>
+      </div>
+      <div id="usageBody"><div class="loading-state">Open this tab to load usage.</div></div>
     </div>
   </div>
 </div>
@@ -703,6 +961,440 @@
     }
   });
 
+  // ---- AI assistant access ----
+  const AI_AREAS = [
+    { key: 'orders',   label: 'Orders',               help: 'Order numbers, status, due dates, items and totals. Shows the patient name on each order, but not phone numbers or Rx values.' },
+    { key: 'balances', label: 'Balances & payments',  help: 'Unpaid and partial orders, remaining balances, and balance payments logged.' },
+    { key: 'stock',    label: 'Inventory / stock',    help: 'Catalog frames and lenses with quantities and sale prices. Admins also see base (cost) price.' },
+    { key: 'sales',    label: 'Sales & revenue',      help: 'Money collected in a date range, split by cash and GCash/card.' },
+    { key: 'patients', label: 'Patient records',      help: 'Name/phone lookups, visit history and Rx values.', sensitive: true },
+    { key: 'howto',    label: 'How-to help',          help: 'Explains how to use the staff system. No data is looked up.' },
+  ];
+  const AI_DEFAULTS = {
+    public: { enabled: true, stock: true },
+    staff: { enabled: true, areas: {
+      orders: { admin: true, staff: true }, balances: { admin: true, staff: true },
+      stock: { admin: true, staff: true }, sales: { admin: true, staff: false },
+      patients: { admin: false, staff: false }, howto: { admin: true, staff: true },
+    } },
+  };
+
+  function renderAiAccess(saved) {
+    const v = saved || {};
+    const pub = Object.assign({}, AI_DEFAULTS.public, v.public || {});
+    const staff = Object.assign({}, AI_DEFAULTS.staff, v.staff || {});
+    const areas = (v.staff && v.staff.areas) || {};
+    document.getElementById('aiMasterEnabled').checked = v.enabled !== false;
+    document.getElementById('aiTestMode').checked = v.test_mode === true;
+    document.getElementById('aiLogUnanswered').checked = v.log_unanswered === true;
+    document.getElementById('aiPublicEnabled').checked = pub.enabled !== false;
+    document.getElementById('aiPublicStock').checked = pub.stock !== false;
+    document.getElementById('aiStaffEnabled').checked = staff.enabled !== false;
+
+    document.getElementById('aiAreasBody').innerHTML = AI_AREAS.map(a => {
+      const cur = Object.assign({}, AI_DEFAULTS.staff.areas[a.key], areas[a.key] || {});
+      const sw = (role) => `<label class="switch"><input type="checkbox" data-area="${a.key}" data-role="${role}" ${cur[role] ? 'checked' : ''} aria-label="${escapeHtml(a.label)} for ${role}"><span class="slider"></span></label>`;
+      return `<tr class="${a.sensitive ? 'sensitive' : ''}">
+        <td><div class="area-name">${escapeHtml(a.label)}</div><div class="area-help">${escapeHtml(a.help)}</div></td>
+        <td class="role-col">${sw('admin')}</td>
+        <td class="role-col">${sw('staff')}</td>
+      </tr>`;
+    }).join('');
+    syncAiPublicState();
+    syncAiStaffState();
+    syncAiMasterState();
+  }
+
+  function syncAiMasterState() {
+    document.getElementById('aiCardsWrap').classList.toggle('off', !document.getElementById('aiMasterEnabled').checked);
+  }
+  // The master switch is a kill switch: save it the moment it's flipped.
+  document.getElementById('aiMasterEnabled').addEventListener('change', () => {
+    syncAiMasterState();
+    document.getElementById('saveAiAccess').click();
+  });
+  document.getElementById('aiTestMode').addEventListener('change', () => {
+    document.getElementById('saveAiAccess').click();
+  });
+
+  function syncAiStaffState() {
+    document.getElementById('aiAreasWrap').classList.toggle('off', !document.getElementById('aiStaffEnabled').checked);
+  }
+  function syncAiPublicState() {
+    document.getElementById('aiPublicStock').disabled = !document.getElementById('aiPublicEnabled').checked;
+  }
+  document.getElementById('aiStaffEnabled').addEventListener('change', syncAiStaffState);
+  document.getElementById('aiPublicEnabled').addEventListener('change', syncAiPublicState);
+
+  document.getElementById('aiAreasBody').addEventListener('change', (e) => {
+    const box = e.target;
+    if (box.dataset.area !== 'patients' || !box.checked) return;
+    const ok = confirm('Allow the assistant to look up patient records?\n\nPatient names, phone numbers and Rx values it looks up will be sent to the AI provider to answer questions. Only enable this if your privacy notice covers it.');
+    if (!ok) box.checked = false;
+  });
+
+  document.getElementById('saveAiAccess').addEventListener('click', async () => {
+    const btn = document.getElementById('saveAiAccess');
+    const statusEl = document.getElementById('aiAccessStatus');
+    btn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    statusEl.className = 'save-status';
+    try {
+      const areas = {};
+      AI_AREAS.forEach(a => { areas[a.key] = { admin: false, staff: false }; });
+      document.querySelectorAll('#aiAreasBody input[data-area]').forEach(box => {
+        areas[box.dataset.area][box.dataset.role] = box.checked;
+      });
+      const value = {
+        enabled: document.getElementById('aiMasterEnabled').checked,
+        test_mode: document.getElementById('aiTestMode').checked,
+        log_unanswered: document.getElementById('aiLogUnanswered').checked,
+        public: {
+          enabled: document.getElementById('aiPublicEnabled').checked,
+          stock: document.getElementById('aiPublicStock').checked,
+        },
+        staff: { enabled: document.getElementById('aiStaffEnabled').checked, areas },
+      };
+      const resp = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'ai_access', value }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      statusEl.textContent = 'Saved — applies on the next message.';
+      statusEl.className = 'save-status success';
+    } catch (err) {
+      statusEl.textContent = err.message || 'Could not save.';
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---- Clinic knowledge ----
+  const KB_MAX_TOTAL = 12000, KB_MAX_ENTRIES = 60;
+  const KB_SUGGESTIONS = ['Which HMOs do you accept?', 'How much is an eye exam?', 'Current promos', 'How long before my glasses are ready?', 'Warranty and return policy', 'Do you accept walk-ins?', 'Payment methods accepted'];
+  const AUD_LABEL = { both: 'Website + staff', website: 'Website only', staff: 'Staff only' };
+  let kbEntries = [];
+  let kbEditingId = null;
+  let kbResolveQuestionId = null;
+
+  function kbTotal(list) { return list.reduce((n, e) => n + e.title.length + e.answer.length, 0); }
+
+  function renderKnowledge() {
+    const total = kbTotal(kbEntries);
+    const pct = Math.min(100, Math.round(total / KB_MAX_TOTAL * 100));
+    const tokens = Math.round(total / 4);
+    document.getElementById('kbMeter').innerHTML =
+      `${kbEntries.length} entr${kbEntries.length === 1 ? 'y' : 'ies'} · ${total.toLocaleString()} of ${KB_MAX_TOTAL.toLocaleString()} characters (≈ ${tokens.toLocaleString()} tokens, about $${(tokens / 1e6).toFixed(4)} extra per AI reply)` +
+      `<div class="bar"><span style="width:${pct}%"></span></div>`;
+    const list = document.getElementById('kbList');
+    list.innerHTML = kbEntries.length ? kbEntries.map(e => `
+      <div class="kb-item ${e.active ? '' : 'inactive'}" data-id="${escapeHtml(e.id)}">
+        <div class="kb-q">${escapeHtml(e.title)}</div>
+        <div class="kb-side">
+          <span class="aud-pill ${escapeHtml(e.audience)}">${escapeHtml(AUD_LABEL[e.audience] || e.audience)}</span>
+          <label class="switch" title="${e.active ? 'In use' : 'Paused'}"><input type="checkbox" data-kb-toggle ${e.active ? 'checked' : ''} aria-label="Use this entry"><span class="slider"></span></label>
+          <button class="link-btn" type="button" data-kb-edit>Edit</button>
+          <button class="link-btn danger" type="button" data-kb-delete>Delete</button>
+        </div>
+        <div class="kb-a">${escapeHtml(e.answer)}</div>
+      </div>`).join('') : '<div class="empty-state" style="padding:14px;">No entries yet — add your first one below, or pick a suggested topic.</div>';
+
+    const used = new Set(kbEntries.map(e => e.title.toLowerCase()));
+    document.getElementById('kbSuggest').innerHTML = KB_SUGGESTIONS.filter(t => !used.has(t.toLowerCase()))
+      .map(t => `<button type="button" data-kb-suggest="${escapeHtml(t)}">+ ${escapeHtml(t)}</button>`).join('');
+  }
+
+  function kbResetForm() {
+    kbEditingId = null;
+    kbResolveQuestionId = null;
+    document.getElementById('kbQ').value = '';
+    document.getElementById('kbA').value = '';
+    document.getElementById('kbAud').value = 'both';
+    document.getElementById('kbFormTitle').textContent = 'Add an entry';
+    document.getElementById('kbSave').textContent = 'Add entry';
+    document.getElementById('kbCancel').style.display = 'none';
+    document.getElementById('kbCount').textContent = '0 / 1500';
+  }
+
+  function kbOpenForm(title, answer, audience, label) {
+    document.getElementById('kbQ').value = title || '';
+    document.getElementById('kbA').value = answer || '';
+    document.getElementById('kbAud').value = audience || 'both';
+    document.getElementById('kbFormTitle').textContent = label;
+    document.getElementById('kbSave').textContent = kbEditingId ? 'Save changes' : 'Add entry';
+    document.getElementById('kbCancel').style.display = 'inline-block';
+    document.getElementById('kbCount').textContent = `${(answer || '').length} / 1500`;
+    document.getElementById('kbQ').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    (title ? document.getElementById('kbA') : document.getElementById('kbQ')).focus();
+  }
+
+  async function kbPersist(next, okMsg) {
+    const statusEl = document.getElementById('kbStatus');
+    statusEl.textContent = 'Saving…';
+    statusEl.className = 'save-status';
+    const resp = await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'ai_knowledge', value: { entries: next } }),
+    });
+    const result = await resp.json().catch(() => ({}));
+    if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+    kbEntries = (result.setting && result.setting.value && result.setting.value.entries) || next;
+    renderKnowledge();
+    statusEl.textContent = okMsg || 'Saved.';
+    statusEl.className = 'save-status success';
+  }
+
+  document.getElementById('kbA').addEventListener('input', e => {
+    document.getElementById('kbCount').textContent = `${e.target.value.length} / 1500`;
+  });
+  document.getElementById('kbCancel').addEventListener('click', () => { kbResetForm(); document.getElementById('kbStatus').textContent = ''; });
+  document.getElementById('kbSuggest').addEventListener('click', e => {
+    const b = e.target.closest('[data-kb-suggest]');
+    if (!b) return;
+    kbEditingId = null;
+    kbResolveQuestionId = null;
+    kbOpenForm(b.dataset.kbSuggest, '', 'both', 'Add an entry');
+  });
+
+  document.getElementById('kbSave').addEventListener('click', async () => {
+    const statusEl = document.getElementById('kbStatus');
+    const title = document.getElementById('kbQ').value.trim();
+    const answer = document.getElementById('kbA').value.trim();
+    const audience = document.getElementById('kbAud').value;
+    if (!title || !answer) {
+      statusEl.textContent = 'Fill in both the question and the answer.';
+      statusEl.className = 'save-status error';
+      return;
+    }
+    let next;
+    if (kbEditingId) {
+      next = kbEntries.map(e => e.id === kbEditingId ? { ...e, title, answer, audience } : e);
+    } else {
+      if (kbEntries.length >= KB_MAX_ENTRIES) {
+        statusEl.textContent = `You can have up to ${KB_MAX_ENTRIES} entries — combine or delete some first.`;
+        statusEl.className = 'save-status error';
+        return;
+      }
+      next = [...kbEntries, { title, answer, audience, active: true }];
+    }
+    if (kbTotal(next) > KB_MAX_TOTAL) {
+      statusEl.textContent = `That's over the ${KB_MAX_TOTAL.toLocaleString()}-character limit — shorten this or another entry.`;
+      statusEl.className = 'save-status error';
+      return;
+    }
+    const btn = document.getElementById('kbSave');
+    btn.disabled = true;
+    const resolveId = kbResolveQuestionId;
+    try {
+      await kbPersist(next, kbEditingId ? 'Entry updated.' : 'Entry added — the assistants use it from the next message.');
+      if (resolveId) await uqSetStatus(resolveId, 'resolved');
+      kbResetForm();
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('kbList').addEventListener('click', async e => {
+    const item = e.target.closest('.kb-item');
+    if (!item) return;
+    const entry = kbEntries.find(x => x.id === item.dataset.id);
+    if (!entry) return;
+    if (e.target.closest('[data-kb-edit]')) {
+      kbEditingId = entry.id;
+      kbResolveQuestionId = null;
+      kbOpenForm(entry.title, entry.answer, entry.audience, 'Edit entry');
+    } else if (e.target.closest('[data-kb-delete]')) {
+      if (!confirm(`Delete "${entry.title}"? The assistants will stop using it.`)) return;
+      try { await kbPersist(kbEntries.filter(x => x.id !== entry.id), 'Entry deleted.'); }
+      catch (err) { const s2 = document.getElementById('kbStatus'); s2.textContent = err.message; s2.className = 'save-status error'; }
+    }
+  });
+  document.getElementById('kbList').addEventListener('change', async e => {
+    if (!e.target.matches('[data-kb-toggle]')) return;
+    const id = e.target.closest('.kb-item').dataset.id;
+    const active = e.target.checked;
+    try { await kbPersist(kbEntries.map(x => x.id === id ? { ...x, active } : x), active ? 'Entry in use.' : 'Entry paused.'); }
+    catch (err) { e.target.checked = !active; const s2 = document.getElementById('kbStatus'); s2.textContent = err.message; s2.className = 'save-status error'; }
+  });
+
+  // ---- Questions it couldn't answer ----
+  let uqLoaded = false;
+  const fmtDate = (ts) => { try { return new Date(ts).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ts; } };
+
+  async function uqSetStatus(id, status) {
+    const resp = await fetch('/api/settings?action=ai_unanswered', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    });
+    const result = await resp.json().catch(() => ({}));
+    if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not update.');
+    await loadUnanswered();
+  }
+
+  async function loadUnanswered() {
+    const statusEl = document.getElementById('uqStatus');
+    const filter = document.getElementById('uqFilter').value;
+    statusEl.textContent = 'Loading…';
+    statusEl.className = 'save-status';
+    try {
+      const resp = await fetch(`/api/settings?view=ai_unanswered&status=${encodeURIComponent(filter)}`);
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load.');
+      const rows = result.questions || [];
+      uqLoaded = true;
+      statusEl.textContent = '';
+      if (filter === 'open') {
+        const badge = document.getElementById('uqBadge');
+        badge.textContent = rows.length;
+        badge.style.display = rows.length ? 'inline-block' : 'none';
+      }
+      const label = { open: 'Open', resolved: 'Answered', dismissed: 'Dismissed' };
+      document.getElementById('uqList').innerHTML = rows.length ? rows.map(r => `
+        <div class="uq-item" data-id="${escapeHtml(r.id)}" data-channel="${escapeHtml(r.channel)}">
+          <div>
+            <div class="uq-text">${escapeHtml(r.question)}</div>
+            <div class="uq-meta">
+              <span class="aud-pill ${r.channel === 'staff' ? 'staff' : 'website'}">${r.channel === 'staff' ? 'Staff' : 'Website'}</span>
+              <span>Asked ${r.times_asked}×</span>
+              <span>Last ${escapeHtml(fmtDate(r.last_asked_at))}</span>
+              ${r.asked_by ? `<span>by ${escapeHtml(r.asked_by)}</span>` : ''}
+              ${r.status !== 'open' ? `<span>${label[r.status]}${r.resolved_by ? ' by ' + escapeHtml(r.resolved_by) : ''}</span>` : ''}
+            </div>
+          </div>
+          <div class="uq-actions">
+            ${r.status === 'open'
+              ? `<button class="link-btn" type="button" data-uq-answer>Add answer</button><button class="link-btn danger" type="button" data-uq-dismiss>Dismiss</button>`
+              : `<button class="link-btn" type="button" data-uq-reopen>Reopen</button>`}
+          </div>
+        </div>`).join('')
+        : `<div class="empty-state">${filter === 'open' ? 'Nothing waiting — every question has been answered or dismissed.' : 'No questions here.'}</div>`;
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    }
+  }
+
+  document.getElementById('uqList').addEventListener('click', async e => {
+    const item = e.target.closest('.uq-item');
+    if (!item) return;
+    const id = item.dataset.id;
+    try {
+      if (e.target.closest('[data-uq-answer]')) {
+        kbEditingId = null;
+        kbOpenForm(item.querySelector('.uq-text').textContent, '', item.dataset.channel === 'staff' ? 'staff' : 'both', 'Answer this question');
+        kbResolveQuestionId = id;
+      } else if (e.target.closest('[data-uq-dismiss]')) {
+        await uqSetStatus(id, 'dismissed');
+      } else if (e.target.closest('[data-uq-reopen]')) {
+        await uqSetStatus(id, 'open');
+      }
+    } catch (err) {
+      const s2 = document.getElementById('uqStatus'); s2.textContent = err.message; s2.className = 'save-status error';
+    }
+  });
+  document.getElementById('uqFilter').addEventListener('change', loadUnanswered);
+  document.getElementById('uqRefresh').addEventListener('click', loadUnanswered);
+  document.getElementById('aiLogUnanswered').addEventListener('change', () => {
+    document.getElementById('saveAiAccess').click();
+  });
+  document.querySelector('.tabs button[data-tab="ai"]').addEventListener('click', () => { if (!uqLoaded) loadUnanswered(); });
+
+  // ---- AI usage & cost ----
+  const usd = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: (Number(n) || 0) < 1 ? 4 : 2 });
+  const int = (n) => (Number(n) || 0).toLocaleString('en-US');
+  const ymd = (d) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+
+  function usageDates() {
+    const now = new Date();
+    const today = ymd(now);
+    const [y, m] = today.split('-').map(Number);
+    const shift = (days) => ymd(new Date(now.getTime() + days * 86400000));
+    switch (document.getElementById('usageRange').value) {
+      case 'today': return [today, today];
+      case 'yesterday': return [shift(-1), shift(-1)];
+      case '7d': return [shift(-6), today];
+      case 'lastmonth': {
+        const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
+        const last = new Date(Date.UTC(py, pm, 0)).getUTCDate();
+        return [`${py}-${String(pm).padStart(2, '0')}-01`, `${py}-${String(pm).padStart(2, '0')}-${last}`];
+      }
+      case 'custom': return [document.getElementById('usageFrom').value || today, document.getElementById('usageTo').value || today];
+      default: return [`${today.slice(0, 7)}-01`, today];
+    }
+  }
+
+  function renderUsage(r) {
+    const t = r.range.totals, all = r.all_time.totals;
+    const perMsg = t.total.messages ? t.total.cost_usd / t.total.messages : 0;
+    const row = (name, b) => `<tr><td>${name}</td><td class="num">${int(b.messages)}</td><td class="num">${int(b.input_tokens)}</td><td class="num">${int(b.output_tokens)}</td><td class="num">${usd(b.cost_usd)}</td></tr>`;
+    const days = r.range.days.length
+      ? `<div class="usage-days-wrap"><table class="usage-days"><thead><tr><th>Day</th><th class="num">Website msgs</th><th class="num">Staff msgs</th><th class="num">Est. cost</th></tr></thead><tbody>${
+          r.range.days.map(d => `<tr><td>${escapeHtml(d.day)}</td><td class="num">${int(d.website_messages)}</td><td class="num">${int(d.staff_messages)}</td><td class="num">${usd(d.cost_usd)}</td></tr>`).join('')
+        }</tbody></table></div>`
+      : '<div class="empty-state">No AI usage in this period.</div>';
+
+    document.getElementById('usageBody').innerHTML = `
+      <div class="usage-tiles">
+        <div class="usage-tile"><div class="t-label">Est. cost</div><div class="t-value">${usd(t.total.cost_usd)}</div><div class="t-sub">${escapeHtml(r.range.from)} → ${escapeHtml(r.range.to)}</div></div>
+        <div class="usage-tile"><div class="t-label">AI replies</div><div class="t-value">${int(t.total.messages)}</div><div class="t-sub">≈ ${usd(perMsg)} each</div></div>
+        <div class="usage-tile"><div class="t-label">Tokens</div><div class="t-value">${int(t.total.input_tokens + t.total.output_tokens)}</div><div class="t-sub">${int(t.total.input_tokens)} in · ${int(t.total.output_tokens)} out</div></div>
+      </div>
+      ${r.range.test_replies ? `<div class="usage-test-note">Plus ${int(r.range.test_replies)} Test-mode repl${r.range.test_replies === 1 ? 'y' : 'ies'} in this period — free, not included in the totals.</div>` : ''}
+      <table class="usage-split">
+        <thead><tr><th>Assistant</th><th class="num">Replies</th><th class="num">Input tokens</th><th class="num">Output tokens</th><th class="num">Est. cost</th></tr></thead>
+        <tbody>${row('Website chat', t.website)}${row('Staff assistant', t.staff)}</tbody>
+      </table>
+      <div class="usage-alltime">
+        <span><strong>All time</strong>${r.all_time.since ? ' (since ' + escapeHtml(r.all_time.since) + ')' : ''}:</span>
+        <span>${usd(all.total.cost_usd)} total</span>
+        <span>${int(all.total.messages)} replies</span>
+        <span>Website ${usd(all.website.cost_usd)}</span>
+        <span>Staff ${usd(all.staff.cost_usd)}</span>
+        ${r.all_time.test_replies ? `<span>Test mode ${int(r.all_time.test_replies)} free</span>` : ''}
+      </div>
+      ${days}`;
+  }
+
+  let usageLoaded = false;
+  async function loadUsage() {
+    const statusEl = document.getElementById('usageStatus');
+    const [from, to] = usageDates();
+    statusEl.textContent = 'Loading…';
+    statusEl.className = 'save-status';
+    try {
+      const resp = await fetch(`/api/settings?view=ai_usage&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load usage.');
+      renderUsage(result);
+      usageLoaded = true;
+      statusEl.textContent = '';
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    }
+  }
+  document.getElementById('usageRange').addEventListener('change', (e) => {
+    const custom = e.target.value === 'custom';
+    document.getElementById('usageCustom').style.display = custom ? 'flex' : 'none';
+    if (custom) {
+      const [f, t] = usageDates();
+      document.getElementById('usageFrom').value = document.getElementById('usageFrom').value || f;
+      document.getElementById('usageTo').value = document.getElementById('usageTo').value || t;
+    } else {
+      loadUsage();
+    }
+  });
+  document.getElementById('usageRefresh').addEventListener('click', loadUsage);
+  document.querySelector('.tabs button[data-tab="ai"]').addEventListener('click', () => { if (!usageLoaded) loadUsage(); });
+
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     try { await fetch('/api/staff-auth?action=logout', { method: 'POST' }); } catch (e) {}
     window.location.href = 'staff-login.html';
@@ -722,16 +1414,22 @@
       renderRxRangesForm(result.settings.rx_ranges);
       renderBusinessInfo(result.settings.business_info);
       renderPhoneValidation(result.settings.phone_validation);
+      renderAiAccess(result.settings.ai_access);
+      kbEntries = (result.settings.ai_knowledge && result.settings.ai_knowledge.entries) || [];
+      renderKnowledge();
       loadAccounts();
     } catch (err) {
       mainWrap.style.display = 'block';
       renderRxRangesForm(null);
       renderBusinessInfo(null);
       renderPhoneValidation(null);
+      renderAiAccess(null);
+      renderKnowledge();
       loadAccounts();
     }
   })();
 })();
 </script>
+<script src="staff-assistant.js" defer></script>
 </body>
 </html>
