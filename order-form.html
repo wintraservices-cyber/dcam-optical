@@ -883,7 +883,7 @@
 
       <div class="field-row cols-3">
         <div class="field-inline"><label>Amount ₱</label><input type="text" id="amount" inputmode="decimal" placeholder="0.00"></div>
-        <div class="field-inline"><label>Deposit</label><input type="text" id="deposit" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field-inline"><label>Deposit / Payment</label><input type="text" id="deposit" inputmode="decimal" placeholder="0.00"></div>
         <div class="field-inline"><label>Balance <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(auto)</span></label><input type="text" id="balance" inputmode="decimal" placeholder="0.00"></div>
       </div>
       <div class="payment-status-row">
@@ -939,6 +939,12 @@
       </div>
     </div>
   </div>
+
+  <div class="actions no-print" style="margin-top:16px; justify-content:flex-end; display:flex; gap:10px;">
+    <button class="btn-new" id="clearBtnBottom">Clear form</button>
+    <button class="btn-new" id="saveBtnBottom" style="background:var(--purple); color:#fff; border:none !important;">Save order</button>
+    <button class="btn-print" id="printBtnBottom">Print order + stub</button>
+  </div>
 </div>
 
 <script>
@@ -982,6 +988,29 @@
   mirrorPairs.forEach(([source, target]) => mirror(source, target));
 
   document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+  // Bottom action bar mirrors the top toolbar -- clicking a bottom button
+  // just triggers its top counterpart, so all the save/clear/print logic
+  // (and the "Save order" / "Save changes" label swap) stays in one place.
+  const saveBtnBottom = document.getElementById('saveBtnBottom');
+  const clearBtnBottom = document.getElementById('clearBtnBottom');
+  const printBtnBottom = document.getElementById('printBtnBottom');
+  if (saveBtnBottom) saveBtnBottom.addEventListener('click', () => document.getElementById('saveBtn').click());
+  if (clearBtnBottom) clearBtnBottom.addEventListener('click', () => document.getElementById('clearBtn').click());
+  if (printBtnBottom) printBtnBottom.addEventListener('click', () => document.getElementById('printBtn').click());
+  // Keep the bottom Save button's label (and disabled state) in sync with
+  // the top one -- e.g. "Save order" -> "Save changes" in edit mode, or
+  // "Saving..." / "Saved" during the save request -- without touching
+  // every place the top button's state is set.
+  if (saveBtnBottom) {
+    const topSaveBtn = document.getElementById('saveBtn');
+    const syncBottomSaveBtn = () => {
+      saveBtnBottom.textContent = topSaveBtn.textContent;
+      saveBtnBottom.disabled = topSaveBtn.disabled;
+    };
+    new MutationObserver(syncBottomSaveBtn).observe(topSaveBtn, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+    syncBottomSaveBtn();
+  }
 
   document.getElementById('clearBtn').addEventListener('click', () => {
     if (!confirm('Clear all fields on this form?')) return;
@@ -1192,6 +1221,7 @@
     setVal('splitCash', order.split_cash);
     setVal('splitGcash', order.split_gcash);
     balanceManuallyEdited = true; // preserve the loaded balance rather than recalculating over it
+    paymentStatusManuallyEdited = true; // preserve the loaded payment status rather than recalculating over it
 
     const paymentStatusEl = document.querySelector(`input[name="paymentStatus"][value="${order.payment_status || 'unpaid'}"]`);
     if (paymentStatusEl) paymentStatusEl.checked = true;
@@ -1607,7 +1637,7 @@
     row.dataset.rowId = rowId;
     row.innerHTML = `
       <input type="text" class="item-name-field" placeholder="e.g. Nosepads" data-field="name" list="itemCatalogList" autocomplete="off">
-      <input type="text" class="item-qty-field" inputmode="numeric" placeholder="1" data-field="qty">
+      <input type="text" class="item-qty-field" inputmode="numeric" placeholder="1" data-field="qty" value="1">
       <input type="text" class="item-price-field" inputmode="decimal" placeholder="0.00" data-field="price">
       <input type="text" class="item-total-field item-line-total" inputmode="decimal" placeholder="0.00" data-field="total" readonly>
       <button type="button" class="remove-item-btn" title="Remove item">×</button>
@@ -1622,7 +1652,12 @@
     const removeBtn = row.querySelector('.remove-item-btn');
 
     function recalcRowTotal() {
-      const qty = parseFloat(qtyEl.value) || 0;
+      // An empty Qty is treated as 1, not 0 -- the field's placeholder
+      // already shows "1" as the implied default, so a blank field
+      // silently zeroing out the line total (and therefore the order
+      // total and Amount) reads as a bug, not "no quantity entered."
+      const qtyRaw = qtyEl.value.trim();
+      const qty = qtyRaw ? (parseFloat(qtyRaw) || 0) : 1;
       const price = parseFloat(priceEl.value) || 0;
       const total = qty * price;
       totalEl.value = total ? total.toFixed(2) : '';
@@ -1666,9 +1701,14 @@
     itemRowsContainer.querySelectorAll('.item-row').forEach(row => {
       const name = row.querySelector('[data-field="name"]').value.trim();
       if (!name) return; // skip empty rows
+      // Save qty as 1 if left blank, matching what recalcRowTotal already
+      // assumed when it computed this row's line total -- otherwise the
+      // saved order would record an empty/zero quantity for a line that
+      // clearly priced and totaled as one unit.
+      const qtyRaw = row.querySelector('[data-field="qty"]').value.trim();
       rows.push({
         item_name: name,
-        item_qty: row.querySelector('[data-field="qty"]').value.trim(),
+        item_qty: qtyRaw || '1',
         item_unit_price: row.querySelector('[data-field="price"]').value.trim(),
         item_line_total: row.querySelector('[data-field="total"]').value.trim(),
         catalog_item_id: row.dataset.catalogItemId || null,
@@ -1715,16 +1755,49 @@
   const balanceInput = document.getElementById('balance');
   let balanceManuallyEdited = false;
 
+  // Payment status auto-follows Amount / Deposit-Payment, the same way
+  // Balance already auto-follows them -- Deposit/Payment now doubles as
+  // the field for a full payment too, so whatever's in it (plus Amount)
+  // decides Unpaid/Partial/Paid: nothing entered -> Unpaid, something
+  // entered but balance remains -> Partial, balance fully cleared ->
+  // Paid. A manual click on a status chip opts that order out of the
+  // auto behavior, same pattern as the existing balance override.
+  let paymentStatusManuallyEdited = false;
+  function setPaymentStatus(value) {
+    const el = document.querySelector(`input[name="paymentStatus"][value="${value}"]`);
+    if (el) el.checked = true;
+  }
+  document.querySelectorAll('input[name="paymentStatus"]').forEach(radio => {
+    radio.addEventListener('change', () => { paymentStatusManuallyEdited = true; });
+  });
+
   function recalcBalance() {
-    if (balanceManuallyEdited) return;
     const amount = parseFloat(amountInput.value) || 0;
     const deposit = parseFloat(depositInput.value) || 0;
-    const balance = amount - deposit;
-    balanceInput.value = balance ? balance.toFixed(2) : '';
+    const computedBalance = amount - deposit;
+    if (!balanceManuallyEdited) {
+      balanceInput.value = computedBalance ? computedBalance.toFixed(2) : '';
+    }
+    // Payment status reads whatever balance is actually showing right
+    // now -- the auto-computed one above, or a manually-overridden
+    // value -- rather than assuming it's always amount minus deposit.
+    const effectiveBalance = parseFloat(balanceInput.value) || 0;
+    if (!paymentStatusManuallyEdited) {
+      if (deposit <= 0) {
+        setPaymentStatus('unpaid');
+      } else if (effectiveBalance <= 0) {
+        setPaymentStatus('paid');
+      } else {
+        setPaymentStatus('partial');
+      }
+    }
   }
   amountInput.addEventListener('input', recalcBalance);
   depositInput.addEventListener('input', recalcBalance);
-  balanceInput.addEventListener('input', () => { balanceManuallyEdited = true; });
+  balanceInput.addEventListener('input', () => {
+    balanceManuallyEdited = true;
+    recalcBalance(); // re-evaluate payment status against the manually-typed balance
+  });
 
   // ---- Payment method (Cash / GCash-CC / Split) ----
   const splitPaymentRow = document.getElementById('splitPaymentRow');
