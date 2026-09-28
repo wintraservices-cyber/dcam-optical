@@ -715,8 +715,18 @@
          0.44 measures ~3.0in headless, a full ~0.45in under the ~3.45in
          headless reading that failed at 0.46 -- a real safety margin
          this time, not just a headless one, while still printing
-         visibly larger than the 0.40 fallback. */
-      zoom: 0.44;
+         visibly larger than the 0.40 fallback.
+         Putting Frame + Special instructions on one line, and the two
+         Payment status/method rows on one line, (see .frame-notes-group
+         and .payment-rows-group below) freed up two more full rows of
+         real height -- confirmed with the SAME worst-case stress order
+         (long name, full Rx, long frame/lens text, special instructions)
+         still fitting on one page with ~0.46in of headroom left at
+         zoom 0.52, matching the safety margin 0.44 had before this
+         trim. That's the new number: a real, measured margin against
+         the worst case, not just against the headless render's numbers,
+         which is the same trap that made 0.46 fail before. */
+      zoom: 0.52;
     }
     .slip {
       border: 1.5px solid #000;
@@ -761,6 +771,27 @@
     .rx-subtype-row { padding: 3px 8px; margin-bottom: 4px; }
     .subtype-chip span { padding: 2px 8px; }
     .rx-hint { display: none; }
+    /* Frame and Special instructions, and the two payment rows, are
+       each two full-width rows on screen (room to type comfortably) --
+       in print, nothing is being typed into them anymore, so putting
+       each pair side by side on one line buys back a full row of
+       height apiece, which is real headroom for the zoom bump below. */
+    .frame-notes-group {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr;
+      gap: 8px;
+      align-items: start;
+    }
+    .frame-notes-group .field-row.single { margin-bottom: 0; }
+    .frame-notes-group .field-inline textarea { height: 22px; }
+    .payment-rows-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 16px;
+      margin: 8px 0 12px;
+    }
+    .payment-rows-group .payment-status-row { margin: 0; }
     /* Native radio controls (P.D. measured as, lens material) don't
        shrink with the zoom above the way text and CSS-sized boxes do --
        browsers enforce a minimum rendered size for the OS widget
@@ -1042,11 +1073,13 @@
         </div>
       </div>
 
-      <div class="field-row single">
-        <div class="field-inline"><label>Frame</label><input type="text" id="ordFrame" list="frameCatalogList" autocomplete="off"><datalist id="frameCatalogList"></datalist></div>
-      </div>
-      <div class="field-row single">
-        <div class="field-inline"><label>Special instructions</label><textarea id="ordNotes"></textarea></div>
+      <div class="frame-notes-group">
+        <div class="field-row single">
+          <div class="field-inline"><label>Frame</label><input type="text" id="ordFrame" list="frameCatalogList" autocomplete="off"><datalist id="frameCatalogList"></datalist></div>
+        </div>
+        <div class="field-row single">
+          <div class="field-inline"><label>Special instructions</label><textarea id="ordNotes"></textarea></div>
+        </div>
       </div>
 
       <div class="field-row cols-3">
@@ -1054,18 +1087,20 @@
         <div class="field-inline"><label>Deposit / Payment</label><input type="text" id="deposit" inputmode="decimal" placeholder="0.00"></div>
         <div class="field-inline"><label>Balance <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(auto)</span></label><input type="text" id="balance" inputmode="decimal" placeholder="0.00"></div>
       </div>
-      <div class="payment-status-row">
-        <span class="payment-status-label">Payment status:</span>
-        <label class="payment-chip"><input type="radio" name="paymentStatus" value="unpaid" checked><span>Unpaid</span></label>
-        <label class="payment-chip"><input type="radio" name="paymentStatus" value="partial"><span>Partial</span></label>
-        <label class="payment-chip"><input type="radio" name="paymentStatus" value="paid"><span>Paid</span></label>
-      </div>
+      <div class="payment-rows-group">
+        <div class="payment-status-row">
+          <span class="payment-status-label">Payment status:</span>
+          <label class="payment-chip"><input type="radio" name="paymentStatus" value="unpaid" checked><span>Unpaid</span></label>
+          <label class="payment-chip"><input type="radio" name="paymentStatus" value="partial"><span>Partial</span></label>
+          <label class="payment-chip"><input type="radio" name="paymentStatus" value="paid"><span>Paid</span></label>
+        </div>
 
-      <div class="payment-status-row">
-        <span class="payment-status-label">Payment method:</span>
-        <label class="payment-chip"><input type="radio" name="paymentMethod" value="cash" checked><span>Cash</span></label>
-        <label class="payment-chip"><input type="radio" name="paymentMethod" value="gcash_cc"><span>GCash/CC</span></label>
-        <label class="payment-chip"><input type="radio" name="paymentMethod" value="split"><span>Split</span></label>
+        <div class="payment-status-row">
+          <span class="payment-status-label">Payment method:</span>
+          <label class="payment-chip"><input type="radio" name="paymentMethod" value="cash" checked><span>Cash</span></label>
+          <label class="payment-chip"><input type="radio" name="paymentMethod" value="gcash_cc"><span>GCash/CC</span></label>
+          <label class="payment-chip"><input type="radio" name="paymentMethod" value="split"><span>Split</span></label>
+        </div>
       </div>
       <div class="field-row cols-3" id="splitPaymentRow" style="display:none;">
         <div class="field-inline"><label>Split — Cash ₱</label><input type="text" id="splitCash" inputmode="decimal" placeholder="0.00"></div>
