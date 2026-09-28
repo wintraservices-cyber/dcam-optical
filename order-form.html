@@ -854,6 +854,139 @@
     @page { size: 8.5in 3.67in; margin: 0.08in; }
   }
 
+  /* ---------- Alternate print layout: 3-up on one full Letter sheet ----------
+     A second, optional print mode (see printThreeUpBtn in the script) for
+     practices that print on plain paper rather than pre-cut 8.5x3.67in
+     strips -- 3 compact copies of the slip stacked on one Letter page
+     instead of 1 copy on a strip. Off by default (#threeUpSlip and its
+     contents stay display:none) both on screen and during the *normal*
+     print, and only switched on for the duration of a 3-up print via the
+     "three-up-print" class on <body> (see printThreeUp() below), which
+     also hides the normal .slip for that one print so the two layouts
+     never appear together. The @page size for this mode (a full Letter
+     page, not the 3.67in strip) is set by a separate <style> tag inserted
+     into <head> only while printing 3-up -- @page can't be scoped to a
+     class selector the way normal rules can, so switching the page size
+     conditionally needs that extra tag rather than a rule in here. */
+  /* Only the container itself is force-hidden by default -- its children
+     keep their normal display values (block/inline/etc.) so that the
+     print-only rules below (display: grid/flex on .tu-copy, .tu-header,
+     etc.) aren't fighting a blanket "everything reverts" rule once the
+     container is shown. <template> content is inert and never rendered
+     regardless, so it needs no special handling here. */
+  #threeUpSlip { display: none; }
+  body.three-up-print #threeUpSlip { display: block; }
+  @media print {
+    body.three-up-print .slip { display: none !important; }
+    body.three-up-print .staff-bar, body.three-up-print .form-meta-note,
+    body.three-up-print .order-type-toggle, body.three-up-print .history-panel,
+    body.three-up-print .no-print { display: none !important; }
+    body.three-up-print #threeUpSlip { display: block !important; }
+    body.three-up-print .page-wrap { margin: 0; padding: 0; max-width: 100%; }
+
+    .tu-copy {
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+      gap: 6px;
+      border: 1px solid #000;
+      padding: 6px 8px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      font-size: 6.2px;
+      line-height: 1.25;
+      margin-bottom: 4px;
+    }
+    .tu-copy:last-child { margin-bottom: 0; }
+    .tu-order, .tu-stub { position: relative; }
+    .tu-stub { border-left: 1px dashed #000; padding-left: 8px; }
+    .tu-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .tu-brandbox { width: 26px; height: 26px; flex: none; }
+    .tu-brandbox img { width: 100%; height: 100%; object-fit: contain; }
+    .tu-header-meta { flex: 1; font-size: 5.4px; line-height: 1.3; }
+    .tu-loc-name { font-weight: 700; font-size: 6.8px; }
+    .tu-orderno-box { text-align: right; font-weight: 700; }
+    .tu-orderno-box .tu-hash { font-weight: 400; margin-right: 3px; }
+    .tu-row3, .tu-row2 {
+      display: grid;
+      gap: 4px;
+      margin-bottom: 2px;
+      border-bottom: 0.75px solid #000;
+      padding-bottom: 2px;
+    }
+    .tu-row3 { grid-template-columns: 1fr 1fr 1fr; }
+    .tu-row2 { grid-template-columns: 1.4fr 1fr; }
+    .tu-field label {
+      display: block;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 4.8px;
+      letter-spacing: 0.02em;
+      color: #333;
+    }
+    .tu-field span { display: block; min-height: 7px; }
+    .tu-jobtype { font-weight: 700; margin: 2px 0; font-size: 5.6px; }
+    table.tu-grid {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 2px;
+      font-size: 5.6px;
+    }
+    table.tu-grid th, table.tu-grid td {
+      border: 0.75px solid #000;
+      padding: 1px 2px;
+      text-align: center;
+    }
+    table.tu-grid td.tu-label { font-weight: 700; background: #f2f2f2; }
+    .tu-lensmat-cell { text-align: left; font-size: 5px; }
+    .tu-lensmat-cell label {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      justify-content: flex-start;
+      white-space: nowrap;
+      /* Each row needs real vertical room of its own -- three labels
+         packed with no minimum height let the browser's print rasterizer
+         collapse/misplace the tiny boxes below (see .tu-box note). */
+      min-height: 9px;
+    }
+    /* Below about 4px, Chromium's print rasterizer doesn't reliably
+       paint small inline boxes at their correct individual size/position
+       -- confirmed via pixel-cropping a rendered PDF: computed styles
+       (getComputedStyle, getBoundingClientRect) all reported correct
+       ~2.6px boxes with the right per-row background, but the actual
+       printed output showed one enlarged, smeared black bar covering
+       multiple rows instead of three separate small squares. Same class
+       of print-only rendering defect as the native radio controls fixed
+       earlier, just triggered by small absolute size here rather than
+       appearance:none. Fix: make the box unambiguously bigger (7px, a
+       hair under the print-dot radius used elsewhere) rather than fight
+       sub-pixel print rasterization. */
+    .tu-box {
+      display: inline-block !important;
+      width: 7px !important;
+      height: 7px !important;
+      border: 0.9px solid #000 !important;
+      background: #fff !important;
+      flex: none !important;
+      box-sizing: border-box !important;
+    }
+    .tu-box.checked { background: #000 !important; }
+    .tu-full { margin-bottom: 2px; border-bottom: 0.75px solid #000; padding-bottom: 2px; }
+    .tu-sig { margin-top: 3px; font-weight: 700; font-size: 5.4px; }
+    .tu-sig .tu-line { display: inline-block; width: 60px; border-bottom: 0.75px solid #000; }
+
+    .tu-stub .tu-brandbox { width: 20px; height: 20px; margin-bottom: 2px; }
+    .tu-stub .tu-loc-name { font-weight: 700; font-size: 6px; margin-bottom: 3px; }
+    .tu-stub-field { margin-bottom: 2px; border-bottom: 0.75px solid #000; padding-bottom: 1px; }
+    .tu-stub-field label { display: block; font-weight: 700; text-transform: uppercase; font-size: 4.6px; color: #333; }
+    .tu-stub-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-bottom: 2px; }
+    .tu-stub-row2 label { display: block; font-weight: 700; text-transform: uppercase; font-size: 4.6px; color: #333; }
+    .tu-stub-row2 > div { border-bottom: 0.75px solid #000; padding-bottom: 1px; }
+    .tu-claim { text-align: center; margin-top: 6px; }
+    .tu-claim-title { font-weight: 800; letter-spacing: 0.06em; font-size: 6.4px; }
+    .tu-claim-no { font-weight: 700; margin-top: 2px; font-size: 5.6px; }
+  }
+
   @media (max-width: 720px) {
     .slip { grid-template-columns: 1fr; }
     .slip-half.order { border-right: none; border-bottom: 2px dashed var(--charcoal); }
@@ -901,6 +1034,7 @@
     <button class="btn-new" id="clearBtn">Clear form</button>
     <button class="btn-new" id="saveBtn" style="background:var(--purple); color:#fff; border:none !important;">Save order</button>
     <button class="btn-print" id="printBtn">Print order + stub</button>
+    <button class="btn-new" id="printThreeUpBtn" title="Alternate layout: 3 compact copies on one full sheet, instead of 1 copy on a pre-cut strip">Print (3-up)</button>
   </div>
 </div>
 
@@ -1156,6 +1290,116 @@
     </div>
   </div>
 
+  <!-- Alternate print layout: 3 compact copies stacked on one full
+       Letter page (instead of 1 copy on an 8.5in x 3.67in pre-cut
+       strip). Hidden on screen and hidden during the normal print --
+       only shown when body has "three-up-print" (see printThreeUpBtn
+       below), which also swaps in a different @page size via a style
+       tag inserted/removed at print time (see printThreeUp()). Built
+       once here and cloned 3x by JS rather than hand-writing 3 copies,
+       so there's exactly one copy of this markup to keep in sync with
+       the real form. -->
+  <div id="threeUpSlip">
+    <template id="threeUpCopyTemplate">
+      <div class="tu-copy">
+        <div class="tu-order">
+          <div class="tu-header">
+            <div class="tu-brandbox"></div>
+            <div class="tu-header-meta">
+              <div class="tu-loc-name"></div>
+              <div class="tu-branch"></div>
+              <div class="tu-contact"></div>
+            </div>
+            <div class="tu-orderno-box">
+              <span class="tu-hash">No. #</span>
+              <span data-field="orderNo"></span>
+            </div>
+          </div>
+          <div class="tu-row3">
+            <div class="tu-field"><label>Date</label><span data-field="ordDate"></span></div>
+            <div class="tu-field"><label>Due Date</label><span data-field="ordDue"></span></div>
+            <div class="tu-field"><label>Tray No.</label><span data-field="trayNo"></span></div>
+          </div>
+          <div class="tu-row2">
+            <div class="tu-field"><label>Name</label><span data-field="ordName"></span></div>
+            <div class="tu-field"><label>Tel. No.</label><span data-field="ordTel"></span></div>
+          </div>
+          <div class="tu-jobtype">Type: <span data-field="rxSubtype"></span></div>
+          <table class="tu-grid">
+            <thead>
+              <tr><th></th><th>SPH</th><th>CYL</th><th>Axis</th><th>Prism</th><th>Base</th><th rowspan="2" class="tu-lensmat">Type</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="tu-label">R</td>
+                <td data-field="rx_r_sph"></td>
+                <td data-field="rx_r_cyl"></td>
+                <td data-field="rx_r_axis"></td>
+                <td data-field="rx_r_prism"></td>
+                <td data-field="rx_r_base"></td>
+                <td rowspan="2" class="tu-lensmat-cell">
+                  <label><span class="tu-box" data-check="lensMaterial:glass"></span>Glass</label>
+                  <label><span class="tu-box" data-check="lensMaterial:plastic"></span>Plastic</label>
+                  <label><span class="tu-box" data-check="lensMaterial:others"></span>Others</label>
+                </td>
+              </tr>
+              <tr>
+                <td class="tu-label">L</td>
+                <td data-field="rx_l_sph"></td>
+                <td data-field="rx_l_cyl"></td>
+                <td data-field="rx_l_axis"></td>
+                <td data-field="rx_l_prism"></td>
+                <td data-field="rx_l_base"></td>
+              </tr>
+            </tbody>
+          </table>
+          <table class="tu-grid">
+            <thead>
+              <tr><th></th><th>Add.</th><th>Seg Ht.</th><th>Lens type</th><th>P.D.</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="tu-label">R</td>
+                <td data-field="add_r"></td>
+                <td data-field="seg_ht_r"></td>
+                <td rowspan="2" data-field="lens_type"></td>
+                <td data-field="pd_r"></td>
+              </tr>
+              <tr>
+                <td class="tu-label">L</td>
+                <td data-field="add_l"></td>
+                <td data-field="seg_ht_l"></td>
+                <td data-field="pd_l"></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="tu-field tu-full"><label>Frame</label><span data-field="ordFrame"></span></div>
+          <div class="tu-field tu-full"><label>Special Instructions</label><span data-field="ordNotes"></span></div>
+          <div class="tu-sig">By: <span class="tu-line"></span></div>
+        </div>
+        <div class="tu-stub">
+          <div class="tu-brandbox"></div>
+          <div class="tu-loc-name"></div>
+          <div class="tu-stub-field"><label>Name</label><span data-field="ordName"></span></div>
+          <div class="tu-stub-row2">
+            <div><label>Date</label><span data-field="ordDate"></span></div>
+            <div><label>Due Date</label><span data-field="ordDue"></span></div>
+          </div>
+          <div class="tu-stub-field"><label>Amount</label><span data-field="amount"></span></div>
+          <div class="tu-stub-field"><label>Deposit</label><span data-field="deposit"></span></div>
+          <div class="tu-stub-field"><label>Balance</label><span data-field="balance"></span></div>
+          <div class="tu-stub-field"><label>Lens</label><span data-field="lens_type"></span></div>
+          <div class="tu-stub-field"><label>Frame</label><span data-field="ordFrame"></span></div>
+          <div class="tu-claim">
+            <div class="tu-claim-title">CLAIM STUB</div>
+            <div class="tu-claim-no">No. # <span data-field="orderNo"></span></div>
+          </div>
+        </div>
+      </div>
+    </template>
+    <div id="threeUpContainer"></div>
+  </div>
+
   <div class="bottom-actions no-print">
     <button class="btn-bottom-secondary" id="clearBtnBottom">Clear form</button>
     <button class="btn-bottom-primary" id="saveBtnBottom">Save order</button>
@@ -1250,6 +1494,123 @@
     window.print();
   });
   window.addEventListener('afterprint', () => { document.title = originalDocTitle; });
+
+  // ---- Alternate print layout: 3-up on one full Letter sheet ----
+  // Reads the same live form fields as the normal print (no separate
+  // data entry) and renders 3 copies into #threeUpContainer, each from
+  // the <template> defined next to it in the HTML -- so there's one
+  // source of truth for that markup instead of 3 hand-written copies.
+  function collectThreeUpData() {
+    const val = (id) => (document.getElementById(id) || {}).value || '';
+    const checkedVal = (name) => (document.querySelector(`input[name="${name}"]:checked`) || {}).value || '';
+    const fmtDate = (iso) => {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return (y && m && d) ? `${m}/${d}/${y}` : iso;
+    };
+    const fmtMoney = (raw) => {
+      const n = parseFloat(raw);
+      return Number.isFinite(n) ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+    };
+    // Base is a <select> -- its raw .value is a slug ("up-in"), so read
+    // the selected option's visible label instead ("Up & In").
+    const selectLabel = (id) => {
+      const el = document.getElementById(id);
+      if (!el || el.selectedIndex < 0) return '';
+      return el.options[el.selectedIndex].textContent || '';
+    };
+    return {
+      orderNo: val('orderNo'),
+      ordDate: fmtDate(val('ordDate')),
+      ordDue: fmtDate(val('ordDue')),
+      trayNo: val('trayNo'),
+      ordName: val('ordName'),
+      ordTel: val('ordTel'),
+      rxSubtype: checkedVal('rxSubtype'),
+      rx_r_sph: val('rx_r_sph'), rx_r_cyl: val('rx_r_cyl'), rx_r_axis: val('rx_r_axis'), rx_r_prism: val('rx_r_prism'), rx_r_base: selectLabel('rx_r_base'),
+      rx_l_sph: val('rx_l_sph'), rx_l_cyl: val('rx_l_cyl'), rx_l_axis: val('rx_l_axis'), rx_l_prism: val('rx_l_prism'), rx_l_base: selectLabel('rx_l_base'),
+      add_r: val('add_r'), seg_ht_r: val('seg_ht_r'), pd_r: val('pd_r'),
+      add_l: val('add_l'), seg_ht_l: val('seg_ht_l'), pd_l: val('pd_l'),
+      lens_type: val('lens_type'),
+      ordFrame: val('ordFrame'),
+      ordNotes: val('ordNotes'),
+      amount: fmtMoney(val('amount')),
+      deposit: fmtMoney(val('deposit')),
+      balance: fmtMoney(val('balance')),
+      lensMaterial: checkedVal('lensMaterial'),
+    };
+  }
+
+  function renderThreeUpCopy(data) {
+    const tpl = document.getElementById('threeUpCopyTemplate');
+    const node = tpl.content.cloneNode(true);
+    node.querySelectorAll('[data-field]').forEach(el => {
+      el.textContent = data[el.getAttribute('data-field')] || '';
+    });
+    node.querySelectorAll('[data-check]').forEach(el => {
+      const [field, value] = el.getAttribute('data-check').split(':');
+      if (data[field] === value) el.classList.add('checked');
+    });
+    // Reuse the real logo <img> already in the page (it's a large inline
+    // base64 image) instead of duplicating it in the template markup.
+    const logoSrc = document.querySelector('.brandbox img');
+    if (logoSrc) {
+      node.querySelectorAll('.tu-brandbox').forEach(box => {
+        const img = logoSrc.cloneNode();
+        box.appendChild(img);
+      });
+    }
+    const bizName = (document.getElementById('bizNameDisplay1') || {}).textContent || 'DCAM Optical';
+    const bizBranch = (document.getElementById('bizBranchDisplay1') || {}).textContent || '';
+    const bizContact = (document.getElementById('bizContactDisplay1') || {}).textContent || '';
+    node.querySelectorAll('.tu-loc-name').forEach(el => { el.textContent = bizName; });
+    const branchEl = node.querySelector('.tu-branch');
+    if (branchEl) branchEl.textContent = bizBranch;
+    const contactEl = node.querySelector('.tu-contact');
+    if (contactEl) contactEl.textContent = bizContact;
+    return node;
+  }
+
+  function buildThreeUpSlips() {
+    const data = collectThreeUpData();
+    const container = document.getElementById('threeUpContainer');
+    container.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      container.appendChild(renderThreeUpCopy(data));
+    }
+  }
+
+  // @page can't be scoped to a class selector, so the full-Letter-page
+  // size for this mode is set via a <style> tag added to <head> only for
+  // the duration of this one print, then removed -- the normal print's
+  // own @page rule (the 8.5x3.67in strip) is untouched and takes effect
+  // again as soon as this tag is gone.
+  function printThreeUp() {
+    buildThreeUpSlips();
+    const pageStyle = document.createElement('style');
+    pageStyle.id = 'threeUpPageStyle';
+    pageStyle.textContent = '@page { size: 8.5in 11in; margin: 0.3in; }';
+    document.head.appendChild(pageStyle);
+    document.body.classList.add('three-up-print');
+
+    const orderNoVal = (document.getElementById('orderNo').value || '').trim();
+    const patientNameVal = (document.getElementById('ordName').value || '').trim();
+    const parts = [orderNoVal, patientNameVal].filter(Boolean);
+    if (parts.length) {
+      document.title = (parts.join(' - ') + ' (3-up)').replace(/[\\/:*?"<>|]/g, '-');
+    }
+
+    window.print();
+  }
+  function cleanupThreeUp() {
+    document.body.classList.remove('three-up-print');
+    const pageStyle = document.getElementById('threeUpPageStyle');
+    if (pageStyle) pageStyle.remove();
+    document.title = originalDocTitle;
+  }
+  const printThreeUpBtn = document.getElementById('printThreeUpBtn');
+  if (printThreeUpBtn) printThreeUpBtn.addEventListener('click', printThreeUp);
+  window.addEventListener('afterprint', cleanupThreeUp);
 
   // Bottom action bar mirrors the top toolbar -- clicking a bottom button
   // just triggers its top counterpart, so all the save/clear/print logic
