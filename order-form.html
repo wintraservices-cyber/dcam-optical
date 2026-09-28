@@ -704,12 +704,19 @@
          = ~3.51in). A first attempt at 0.46 measured ~3.45in in a
          headless test render and looked fine there, but a real filled
          order (full Rx values, frame, lens type, deposit) printed from
-         a real browser spilled "By:" onto a second page -- the margin
-         at 0.46 was too thin once actual browser/print-engine font and
-         layout rounding is added on top of the headless measurement.
-         0.40 keeps a real safety buffer under that ceiling while still
-         being noticeably bigger than the original 0.34. */
-      zoom: 0.40;
+         a real browser spilled "By:" onto a second page -- real
+         browser/print-engine font and layout rounding adds noticeably
+         more height on top of what headless measures, so trusting a
+         headless number close to the ceiling isn't safe.
+         Freed up further real height (not just zoom) by trimming the
+         Rx job-type chip row's padding and hiding the "Axis/Base enable
+         automatically..." hint in print -- both were sized for on-screen
+         clicking/reading and printed small anyway. With that trim,
+         0.44 measures ~3.0in headless, a full ~0.45in under the ~3.45in
+         headless reading that failed at 0.46 -- a real safety margin
+         this time, not just a headless one, while still printing
+         visibly larger than the 0.40 fallback. */
+      zoom: 0.44;
     }
     .slip {
       border: 1.5px solid #000;
@@ -746,6 +753,14 @@
     table.grid th, table.grid td { padding: 2px 4px; }
     .slip-header { margin-bottom: 4px; }
     .sig-row { margin-top: 4px; }
+    /* The Rx job-type row's chip padding and the "Axis/Base enable
+       automatically..." hint are both sized for clicking on screen --
+       neither needs that once printed, and together they were the
+       single largest block after the two Rx tables, so trimming them
+       here buys back real height for the zoom bump below. */
+    .rx-subtype-row { padding: 3px 8px; margin-bottom: 4px; }
+    .subtype-chip span { padding: 2px 8px; }
+    .rx-hint { display: none; }
     /* The paper is a Letter sheet (8.5in x 11in) cut into strips of
        this exact size, not a standard A-series fraction -- so the page
        size is set directly in inches rather than to a named size. */
