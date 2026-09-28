@@ -11,6 +11,10 @@
 // GET  ?types=1                          -> distinct `type` values seen
 //      so far, for the entry form's autocomplete
 // POST { expense_date, type, details, amount } -> create an entry
+// PATCH ?id=X { expense_date, type, details, amount } -> edit an entry
+//      (admin only, same as delete -- expenses double as a lightweight
+//      financial record, so correcting a past entry is kept to the same
+//      trust level as removing one)
 // DELETE ?id=X                           -> remove an entry (admin only)
 
 const { requireAuth, requireAdmin } = require('../lib/auth');
@@ -153,6 +157,72 @@ async function createExpense(req, res, session) {
   }
 }
 
+async function updateExpense(req, res) {
+  const { id } = req.query || {};
+  if (!id) {
+    res.status(400).json({ ok: false, error: 'An expense id is required.' });
+    return;
+  }
+
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) {
+      res.status(400).json({ ok: false, error: 'Invalid JSON body' });
+      return;
+    }
+  }
+  if (!body || typeof body !== 'object') {
+    res.status(400).json({ ok: false, error: 'Missing expense data' });
+    return;
+  }
+
+  const expenseDate = sanitizeText(body.expense_date, 20);
+  const type = sanitizeText(body.type, TYPE_MAX_LEN);
+  const details = sanitizeText(body.details, DETAILS_MAX_LEN);
+  const amountNum = parseFloat(body.amount);
+
+  if (!expenseDate || !DATE_RE.test(expenseDate)) {
+    res.status(400).json({ ok: false, error: 'A valid expense date is required.' });
+    return;
+  }
+  if (!type) {
+    res.status(400).json({ ok: false, error: 'Type is required.' });
+    return;
+  }
+  if (!Number.isFinite(amountNum) || amountNum <= 0) {
+    res.status(400).json({ ok: false, error: 'A valid amount greater than 0 is required.' });
+    return;
+  }
+
+  try {
+    const resp = await supabaseRequest(`expenses?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        expense_date: expenseDate,
+        type,
+        details,
+        amount: amountNum.toFixed(2),
+      }),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('Supabase expenses update error:', resp.status, errText);
+      res.status(502).json({ ok: false, error: 'Could not save changes to this expense.' });
+      return;
+    }
+    const [saved] = await resp.json();
+    if (!saved) {
+      res.status(404).json({ ok: false, error: 'Expense not found.' });
+      return;
+    }
+    res.status(200).json({ ok: true, expense: saved });
+  } catch (err) {
+    console.error('Unexpected error updating expense:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
 async function deleteExpense(req, res) {
   const { id } = req.query || {};
   if (!id) {
@@ -176,7 +246,7 @@ async function deleteExpense(req, res) {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -208,6 +278,12 @@ module.exports = async (req, res) => {
       }
     }
     return createExpense(req, res, session);
+  }
+
+  if (req.method === 'PATCH') {
+    // Editing is admin-only, same as delete -- see the note above.
+    if (!requireAdmin(req, res)) return;
+    return updateExpense(req, res);
   }
 
   if (req.method === 'DELETE') {

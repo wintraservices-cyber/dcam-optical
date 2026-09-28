@@ -235,18 +235,37 @@
     color: var(--purple-deep);
   }
 
-  .delete-btn {
+  .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .edit-btn, .delete-btn, .save-edit-btn, .cancel-edit-btn {
     font-family: var(--display);
     font-weight: 600;
     font-size: 0.72rem;
     padding: 4px 10px;
     border-radius: 100px;
-    border: 1px solid #B0405A;
     background: #fff;
-    color: #B0405A;
     cursor: pointer;
   }
+  .edit-btn { border: 1px solid var(--purple); color: var(--purple-deep); }
+  .edit-btn:hover { background: rgba(176,90,158,0.08); }
+  .delete-btn { border: 1px solid #B0405A; color: #B0405A; }
   .delete-btn:hover { background: rgba(176,64,90,0.08); }
+  .save-edit-btn { border: 1px solid #3E8E5A; color: #3E8E5A; }
+  .save-edit-btn:hover { background: rgba(62,142,90,0.08); }
+  .cancel-edit-btn { border: 1px solid var(--line); color: var(--charcoal-soft); }
+  .cancel-edit-btn:hover { background: var(--ivory-dim); }
+
+  .edit-row input {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-family: var(--body);
+    font-size: 0.85rem;
+    color: var(--charcoal);
+    outline: none;
+  }
+  .edit-row input:focus { border-color: var(--blue); }
 
   .empty-state, .loading-state, .error-state {
     text-align: center;
@@ -501,13 +520,20 @@
     }
 
     const rows = expenses.map(e => `
-      <tr>
+      <tr data-row-id="${e.id}">
         <td data-label="Date">${escapeHtml(e.expense_date)}</td>
         <td data-label="Type"><span class="type-chip">${escapeHtml(e.type)}</span></td>
         <td data-label="Recipient / Details">${escapeHtml(e.details) || '—'}</td>
         <td data-label="Amount">₱${escapeHtml(Number(e.amount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</td>
         <td data-label="Logged by">${escapeHtml(e.created_by) || '—'}</td>
-        <td data-label="">${isAdmin ? `<button type="button" class="delete-btn" data-id="${e.id}">Delete</button>` : ''}</td>
+        <td data-label="">${isAdmin ? `
+          <div class="row-actions">
+            <button type="button" class="edit-btn" data-id="${e.id}"
+              data-date="${escapeHtmlAttr(e.expense_date)}" data-type="${escapeHtmlAttr(e.type)}"
+              data-details="${escapeHtmlAttr(e.details || '')}" data-amount="${escapeHtmlAttr(e.amount)}">Edit</button>
+            <button type="button" class="delete-btn" data-id="${e.id}">Delete</button>
+          </div>
+        ` : ''}</td>
       </tr>
     `).join('');
 
@@ -535,6 +561,79 @@
           btn.disabled = false;
         }
       });
+    });
+
+    content.querySelectorAll('.edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => startEditRow(btn));
+    });
+  }
+
+  // Swaps a row's display cells for editable inputs in place, rather than
+  // navigating to a separate edit screen -- expenses are simple enough
+  // (4 fields) that an inline edit is quicker for staff than a full page.
+  function startEditRow(btn) {
+    const id = btn.getAttribute('data-id');
+    const row = content.querySelector(`tr[data-row-id="${id}"]`);
+    if (!row) return;
+    const date = btn.getAttribute('data-date');
+    const type = btn.getAttribute('data-type');
+    const details = btn.getAttribute('data-details');
+    const amount = btn.getAttribute('data-amount');
+
+    row.classList.add('edit-row');
+    row.innerHTML = `
+      <td data-label="Date"><input type="date" class="edit-date" value="${escapeHtmlAttr(date)}"></td>
+      <td data-label="Type"><input type="text" class="edit-type" value="${escapeHtmlAttr(type)}" list="expenseTypeList"></td>
+      <td data-label="Recipient / Details"><input type="text" class="edit-details" value="${escapeHtmlAttr(details)}"></td>
+      <td data-label="Amount"><input type="text" class="edit-amount" inputmode="decimal" value="${escapeHtmlAttr(amount)}"></td>
+      <td data-label="Logged by"></td>
+      <td data-label="">
+        <div class="row-actions">
+          <button type="button" class="save-edit-btn">Save</button>
+          <button type="button" class="cancel-edit-btn">Cancel</button>
+        </div>
+        <div class="entry-status" style="margin-top:6px;"></div>
+      </td>
+    `;
+
+    row.querySelector('.cancel-edit-btn').addEventListener('click', () => loadExpenses());
+    row.querySelector('.save-edit-btn').addEventListener('click', async () => {
+      const dateEl = row.querySelector('.edit-date');
+      const typeEl = row.querySelector('.edit-type');
+      const detailsEl = row.querySelector('.edit-details');
+      const amountEl = row.querySelector('.edit-amount');
+      const statusEl = row.querySelector('.entry-status');
+      const saveBtn = row.querySelector('.save-edit-btn');
+
+      const expense_date = dateEl.value;
+      const type = typeEl.value.trim();
+      const details = detailsEl.value.trim();
+      const amount = parseFloat(amountEl.value);
+
+      if (!expense_date || !type || !Number.isFinite(amount) || amount <= 0) {
+        statusEl.textContent = 'Check date, type, and amount.';
+        statusEl.className = 'entry-status error';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      statusEl.textContent = 'Saving…';
+      statusEl.className = 'entry-status';
+
+      try {
+        const resp = await fetch('/api/expenses?id=' + encodeURIComponent(id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expense_date, type, details, amount }),
+        });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save changes.');
+        loadExpenses();
+      } catch (err) {
+        statusEl.textContent = err.message || 'Could not save changes.';
+        statusEl.className = 'entry-status error';
+        saveBtn.disabled = false;
+      }
     });
   }
 

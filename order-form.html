@@ -1256,6 +1256,14 @@
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load this order.');
       populateOrderForm(result.order); // sets editingOrderId and restores the Save button text
       loadOrderHistory(id);
+
+      // Came here from the "Print" link on the View orders list
+      // (order-form.html?id=...&print=1) -- open the print dialog
+      // automatically once the order's data has actually loaded, rather
+      // than making staff open the order first and click Print by hand.
+      if (new URLSearchParams(window.location.search).get('print') === '1') {
+        setTimeout(() => document.getElementById('printBtn').click(), 300);
+      }
     } catch (err) {
       alert('Could not load this order for editing: ' + err.message);
       // Loading failed -- re-enable Save so staff aren't stuck, but

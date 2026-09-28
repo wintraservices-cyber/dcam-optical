@@ -384,8 +384,10 @@ async function updateOrderFull(req, res, session) {
   }
 }
 
+const ORDER_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 async function listOrders(req, res) {
-  const { q, status, id } = req.query || {};
+  const { q, status, id, from, to } = req.query || {};
 
   // order_items(*) embeds each order's line items in the same query,
   // using PostgREST's resource-embedding (a join via the order_items.order_id
@@ -426,6 +428,16 @@ async function listOrders(req, res) {
     // Search across order number and patient name — PostgREST "or" filter.
     const term = encodeURIComponent(`%${q.trim()}%`);
     path += `&or=(order_no.ilike.${term},patient_name.ilike.${term})`;
+  }
+
+  // Filter by the order's own (nominal) date -- not created_at -- so a
+  // backdated order shows up under the day staff actually meant, same
+  // fix as the orders report. Both bounds are inclusive and optional.
+  if (from && typeof from === 'string' && ORDER_DATE_RE.test(from)) {
+    path += `&order_date=gte.${encodeURIComponent(from)}`;
+  }
+  if (to && typeof to === 'string' && ORDER_DATE_RE.test(to)) {
+    path += `&order_date=lte.${encodeURIComponent(to)}`;
   }
 
   try {
