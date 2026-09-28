@@ -701,11 +701,15 @@
          Re-measured after narrowing the claim stub to 25% width below:
          the order form got wider but not taller, so the usable-height
          math is unchanged (3.67in strip minus 0.08in margins each side
-         = ~3.51in). 0.46 renders the slip at ~3.45in tall, close to
-         that ceiling with a small safety margin, versus the old 0.34
-         which only reached ~2.6in and left the slip looking tiny with
-         room to spare. */
-      zoom: 0.46;
+         = ~3.51in). A first attempt at 0.46 measured ~3.45in in a
+         headless test render and looked fine there, but a real filled
+         order (full Rx values, frame, lens type, deposit) printed from
+         a real browser spilled "By:" onto a second page -- the margin
+         at 0.46 was too thin once actual browser/print-engine font and
+         layout rounding is added on top of the headless measurement.
+         0.40 keeps a real safety buffer under that ceiling while still
+         being noticeably bigger than the original 0.34. */
+      zoom: 0.40;
     }
     .slip {
       border: 1.5px solid #000;
