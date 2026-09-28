@@ -792,6 +792,14 @@
       margin: 8px 0 12px;
     }
     .payment-rows-group .payment-status-row { margin: 0; }
+    /* "By:" is just a short staff name, not something that needs its
+       own full-width row on the printed slip -- fold it onto the same
+       line as Payment method to buy back the row it used to take up. */
+    .payment-rows-group .sig-row {
+      margin: 0 0 0 auto;
+      flex: none;
+    }
+    .payment-rows-group .sig-row input { width: 90px; flex: none; }
     /* Native radio controls (P.D. measured as, lens material) don't
        shrink with the zoom above the way text and CSS-sized boxes do --
        browsers enforce a minimum rendered size for the OS widget
@@ -1101,16 +1109,16 @@
           <label class="payment-chip"><input type="radio" name="paymentMethod" value="gcash_cc"><span>GCash/CC</span></label>
           <label class="payment-chip"><input type="radio" name="paymentMethod" value="split"><span>Split</span></label>
         </div>
+
+        <div class="sig-row">
+          <label>By:</label>
+          <input type="text" id="takenBy" readonly title="Set automatically from your staff login -- not editable.">
+        </div>
       </div>
       <div class="field-row cols-3" id="splitPaymentRow" style="display:none;">
         <div class="field-inline"><label>Split — Cash ₱</label><input type="text" id="splitCash" inputmode="decimal" placeholder="0.00"></div>
         <div class="field-inline"><label>Split — GCash/CC ₱</label><input type="text" id="splitGcash" inputmode="decimal" placeholder="0.00"></div>
         <div class="field-inline"><label>Split total <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(should match payment today)</span></label><input type="text" id="splitTotalDisplay" inputmode="decimal" placeholder="0.00" readonly></div>
-      </div>
-
-      <div class="sig-row">
-        <label>By:</label>
-        <input type="text" id="takenBy" readonly title="Set automatically from your staff login -- not editable.">
       </div>
     </div>
 
