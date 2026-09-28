@@ -133,44 +133,7 @@
     box-shadow: 0 10px 30px rgba(56,51,52,0.06);
   }
 
-  .controls {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 18px;
-    align-items: end;
-  }
-  .controls .field label {
-    display: block;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--charcoal-soft);
-    margin-bottom: 4px;
-    font-family: var(--display);
-    font-weight: 700;
-  }
-  .controls input[type="date"] {
-    border: 1.5px solid var(--line);
-    background: #fff;
-    padding: 10px 12px;
-    border-radius: 8px;
-    font-family: var(--body);
-    font-size: 0.9rem;
-    color: var(--charcoal);
-    outline: none;
-  }
-  .controls button.clear-range {
-    font-family: var(--display);
-    font-weight: 600;
-    font-size: 0.82rem;
-    padding: 10px 16px;
-    border-radius: 8px;
-    border: 1.5px solid var(--line);
-    background: #fff;
-    color: var(--charcoal-soft);
-    cursor: pointer;
-  }
+  .controls { margin-bottom: 18px; }
 
   .total-tile {
     background: var(--charcoal);
@@ -326,17 +289,7 @@
     <div class="loading-state">Loading…</div>
   </div>
 
-  <div class="controls">
-    <div class="field">
-      <label>From</label>
-      <input type="date" id="fromDate">
-    </div>
-    <div class="field">
-      <label>To</label>
-      <input type="date" id="toDate">
-    </div>
-    <button type="button" class="clear-range" id="clearRangeBtn">Clear range</button>
-  </div>
+  <div class="controls" id="periodFilterMount"></div>
 
   <div class="total-tile">
     <span class="label">Total for this range</span>
@@ -348,14 +301,19 @@
   </div>
 </div>
 
+<script src="period-filter.js"></script>
 <script>
 (function() {
   const entrySection = document.getElementById('entrySection');
   const content = document.getElementById('content');
   const totalValue = document.getElementById('totalValue');
-  const fromDate = document.getElementById('fromDate');
-  const toDate = document.getElementById('toDate');
-  const clearRangeBtn = document.getElementById('clearRangeBtn');
+  // Expenses default to "Last 7 days" -- unlike Orders (usually browsed
+  // in full or searched by number), this page's main use is "what did we
+  // spend recently", so a recent-by-default window is more useful.
+  const periodFilter = PeriodFilter.mount(document.getElementById('periodFilterMount'), {
+    defaultPreset: 'last7',
+    onChange: () => loadExpenses(),
+  });
 
   let isAdmin = false;
   let expenseTypes = [];
@@ -494,8 +452,9 @@
   async function loadExpenses() {
     content.innerHTML = '<div class="loading-state">Loading expenses…</div>';
     const params = new URLSearchParams();
-    if (fromDate.value) params.set('from', fromDate.value);
-    if (toDate.value) params.set('to', toDate.value);
+    const { from, to } = periodFilter.getRange();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
 
     try {
       const resp = await fetch('/api/expenses?' + params.toString());
@@ -637,13 +596,6 @@
     });
   }
 
-  fromDate.addEventListener('change', loadExpenses);
-  toDate.addEventListener('change', loadExpenses);
-  clearRangeBtn.addEventListener('click', () => {
-    fromDate.value = '';
-    toDate.value = '';
-    loadExpenses();
-  });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/api/staff-auth?action=logout', { method: 'POST' });

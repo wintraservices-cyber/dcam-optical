@@ -82,36 +82,6 @@
     outline: none;
   }
   .controls input[type="text"]:focus { border-color: var(--blue); }
-  .date-filter-group { display: flex; align-items: center; gap: 8px; }
-  .date-filter-group label {
-    font-family: var(--display);
-    font-weight: 600;
-    font-size: 0.78rem;
-    color: var(--charcoal-soft);
-    white-space: nowrap;
-  }
-  .date-filter-group input[type="date"] {
-    border: 1.5px solid var(--line);
-    background: #fff;
-    padding: 10px 12px;
-    border-radius: 10px;
-    font-family: var(--body);
-    font-size: 0.88rem;
-    color: var(--charcoal);
-    outline: none;
-  }
-  .date-filter-group input[type="date"]:focus { border-color: var(--blue); }
-  .date-filter-group .clear-dates-btn {
-    font-family: var(--display);
-    font-weight: 600;
-    font-size: 0.78rem;
-    padding: 8px 12px;
-    border-radius: 100px;
-    border: 1.5px solid var(--line);
-    background: #fff;
-    color: var(--charcoal-soft);
-    cursor: pointer;
-  }
   .status-filter { display: flex; gap: 8px; }
   .status-filter button {
     font-family: var(--display);
@@ -307,13 +277,7 @@
 <div class="wrap">
   <div class="controls">
     <input type="text" id="searchInput" placeholder="Search by order # or patient name…">
-    <div class="date-filter-group">
-      <label for="dateFrom">From</label>
-      <input type="date" id="dateFrom">
-      <label for="dateTo">To</label>
-      <input type="date" id="dateTo">
-      <button type="button" class="clear-dates-btn" id="clearDatesBtn">Clear</button>
-    </div>
+    <div id="periodFilterMount"></div>
     <div class="status-filter">
       <button class="active" data-status="">All</button>
       <button data-status="ordered">Ordered</button>
@@ -327,16 +291,21 @@
   </div>
 </div>
 
+<script src="period-filter.js"></script>
 <script>
 (function() {
   const content = document.getElementById('content');
   const searchInput = document.getElementById('searchInput');
-  const dateFromInput = document.getElementById('dateFrom');
-  const dateToInput = document.getElementById('dateTo');
-  const clearDatesBtn = document.getElementById('clearDatesBtn');
   const statusButtons = document.querySelectorAll('.status-filter button');
   let currentStatus = '';
   let searchDebounce = null;
+  // Defaults to "All" -- staff pulling up the order list usually want
+  // everything (a specific order # search, or checking today's ready
+  // orders), not last-7-days by default the way a revenue report would.
+  const periodFilter = PeriodFilter.mount(document.getElementById('periodFilterMount'), {
+    defaultPreset: 'all',
+    onChange: () => loadOrders(),
+  });
 
   function escapeHtml(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -373,8 +342,9 @@
     const params = new URLSearchParams();
     if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
     if (currentStatus) params.set('status', currentStatus);
-    if (dateFromInput.value) params.set('from', dateFromInput.value);
-    if (dateToInput.value) params.set('to', dateToInput.value);
+    const { from, to } = periodFilter.getRange();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
 
     try {
       const resp = await fetch('/api/orders?' + params.toString());
@@ -566,14 +536,6 @@
   searchInput.addEventListener('input', () => {
     clearTimeout(searchDebounce);
     searchDebounce = setTimeout(loadOrders, 350);
-  });
-
-  dateFromInput.addEventListener('change', loadOrders);
-  dateToInput.addEventListener('change', loadOrders);
-  clearDatesBtn.addEventListener('click', () => {
-    dateFromInput.value = '';
-    dateToInput.value = '';
-    loadOrders();
   });
 
   statusButtons.forEach(btn => {

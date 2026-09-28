@@ -68,30 +68,11 @@
     border-radius: 16px;
     padding: 18px 22px;
     margin-bottom: 22px;
-    display: flex;
-    align-items: end;
-    gap: 14px;
-    flex-wrap: wrap;
-  }
-  .date-filter .field label {
-    display: block;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--charcoal-soft);
-    margin-bottom: 5px;
-  }
-  .date-filter .field input {
-    border: 1.5px solid var(--line);
-    padding: 9px 11px;
-    border-radius: 8px;
-    font-family: var(--body);
-    font-size: 0.88rem;
   }
   .date-filter .note {
     font-size: 0.78rem;
     color: var(--charcoal-soft);
-    flex-basis: 100%;
+    margin-top: 12px;
   }
 
   .report-grid {
@@ -163,15 +144,8 @@
 
 <div class="wrap">
   <div class="date-filter">
-    <div class="field">
-      <label>From date</label>
-      <input type="date" id="dateFrom">
-    </div>
-    <div class="field">
-      <label>To date</label>
-      <input type="date" id="dateTo">
-    </div>
-    <div class="note">Applies to Orders, Sales, and Expenses reports. Leave both blank to export everything. Patients and Inventory always export the current full list.</div>
+    <div id="periodFilterMount"></div>
+    <div class="note">Applies to Orders, Sales, and Expenses reports. Choose "All" to export everything. Patients and Inventory always export the current full list.</div>
   </div>
 
   <div class="report-grid">
@@ -212,6 +186,7 @@
   </div>
 </div>
 
+<script src="period-filter.js"></script>
 <script>
 (function() {
   async function checkAuth() {
@@ -227,12 +202,18 @@
   }
   checkAuth();
 
+  // Reports already treat "leave it blank" as "export everything", which
+  // maps directly onto the shared filter's "All" preset (both null) --
+  // no extra handling needed here beyond reading whatever it returns.
+  const periodFilter = PeriodFilter.mount(document.getElementById('periodFilterMount'), {
+    defaultPreset: 'all',
+  });
+
   document.querySelectorAll('.download-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const type = btn.getAttribute('data-type');
       const statusEl = document.getElementById('status-' + type);
-      const from = document.getElementById('dateFrom').value;
-      const to = document.getElementById('dateTo').value;
+      const { from, to } = periodFilter.getRange();
 
       btn.disabled = true;
       statusEl.textContent = 'Preparing…';
