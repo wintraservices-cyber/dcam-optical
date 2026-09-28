@@ -883,6 +883,16 @@
     body.three-up-print .no-print { display: none !important; }
     body.three-up-print #threeUpSlip { display: block !important; }
     body.three-up-print .page-wrap { margin: 0; padding: 0; max-width: 100%; }
+    /* The 3 copies are built compact (small font-size below) so the
+       underlying layout math stays simple, then scaled up uniformly to
+       actually fill the full 8.5x11in sheet -- unscaled, 3 copies only
+       used the top ~1/3 of the page, leaving 2/3 blank. zoom (like the
+       normal print's zoom above) scales padding/borders/gaps along with
+       text, so the enlarged copies keep the same proportions rather than
+       just growing text inside fixed-size boxes. Measured the unscaled
+       3 copies at ~3.65in tall against a ~10.4in usable page height
+       (11in sheet minus 0.3in margins top and bottom) -- 10.4/3.65 ~= 2.85. */
+    #threeUpContainer { zoom: 2.85; }
 
     .tu-copy {
       display: grid;
