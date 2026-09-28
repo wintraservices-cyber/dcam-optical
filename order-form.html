@@ -1140,6 +1140,11 @@
       <div class="field-row single"><div class="field-inline"><label>Due date</label><input type="date" id="stubDue"></div></div>
       <div class="field-row single"><div class="field-inline"><label>Lens type</label><textarea id="stubLens" rows="1" style="resize:none; overflow:hidden; white-space:pre-wrap; word-break:break-word; height:auto; border:1.3px solid var(--charcoal);"></textarea></div></div>
       <div class="field-row single"><div class="field-inline"><label>Frame</label><input type="text" id="stubFrame"></div></div>
+      <div class="field-row cols-3 stub-amounts">
+        <div class="field-inline"><label>Amount ₱</label><input type="text" id="stubAmount" readonly></div>
+        <div class="field-inline"><label>Deposit ₱</label><input type="text" id="stubDeposit" readonly></div>
+        <div class="field-inline"><label>Balance ₱</label><input type="text" id="stubBalance" readonly></div>
+      </div>
 
       <p class="forfeit-note">Eyeglasses or contact lenses not claimed within 60 days will be forfeited.</p>
 
@@ -1175,6 +1180,12 @@
   const stubDue = document.getElementById('stubDue');
   const ordFrame = document.getElementById('ordFrame');
   const stubFrame = document.getElementById('stubFrame');
+  const ordAmount = document.getElementById('amount');
+  const stubAmount = document.getElementById('stubAmount');
+  const ordDeposit = document.getElementById('deposit');
+  const stubDeposit = document.getElementById('stubDeposit');
+  const ordBalance = document.getElementById('balance');
+  const stubBalance = document.getElementById('stubBalance');
 
   // Mirror shared fields from the order side to the claim stub automatically,
   // so staff only type it once. mirrorPairs is also used to force a sync
@@ -1189,6 +1200,14 @@
     [ordDue, stubDue],
     [ordFrame, stubFrame],
     [ordLensType, stubLens],
+    // Amount/Deposit/Balance so the customer's stub shows what they owe
+    // and what's already paid without staff re-typing it -- Balance in
+    // particular is itself auto-calculated elsewhere (see "Balance
+    // auto-calculation" below), so its mirror only fires on the `input`
+    // event dispatched there, not on user typing (it's readonly).
+    [ordAmount, stubAmount],
+    [ordDeposit, stubDeposit],
+    [ordBalance, stubBalance],
   ];
   // Auto-grows a wrapping textarea to fit its content (used for lens_type
   // and its mirrored stubLens) instead of scrolling internally.
@@ -2185,6 +2204,11 @@
     if (!balanceManuallyEdited) {
       balanceInput.value = computedBalance ? computedBalance.toFixed(2) : '';
     }
+    // Balance is set programmatically above rather than typed, so it
+    // never fires the `input` event the stubBalance mirror listens for
+    // -- mirror it here directly so the claim stub always shows the
+    // same balance the order side just computed (or was manually set to).
+    stubBalance.value = balanceInput.value;
     // Payment status reads whatever balance is actually showing right
     // now -- the auto-computed one above, or a manually-overridden
     // value -- rather than assuming it's always amount minus deposit.
