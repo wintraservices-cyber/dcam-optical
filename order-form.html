@@ -697,8 +697,15 @@
          render); 3.67in is ~352px at 96dpi, so zoom needed to be well
          under half just to fit the height, even after the padding/gap
          trims below already cut real vertical space out of the layout
-         itself rather than relying on zoom alone. */
-      zoom: 0.34;
+         itself rather than relying on zoom alone.
+         Re-measured after narrowing the claim stub to 25% width below:
+         the order form got wider but not taller, so the usable-height
+         math is unchanged (3.67in strip minus 0.08in margins each side
+         = ~3.51in). 0.46 renders the slip at ~3.45in tall, close to
+         that ceiling with a small safety margin, versus the old 0.34
+         which only reached ~2.6in and left the slip looking tiny with
+         room to spare. */
+      zoom: 0.46;
     }
     .slip {
       border: 1.5px solid #000;
@@ -709,6 +716,12 @@
          fit, instead of silently spilling a few rows onto page 2. */
       page-break-inside: avoid;
       break-inside: avoid;
+      /* The claim stub only needs to carry a name, date, and job number
+         for pickup -- it doesn't need anywhere near the space the order
+         form itself needs, so on the printed slip give it a narrow 25%
+         and let the order form take the remaining 75%, rather than the
+         near-even split used on screen. */
+      grid-template-columns: 3fr 1fr !important;
     }
     .slip-half.order { border-right: 2px dashed #000; }
     .slip.receipt-mode .slip-half.order { border-right: none; }
