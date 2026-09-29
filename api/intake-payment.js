@@ -214,7 +214,10 @@ async function dashboardSummary(req, res, session) {
           totalCollectedToday: totalDeposit,
           totalOutstanding,
           totalExpensesToday: totalExpenses,
-          netCashToday: totalDeposit - totalExpenses,
+          // Net today = today's total sales value minus today's expenses
+          // -- a same-day profitability read, distinct from cash actually
+          // in hand (which would net expenses against deposits instead).
+          netToday: totalAmount - totalExpenses,
         };
       }
     }

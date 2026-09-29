@@ -262,15 +262,15 @@
         <div class="stat-value" id="statCollected">—</div>
         <div class="stat-note">Deposits taken today</div>
       </div>
-      <div class="stat-card accent-red">
-        <div class="stat-label">Outstanding</div>
-        <div class="stat-value" id="statOutstanding">—</div>
-        <div class="stat-note">Balance left on today's orders</div>
-      </div>
       <div class="stat-card accent-amber">
         <div class="stat-label">Expenses today</div>
         <div class="stat-value" id="statExpenses">—</div>
-        <div class="stat-note" id="statNetCash">&nbsp;</div>
+        <div class="stat-note">Logged against today</div>
+      </div>
+      <div class="stat-card" id="statNetCard">
+        <div class="stat-label">Net today</div>
+        <div class="stat-value" id="statNet">—</div>
+        <div class="stat-note">Sales minus expenses</div>
       </div>
     </div>
   </div>
@@ -534,10 +534,14 @@
         document.getElementById('statSales').textContent = peso(s.money.totalAmount);
         document.getElementById('statSalesNote').textContent = `across ${s.money.todaysOrderCount} order(s)`;
         document.getElementById('statCollected').textContent = peso(s.money.totalCollectedToday);
-        document.getElementById('statOutstanding').textContent = peso(s.money.totalOutstanding);
         document.getElementById('statExpenses').textContent = peso(s.money.totalExpensesToday);
-        const net = s.money.netCashToday;
-        document.getElementById('statNetCash').textContent = `Net cash: ${net < 0 ? '-' : ''}${peso(Math.abs(net))}`;
+
+        const net = s.money.netToday;
+        const netCard = document.getElementById('statNetCard');
+        const netValue = document.getElementById('statNet');
+        netCard.classList.remove('accent-green', 'accent-red');
+        netCard.classList.add(net < 0 ? 'accent-red' : 'accent-green');
+        netValue.textContent = (net < 0 ? '-' : '') + peso(Math.abs(net));
       }
     } catch (err) {
       document.getElementById('intakeList').innerHTML = `<div class="error-note">${escapeHtml(err.message)}</div>`;
