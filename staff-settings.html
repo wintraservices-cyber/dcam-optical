@@ -179,6 +179,25 @@
   .icon-btn.toggle { color: var(--charcoal-soft); }
   .icon-btn.reset { color: var(--blue-deep); }
   .icon-btn:hover { background: var(--ivory-dim); }
+  .icon-btn.restore { color: #3E8E5A; }
+  .icon-btn.purge { color: #B0405A; }
+
+  .subtabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .subtabs button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 7px 16px;
+    border-radius: 100px;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    color: var(--charcoal-soft);
+    cursor: pointer;
+  }
+  .subtabs button.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+  .subpanel { display: none; }
+  .subpanel.active { display: block; }
+  .deleted-meta { font-size: 0.78rem; color: var(--charcoal-soft); }
 
   .new-account-grid {
     display: grid;
@@ -359,6 +378,7 @@
     <button data-tab="business">Business info</button>
     <button data-tab="accounts">Staff accounts</button>
     <button data-tab="ai">AI assistant</button>
+    <button data-tab="trash">Trash</button>
   </div>
 
   <!-- Rx Ranges -->
@@ -663,6 +683,26 @@
         <span class="save-status" id="usageStatus"></span>
       </div>
       <div id="usageBody"><div class="loading-state">Open this tab to load usage.</div></div>
+    </div>
+  </div>
+
+  <!-- Trash -->
+  <div class="panel" id="panel-trash">
+    <div class="card">
+      <h2>Trash</h2>
+      <div class="card-sub">Orders and patients that staff have deleted. Restore a record to bring it back everywhere it was visible, or delete it permanently -- that cannot be undone.</div>
+
+      <div class="subtabs">
+        <button class="active" data-subtab="orders">Deleted orders</button>
+        <button data-subtab="patients">Deleted patients</button>
+      </div>
+
+      <div class="subpanel active" id="subpanel-orders">
+        <div id="trashOrdersList"><div class="loading-state">Open this tab to load deleted orders.</div></div>
+      </div>
+      <div class="subpanel" id="subpanel-patients">
+        <div id="trashPatientsList"><div class="loading-state">Open this tab to load deleted patients.</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1462,6 +1502,185 @@
   });
   document.getElementById('usageRefresh').addEventListener('click', loadUsage);
   document.querySelector('.tabs button[data-tab="ai"]').addEventListener('click', () => { if (!usageLoaded) loadUsage(); });
+
+  // ---- Trash (deleted orders + deleted patients) ----
+  let trashLoaded = false;
+
+  function formatDeletedMeta(deletedAt, deletedBy) {
+    const when = deletedAt ? new Date(deletedAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown time';
+    return `Deleted ${escapeHtml(when)}${deletedBy ? ' by ' + escapeHtml(deletedBy) : ''}`;
+  }
+
+  async function loadTrashOrders() {
+    const container = document.getElementById('trashOrdersList');
+    container.innerHTML = '<div class="loading-state">Loading…</div>';
+    try {
+      const resp = await fetch('/api/orders?trash=1');
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load deleted orders.');
+      renderTrashOrders(result.orders || []);
+    } catch (err) {
+      container.innerHTML = `<div class="save-status error">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderTrashOrders(orders) {
+    const container = document.getElementById('trashOrdersList');
+    if (!orders.length) {
+      container.innerHTML = '<div class="loading-state">Trash is empty.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>Order #</th><th>Patient</th><th>Amount</th><th>Deleted</th><th></th></tr></thead>
+        <tbody>
+          ${orders.map(o => `
+            <tr data-id="${o.id}">
+              <td>#${escapeHtml(o.order_no)}</td>
+              <td>${escapeHtml(o.patient_name || '—')}</td>
+              <td>₱${escapeHtml(Number(o.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</td>
+              <td class="deleted-meta">${formatDeletedMeta(o.deleted_at, o.deleted_by)}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="icon-btn restore" data-action="restore-order" data-id="${o.id}">Restore</button>
+                  <button type="button" class="icon-btn purge" data-action="purge-order" data-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">Delete forever</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    container.querySelectorAll('[data-action="restore-order"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          const resp = await fetch('/api/orders?action=restore&id=' + encodeURIComponent(btn.getAttribute('data-id')), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not restore this order.');
+          loadTrashOrders();
+        } catch (err) {
+          alert(err.message || 'Could not restore this order.');
+          btn.disabled = false;
+        }
+      });
+    });
+
+    container.querySelectorAll('[data-action="purge-order"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const orderNo = btn.getAttribute('data-order-no');
+        if (!confirm(`Permanently delete order #${orderNo}? This cannot be undone.`)) return;
+        btn.disabled = true;
+        try {
+          const resp = await fetch('/api/orders?purge=1&id=' + encodeURIComponent(btn.getAttribute('data-id')), { method: 'DELETE' });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not permanently delete this order.');
+          loadTrashOrders();
+        } catch (err) {
+          alert(err.message || 'Could not permanently delete this order.');
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  async function loadTrashPatients() {
+    const container = document.getElementById('trashPatientsList');
+    container.innerHTML = '<div class="loading-state">Loading…</div>';
+    try {
+      const resp = await fetch('/api/patients?trash=1');
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load deleted patients.');
+      renderTrashPatients(result.patients || []);
+    } catch (err) {
+      container.innerHTML = `<div class="save-status error">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderTrashPatients(patients) {
+    const container = document.getElementById('trashPatientsList');
+    if (!patients.length) {
+      container.innerHTML = '<div class="loading-state">Trash is empty.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th>Phone</th><th>Deleted</th><th></th></tr></thead>
+        <tbody>
+          ${patients.map(p => `
+            <tr data-id="${p.id}">
+              <td>${escapeHtml(p.name || 'Unknown')}</td>
+              <td>${escapeHtml(p.phone || '—')}</td>
+              <td class="deleted-meta">${formatDeletedMeta(p.deleted_at, p.deleted_by)}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="icon-btn restore" data-action="restore-patient" data-id="${p.id}">Restore</button>
+                  <button type="button" class="icon-btn purge" data-action="purge-patient" data-id="${p.id}" data-name="${escapeHtml(p.name || 'this patient')}">Delete forever</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    container.querySelectorAll('[data-action="restore-patient"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          const resp = await fetch('/api/patients?action=restore', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: btn.getAttribute('data-id') }),
+          });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not restore this patient.');
+          loadTrashPatients();
+        } catch (err) {
+          alert(err.message || 'Could not restore this patient.');
+          btn.disabled = false;
+        }
+      });
+    });
+
+    container.querySelectorAll('[data-action="purge-patient"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const name = btn.getAttribute('data-name');
+        if (!confirm(`Permanently delete patient "${name}"? This cannot be undone.`)) return;
+        btn.disabled = true;
+        try {
+          const resp = await fetch('/api/patients?purge=1&id=' + encodeURIComponent(btn.getAttribute('data-id')), { method: 'DELETE' });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not permanently delete this patient.');
+          loadTrashPatients();
+        } catch (err) {
+          alert(err.message || 'Could not permanently delete this patient.');
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  document.querySelectorAll('.subtabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const subtabs = btn.closest('.subtabs');
+      subtabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      const panelRoot = btn.closest('.panel');
+      panelRoot.querySelectorAll('.subpanel').forEach(p => p.classList.toggle('active', p.id === 'subpanel-' + btn.dataset.subtab));
+    });
+  });
+
+  document.querySelector('.tabs button[data-tab="trash"]').addEventListener('click', () => {
+    if (!trashLoaded) {
+      trashLoaded = true;
+      loadTrashOrders();
+      loadTrashPatients();
+    }
+  });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     try { await fetch('/api/staff-auth?action=logout', { method: 'POST' }); } catch (e) {}

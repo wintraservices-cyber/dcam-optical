@@ -53,7 +53,7 @@ function dateRangeFilter(from, to, field) {
 
 async function ordersReport(req, res, from, to) {
   try {
-    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000${dateRangeFilter(from, to, 'created_at')}`;
+    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${dateRangeFilter(from, to, 'created_at')}`;
     const resp = await supabaseRequest(path, { method: 'GET' });
     if (!resp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load orders for the report.' });
@@ -89,7 +89,7 @@ async function ordersReport(req, res, from, to) {
 
 async function salesReport(req, res, from, to) {
   try {
-    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000${dateRangeFilter(from, to, 'created_at')}`;
+    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${dateRangeFilter(from, to, 'created_at')}`;
     const resp = await supabaseRequest(path, { method: 'GET' });
     if (!resp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load orders for the report.' });
@@ -138,7 +138,7 @@ async function salesReport(req, res, from, to) {
 
 async function patientsReport(req, res) {
   try {
-    const resp = await supabaseRequest('patients?select=*&order=name.asc&limit=5000', { method: 'GET' });
+    const resp = await supabaseRequest('patients?select=*&order=name.asc&limit=5000&deleted_at=is.null', { method: 'GET' });
     if (!resp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load patients for the report.' });
       return;

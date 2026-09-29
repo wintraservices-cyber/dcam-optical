@@ -1,7 +1,14 @@
-const { requireAuth } = require('../lib/auth');
+const { requireAuth, requireAdmin } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 const { findOrCreatePatient } = require('../lib/patients-helper');
 const { logOrderAudit, diffFields } = require('../lib/audit');
+
+// Soft delete: any logged-in staff member can delete (sets deleted_at/
+// deleted_by rather than removing the row); only an admin can restore or
+// permanently delete, from the Trash tab on Settings. Every list/lookup
+// path below filters deleted_at=is.null so a soft-deleted order
+// disappears everywhere except Trash.
+const NOT_DELETED = '&deleted_at=is.null';
 
 // Field allow-list + length caps, same defensive pattern as the intake API.
 const FIELD_LIMITS = {
@@ -306,7 +313,7 @@ async function updateOrderFull(req, res, session) {
       console.error('Could not load pre-edit order for audit diff:', beforeErr);
     }
 
-    const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}`, {
+    const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}${NOT_DELETED}`, {
       method: 'PATCH',
       headers: { Prefer: 'return=representation' },
       body: JSON.stringify(record),
@@ -321,7 +328,7 @@ async function updateOrderFull(req, res, session) {
 
     const [saved] = await resp.json();
     if (!saved) {
-      res.status(404).json({ ok: false, error: 'Order not found.' });
+      res.status(404).json({ ok: false, error: 'Order not found (it may have been deleted).' });
       return;
     }
 
@@ -392,13 +399,15 @@ async function listOrders(req, res) {
   // order_items(*) embeds each order's line items in the same query,
   // using PostgREST's resource-embedding (a join via the order_items.order_id
   // foreign key) -- avoids a separate round-trip per order.
-  let path = 'orders?select=*,order_items(*)&order=created_at.desc&limit=100';
+  let path = `orders?select=*,order_items(*)&order=created_at.desc&limit=100${NOT_DELETED}`;
 
   // Fetching a single order by id -- used to load an existing order
   // into the order form for editing. Takes priority over q/status
-  // since it identifies exactly one row.
+  // since it identifies exactly one row. Excludes soft-deleted orders --
+  // a deleted order is only viewable/actionable from the Trash tab, not
+  // editable via the normal order form.
   if (id && typeof id === 'string') {
-    path = `orders?select=*,order_items(*)&id=eq.${encodeURIComponent(id)}&limit=1`;
+    path = `orders?select=*,order_items(*)&id=eq.${encodeURIComponent(id)}${NOT_DELETED}&limit=1`;
     try {
       const resp = await supabaseRequest(path, { method: 'GET' });
       if (!resp.ok) {
@@ -502,7 +511,7 @@ async function updateOrderStatus(req, res, session) {
       console.error('Could not load pre-edit order for audit diff:', beforeErr);
     }
 
-    const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}`, {
+    const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}${NOT_DELETED}`, {
       method: 'PATCH',
       headers: { Prefer: 'return=representation' },
       body: JSON.stringify(patch),
@@ -671,9 +680,133 @@ async function nextOrderNumber(req, res) {
   }
 }
 
+// ---------------------------------------------------------------------
+// Soft delete / Trash. Any logged-in staff member can soft-delete an
+// order (DELETE ?id=X); only an admin can list the trash, restore, or
+// permanently delete, from the Trash tab on Settings.
+// ---------------------------------------------------------------------
+
+async function softDeleteOrder(req, res, session) {
+  const { id } = req.query || {};
+  if (!id) {
+    res.status(400).json({ ok: false, error: 'An order id is required.' });
+    return;
+  }
+  try {
+    const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}${NOT_DELETED}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ deleted_at: new Date().toISOString(), deleted_by: session.username }),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('Supabase order soft-delete error:', resp.status, errText);
+      res.status(502).json({ ok: false, error: 'Could not delete this order.' });
+      return;
+    }
+    const [deleted] = await resp.json();
+    if (!deleted) {
+      res.status(404).json({ ok: false, error: 'Order not found (it may already be deleted).' });
+      return;
+    }
+    res.status(200).json({ ok: true, order: deleted });
+  } catch (err) {
+    console.error('Unexpected error soft-deleting order:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
+// Admin only, from here down.
+
+async function listDeletedOrders(req, res) {
+  try {
+    const path = 'orders?select=*,order_items(*)&deleted_at=not.is.null&order=deleted_at.desc&limit=500';
+    const resp = await supabaseRequest(path, { method: 'GET' });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('Supabase deleted-orders list error:', resp.status, errText);
+      res.status(502).json({ ok: false, error: 'Could not load the trash.' });
+      return;
+    }
+    const orders = await resp.json();
+    res.status(200).json({ ok: true, orders });
+  } catch (err) {
+    console.error('Unexpected error listing deleted orders:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
+async function restoreOrder(req, res) {
+  const { id } = req.query || {};
+  if (!id) {
+    res.status(400).json({ ok: false, error: 'An order id is required.' });
+    return;
+  }
+  try {
+    const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}&deleted_at=not.is.null`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ deleted_at: null, deleted_by: null }),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('Supabase order restore error:', resp.status, errText);
+      res.status(502).json({ ok: false, error: 'Could not restore this order.' });
+      return;
+    }
+    const [restored] = await resp.json();
+    if (!restored) {
+      res.status(404).json({ ok: false, error: 'Deleted order not found.' });
+      return;
+    }
+    res.status(200).json({ ok: true, order: restored });
+  } catch (err) {
+    console.error('Unexpected error restoring order:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
+// Permanent delete -- only reachable for a row already in the trash
+// (deleted_at not null), so this can never be used to skip the soft
+// delete step. Also removes the order's line items first since they
+// have a foreign key on order_id with no cascade configured.
+async function purgeOrder(req, res) {
+  const { id } = req.query || {};
+  if (!id) {
+    res.status(400).json({ ok: false, error: 'An order id is required.' });
+    return;
+  }
+  try {
+    const checkResp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}&deleted_at=not.is.null&limit=1`, { method: 'GET' });
+    if (!checkResp.ok) {
+      res.status(502).json({ ok: false, error: 'Could not verify this order.' });
+      return;
+    }
+    const [existing] = await checkResp.json();
+    if (!existing) {
+      res.status(404).json({ ok: false, error: 'This order is not in the trash.' });
+      return;
+    }
+
+    await supabaseRequest(`order_items?order_id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
+
+    const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('Supabase order purge error:', resp.status, errText);
+      res.status(502).json({ ok: false, error: 'Could not permanently delete this order.' });
+      return;
+    }
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('Unexpected error purging order:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -698,9 +831,20 @@ module.exports = async (req, res) => {
     if (req.query && req.query.audit === '1' && req.query.id) {
       return getOrderAudit(req, res);
     }
+    // ?trash=1 lists soft-deleted orders -- admin only, for the Trash
+    // tab on Settings.
+    if (req.query && req.query.trash === '1') {
+      if (!requireAdmin(req, res)) return;
+      return listDeletedOrders(req, res);
+    }
     return listOrders(req, res);
   }
   if (req.method === 'PATCH') {
+    // ?action=restore brings a soft-deleted order back -- admin only.
+    if (req.query && req.query.action === 'restore') {
+      if (!requireAdmin(req, res)) return;
+      return restoreOrder(req, res);
+    }
     // Distinguish the full order-form edit from the lightweight
     // status/payment-only quick-edit used by the staff-orders list's
     // inline dropdowns -- same route, explicit flag decides which
@@ -711,6 +855,16 @@ module.exports = async (req, res) => {
     }
     if (body && body.full_edit === true) return updateOrderFull(req, res, session);
     return updateOrderStatus(req, res, session);
+  }
+  if (req.method === 'DELETE') {
+    // ?purge=1 permanently deletes an already-soft-deleted order --
+    // admin only. Plain DELETE (no purge flag) is the everyday soft
+    // delete, available to any logged-in staff member.
+    if (req.query && req.query.purge === '1') {
+      if (!requireAdmin(req, res)) return;
+      return purgeOrder(req, res);
+    }
+    return softDeleteOrder(req, res, session);
   }
 
   res.status(405).json({ ok: false, error: 'Method not allowed' });

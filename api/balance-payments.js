@@ -56,7 +56,7 @@ async function recordPayment(req, res, session) {
 
   try {
     // Look up the order to get its order_no (for the log) and current balance.
-    const orderResp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(order_id)}&limit=1`, { method: 'GET' });
+    const orderResp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(order_id)}&deleted_at=is.null&limit=1`, { method: 'GET' });
     if (!orderResp.ok) {
       const errText = await orderResp.text();
       console.error('Supabase order lookup error:', orderResp.status, errText);
@@ -104,7 +104,7 @@ async function recordPayment(req, res, session) {
       updated_at: new Date().toISOString(),
     };
 
-    const updateResp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(order_id)}`, {
+    const updateResp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(order_id)}&deleted_at=is.null`, {
       method: 'PATCH',
       headers: { Prefer: 'return=representation' },
       body: JSON.stringify(orderPatch),

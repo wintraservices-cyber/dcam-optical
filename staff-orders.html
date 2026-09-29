@@ -337,6 +337,18 @@
     }
   }
 
+  async function deleteOrder(id, orderNo) {
+    if (!confirm(`Delete order #${orderNo}? It moves to Trash -- an admin can restore it or delete it permanently from Settings.`)) return;
+    try {
+      const resp = await fetch('/api/orders?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not delete this order.');
+      loadOrders();
+    } catch (err) {
+      alert(err.message || 'Could not delete this order.');
+    }
+  }
+
   async function loadOrders() {
     content.innerHTML = '<div class="loading-state">Loading orders…</div>';
     const params = new URLSearchParams();
@@ -369,7 +381,7 @@
 
     const rows = orders.map(o => `
       <tr>
-        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a> <a href="order-form.html?id=${o.id}&print=1" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Print</a> <a href="order-form.html?id=${o.id}&threeup=1" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Print (3-up)</a></td>
+        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a> <a href="order-form.html?id=${o.id}&print=1" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Print</a> <a href="order-form.html?id=${o.id}&threeup=1" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Print (3-up)</a> <button type="button" class="delete-order-btn" style="font-family: var(--display); font-weight: 600; font-size: 0.72rem; padding: 4px 10px; border-radius: 100px; border: 1px solid #B0405A; background: #fff; color: #B0405A; cursor: pointer; margin-top: 4px; display: inline-block;" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">Delete</button></td>
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
         <td data-label="Date">${escapeHtml(o.order_date) || '—'}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>
@@ -472,6 +484,13 @@
         const orderId = btn.getAttribute('data-order-id');
         const panel = document.getElementById('paymentPanel-' + orderId);
         if (panel) panel.classList.toggle('open');
+      });
+    });
+
+    // ---- Delete (soft delete -- moves to Trash, admin can restore) ----
+    content.querySelectorAll('.delete-order-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        deleteOrder(btn.getAttribute('data-order-id'), btn.getAttribute('data-order-no'));
       });
     });
 

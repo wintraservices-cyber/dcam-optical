@@ -280,6 +280,32 @@
     white-space: nowrap;
   }
   .edit-patient-btn:hover { background: var(--ivory-dim); }
+  .delete-patient-btn {
+    background: none;
+    border: 1px solid #B0405A;
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: #B0405A;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-left: 8px;
+  }
+  .delete-patient-btn:hover { background: rgba(176,64,90,0.08); }
+  .delete-order-record-btn {
+    background: none;
+    border: 1px solid #B0405A;
+    border-radius: 100px;
+    padding: 3px 10px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.74rem;
+    color: #B0405A;
+    cursor: pointer;
+  }
+  .delete-order-record-btn:hover { background: rgba(176,64,90,0.08); }
 
   .edit-patient-form {
     display: none;
@@ -825,6 +851,7 @@
               </select>
               <a href="order-form.html?id=${o.id}" class="move-record-btn" style="text-decoration:underline;">Edit order</a>
               <button type="button" class="move-record-btn" data-kind="order" data-id="${o.id}">Move to different patient</button>
+              <button type="button" class="delete-order-record-btn" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">Delete</button>
             </div>
             <div class="move-record-panel" id="movePanel-order-${o.id}">
               <input type="text" class="move-target-input" placeholder="New patient's phone number">
@@ -847,6 +874,7 @@
             </div>
           </div>
           <button type="button" class="edit-patient-btn" id="editPatientBtn">Edit</button>
+          <button type="button" class="delete-patient-btn" id="deletePatientBtn" data-patient-id="${patient.id}" data-patient-name="${escapeHtml(patient.name)}">Delete patient</button>
         </div>
         <div class="edit-patient-form" id="editPatientForm">
           <div class="edit-patient-grid">
@@ -950,6 +978,45 @@
       } finally {
         saveBtn.disabled = false;
       }
+    });
+
+    // ---- Delete patient (soft delete -- moves to Trash, admin can restore) ----
+    const deletePatientBtn = document.getElementById('deletePatientBtn');
+    if (deletePatientBtn) {
+      deletePatientBtn.addEventListener('click', async () => {
+        const id = deletePatientBtn.getAttribute('data-patient-id');
+        const name = deletePatientBtn.getAttribute('data-patient-name');
+        if (!confirm(`Delete patient "${name}"? They move to Trash -- an admin can restore them or delete permanently from Settings. Their orders are not deleted.`)) return;
+        deletePatientBtn.disabled = true;
+        try {
+          const resp = await fetch('/api/patients?id=' + encodeURIComponent(id), { method: 'DELETE' });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not delete this patient.');
+          search();
+        } catch (err) {
+          alert(err.message || 'Could not delete this patient.');
+          deletePatientBtn.disabled = false;
+        }
+      });
+    }
+
+    // ---- Delete order (soft delete -- moves to Trash, admin can restore) ----
+    content.querySelectorAll('.delete-order-record-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-order-id');
+        const orderNo = btn.getAttribute('data-order-no');
+        if (!confirm(`Delete order #${orderNo}? It moves to Trash -- an admin can restore it or delete it permanently from Settings.`)) return;
+        btn.disabled = true;
+        try {
+          const resp = await fetch('/api/orders?id=' + encodeURIComponent(id), { method: 'DELETE' });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not delete this order.');
+          viewPatient(patient.phone);
+        } catch (err) {
+          alert(err.message || 'Could not delete this order.');
+          btn.disabled = false;
+        }
+      });
     });
 
     // ---- Move a record (intake or order) to a different patient ----

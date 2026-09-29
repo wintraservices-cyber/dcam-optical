@@ -557,3 +557,21 @@ create index if not exists withdrawals_date_idx on withdrawals (withdrawal_date 
 
 alter table withdrawals enable row level security;
 
+-- ---------------------------------------------------------------------
+-- Soft delete for orders and patients. Any logged-in staff member can
+-- soft-delete (sets deleted_at/deleted_by, row stays in place); only an
+-- admin can restore (clears both columns) or permanently delete (a real
+-- DELETE) from the Trash tab on Settings. Every other read path in the
+-- app (order lists, patient lookup, reports, the staff AI assistant,
+-- balance payments, intake linking, order-number suggestions) filters
+-- deleted_at is null so a soft-deleted row disappears everywhere except
+-- Trash, without needing a schema change anywhere else.
+-- ---------------------------------------------------------------------
+alter table orders add column if not exists deleted_at timestamptz;
+alter table orders add column if not exists deleted_by text;
+create index if not exists orders_deleted_at_idx on orders (deleted_at);
+
+alter table patients add column if not exists deleted_at timestamptz;
+alter table patients add column if not exists deleted_by text;
+create index if not exists patients_deleted_at_idx on patients (deleted_at);
+
