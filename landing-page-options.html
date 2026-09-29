@@ -695,6 +695,45 @@ body.theme-dark{background:#0E0B0C}
   var m=location.hash.match(/option-([abcd])/); if(m) document.querySelector('.tab[data-tab="'+m[1]+'"]').click();
   if(/dark/.test(location.search)) setDark(true);
   window.addEventListener('resize',fit); fit();
+  // Option D: glasses follow the cursor; wander on their own when idle.
+  (function(){
+    var rig=document.querySelector('.opt-d [style*="dDrift"]'); if(!rig) return;
+    if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var counters=[].slice.call(document.querySelectorAll('.opt-d [style*="dCounter"]'));
+    var hero=rig.parentElement; rig.classList.add('d-rig');
+    rig.style.animation='none'; counters.forEach(function(c){c.style.animation='none';});
+    var W=1440, CX=700+320, CY=140+125;
+    var x=0,y=0, tx=0,ty=0, pointer=null, lastMove=0, t0=performance.now();
+    function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+    function point(cx,cy){
+      var r=hero.getBoundingClientRect(), s=r.width/W;
+      pointer={x:(cx-r.left)/s, y:(cy-r.top)/s}; lastMove=performance.now();
+    }
+    hero.addEventListener('mousemove',function(e){point(e.clientX,e.clientY);});
+    hero.addEventListener('mouseleave',function(){pointer=null;});
+    hero.addEventListener('touchmove',function(e){var t=e.touches[0]; if(t) point(t.clientX,t.clientY);},{passive:true});
+    hero.addEventListener('touchend',function(){pointer=null;});
+    function frame(now){
+      requestAnimationFrame(frame);
+      if(!rig.offsetParent) return;
+      var idle=!pointer || now-lastMove>3500, k;
+      if(idle){
+        var t=(now-t0)/1000;
+        tx=-70+140*Math.sin(t*0.31)+45*Math.sin(t*0.73+0.6);
+        ty=-5+45*Math.sin(t*0.47+1)+18*Math.sin(t*1.13);
+        k=0.025;
+      } else {
+        tx=clamp(pointer.x-CX,-860,340); ty=clamp(pointer.y-CY,-150,520);
+        k=0.09;
+      }
+      x+=(tx-x)*k; y+=(ty-y)*k;
+      rig.style.transform='translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px)';
+      var inv='translate('+(-x).toFixed(1)+'px,'+(-y).toFixed(1)+'px)';
+      counters.forEach(function(c){c.style.transform=inv;});
+    }
+    requestAnimationFrame(frame);
+  })();
+
 })();
 </script>
 <script src="/site-assistant.js" defer></script>
