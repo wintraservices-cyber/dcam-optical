@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — DCAM Optical (Staff)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #B05A9E;
+    --purple-deep: #8F4680;
+    --blue: #5BAFC0;
+    --blue-deep: #458F9E;
+    --ivory: #F7F1E8;
+    --ivory-dim: #EFE6D8;
+    --charcoal: #383334;
+    --charcoal-soft: #4A4547;
+    --line: rgba(56,51,52,0.14);
+    --green: #3E8E5A;
+    --red: #B0405A;
+    --display: 'Plus Jakarta Sans', sans-serif;
+    --body: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--charcoal); font-family: var(--body); }
+
+  .staff-bar {
+    background: var(--charcoal);
+    color: var(--ivory);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .staff-bar .tag {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .staff-bar .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .staff-bar a, .staff-bar button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-light { background: var(--ivory); color: var(--charcoal); }
+  .btn-ghost { background: transparent; color: var(--ivory); border: 1px solid rgba(247,241,232,0.4) !important; }
+  .btn-ghost:hover { background: rgba(247,241,232,0.1); }
+
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .greeting {
+    font-family: var(--display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .greeting-sub { color: var(--charcoal-soft); font-size: 0.92rem; margin-bottom: 28px; }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 900px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .stat-row { grid-template-columns: 1fr; } }
+
+  .stat-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
+  }
+  .stat-card .stat-label {
+    font-family: var(--display);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    margin-bottom: 8px;
+  }
+  .stat-card .stat-value {
+    font-family: var(--display);
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: var(--charcoal);
+  }
+  .stat-card .stat-note { font-size: 0.8rem; color: var(--charcoal-soft); margin-top: 4px; }
+  .stat-card.accent-purple .stat-value { color: var(--purple-deep); }
+  .stat-card.accent-blue .stat-value { color: var(--blue-deep); }
+  .stat-card.accent-green .stat-value { color: var(--green); }
+  .stat-card.accent-red .stat-value { color: var(--red); }
+
+  .section {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 24px;
+    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
+    margin-bottom: 24px;
+  }
+  .section h2 {
+    font-family: var(--display);
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .section .section-sub { color: var(--charcoal-soft); font-size: 0.86rem; margin-bottom: 16px; }
+
+  .intake-list { display: flex; flex-direction: column; gap: 10px; }
+  .intake-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+  }
+  .intake-row .intake-info { min-width: 0; }
+  .intake-row .intake-name { font-family: var(--display); font-weight: 700; font-size: 0.94rem; }
+  .intake-row .intake-meta { font-size: 0.82rem; color: var(--charcoal-soft); margin-top: 2px; }
+  .intake-row .intake-actions { display: flex; gap: 8px; flex: none; }
+  .btn-pill {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 8px 16px;
+    border-radius: 100px;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    color: var(--charcoal-soft);
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    white-space: nowrap;
+  }
+  .btn-pill:hover { border-color: var(--purple); color: var(--purple-deep); }
+  .btn-pill.primary { background: var(--purple); color: #fff; border-color: var(--purple); }
+  .btn-pill.primary:hover { background: var(--purple-deep); border-color: var(--purple-deep); }
+
+  .empty-note { color: var(--charcoal-soft); font-size: 0.9rem; padding: 8px 0; }
+  .loading-note { color: var(--charcoal-soft); font-size: 0.9rem; padding: 8px 0; }
+  .error-note { color: var(--red); font-size: 0.9rem; padding: 8px 0; }
+
+  .quick-links {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 700px) { .quick-links { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 460px) { .quick-links { grid-template-columns: 1fr; } }
+  .quick-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--charcoal);
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .quick-link:hover { border-color: var(--blue); background: rgba(91,175,192,0.06); }
+
+  .status-breakdown { display: flex; gap: 20px; flex-wrap: wrap; }
+  .status-chip { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .status-dot.ordered { background: var(--blue); }
+  .status-dot.ready { background: #D9A441; }
+  .status-dot.claimed { background: var(--green); }
+</style>
+</head>
+<body>
+
+<div class="staff-bar">
+  <div class="tag">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    Staff only — dashboard
+  </div>
+  <div class="actions">
+    <a href="staff-orders.html" class="btn-light">Orders</a>
+    <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
+    <a href="staff-catalog.html" class="btn-light">Catalog</a>
+    <a href="staff-expenses.html" class="btn-light">Expenses</a>
+    <a href="staff-reports.html" class="btn-light">Reports</a>
+    <a href="staff-settings.html" class="btn-light">Settings</a>
+    <a href="order-form.html" class="btn-light">New order</a>
+    <button class="btn-ghost" id="logoutBtn">Log out</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="greeting" id="greeting">Welcome back</div>
+  <div class="greeting-sub" id="greetingSub">Here's what's happening today.</div>
+
+  <div class="stat-row" id="statRow">
+    <div class="stat-card accent-red">
+      <div class="stat-label">New intakes</div>
+      <div class="stat-value" id="statNewIntakes">—</div>
+      <div class="stat-note">Waiting for a first contact</div>
+    </div>
+    <div class="stat-card accent-blue">
+      <div class="stat-label">Today's orders</div>
+      <div class="stat-value" id="statTodaysOrders">—</div>
+      <div class="stat-note" id="statTodaysOrdersNote">&nbsp;</div>
+    </div>
+    <div class="stat-card accent-green" id="statMoneyCard" style="display:none;">
+      <div class="stat-label">Collected today</div>
+      <div class="stat-value" id="statCollected">—</div>
+      <div class="stat-note" id="statCollectedNote">&nbsp;</div>
+    </div>
+    <div class="stat-card accent-purple" id="statOutstandingCard" style="display:none;">
+      <div class="stat-label">Outstanding today</div>
+      <div class="stat-value" id="statOutstanding">—</div>
+      <div class="stat-note">Balance left on today's orders</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>New patient intakes</h2>
+    <div class="section-sub">Submitted through the site's intake form and not yet contacted. Mark one contacted once you've called and either booked them in or resolved the inquiry.</div>
+    <div class="intake-list" id="intakeList">
+      <div class="loading-note">Loading…</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Today's orders</h2>
+    <div class="section-sub" id="todaysOrdersSub">&nbsp;</div>
+    <div class="status-breakdown" id="statusBreakdown">
+      <div class="loading-note">Loading…</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Quick links</h2>
+    <div class="quick-links">
+      <a href="order-form.html" class="quick-link">New order</a>
+      <a href="staff-orders.html" class="quick-link">All orders</a>
+      <a href="staff-patient-lookup.html" class="quick-link">Patient lookup</a>
+      <a href="staff-catalog.html" class="quick-link">Catalog</a>
+      <a href="staff-expenses.html" class="quick-link">Expenses</a>
+      <a href="staff-reports.html" class="quick-link">Reports</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function peso(n) {
+    return '₱' + (Number(n) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  let currentRole = null;
+  let currentUsername = null;
+
+  async function checkAuth() {
+    try {
+      const resp = await fetch('/api/staff-auth');
+      const result = await resp.json();
+      if (!result.authenticated) {
+        window.location.href = 'staff-login.html?next=staff-dashboard.html';
+        return false;
+      }
+      currentRole = result.role;
+      currentUsername = result.username || '';
+      document.getElementById('greeting').textContent = currentUsername ? `Welcome back, ${currentUsername}` : 'Welcome back';
+      if (currentRole === 'admin') {
+        document.getElementById('statMoneyCard').style.display = '';
+        document.getElementById('statOutstandingCard').style.display = '';
+      }
+      return true;
+    } catch (e) {
+      window.location.href = 'staff-login.html?next=staff-dashboard.html';
+      return false;
+    }
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const then = new Date(iso).getTime();
+    const diffMin = Math.max(0, Math.round((Date.now() - then) / 60000));
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.round(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.round(diffHr / 24);
+    return `${diffDay}d ago`;
+  }
+
+  function renderIntakes(intakes) {
+    const list = document.getElementById('intakeList');
+    if (!intakes.length) {
+      list.innerHTML = '<div class="empty-note">No new intakes right now — you\'re all caught up.</div>';
+      return;
+    }
+    list.innerHTML = intakes.map(i => `
+      <div class="intake-row" data-intake-id="${i.id}">
+        <div class="intake-info">
+          <div class="intake-name">${escapeHtml(i.fname)} ${escapeHtml(i.lname)}</div>
+          <div class="intake-meta">
+            ${escapeHtml(i.phone) || '—'}
+            ${i.reason ? ' · ' + escapeHtml(i.reason) : ''}
+            ${i.pref_date ? ' · wants ' + escapeHtml(i.pref_date) + (i.pref_time ? ' ' + escapeHtml(i.pref_time) : '') : ''}
+            · ${timeAgo(i.created_at)}
+          </div>
+        </div>
+        <div class="intake-actions">
+          <a href="staff-patient-lookup.html?phone=${encodeURIComponent(i.phone || '')}" class="btn-pill">Look up</a>
+          <button type="button" class="btn-pill primary mark-contacted-btn" data-id="${i.id}">Mark contacted</button>
+        </div>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('.mark-contacted-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        try {
+          const resp = await fetch('/api/intake-payment?resource=intakes&action=contacted', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id }),
+          });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not update this intake.');
+          const row = btn.closest('.intake-row');
+          if (row) row.remove();
+          const remaining = list.querySelectorAll('.intake-row').length;
+          document.getElementById('statNewIntakes').textContent = remaining;
+          if (!remaining) {
+            list.innerHTML = '<div class="empty-note">No new intakes right now — you\'re all caught up.</div>';
+          }
+        } catch (err) {
+          alert(err.message || 'Could not update this intake.');
+          btn.disabled = false;
+          btn.textContent = 'Mark contacted';
+        }
+      });
+    });
+  }
+
+  function renderStatusBreakdown(byStatus, total) {
+    const el = document.getElementById('statusBreakdown');
+    if (!total) {
+      el.innerHTML = '<div class="empty-note">No orders placed today yet.</div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="status-chip"><span class="status-dot ordered"></span>Ordered: ${byStatus.ordered || 0}</div>
+      <div class="status-chip"><span class="status-dot ready"></span>Ready: ${byStatus.ready || 0}</div>
+      <div class="status-chip"><span class="status-dot claimed"></span>Claimed: ${byStatus.claimed || 0}</div>
+    `;
+  }
+
+  async function loadDashboard() {
+    try {
+      const resp = await fetch('/api/intake-payment?resource=dashboard');
+      if (resp.status === 401) {
+        window.location.href = 'staff-login.html?next=staff-dashboard.html';
+        return;
+      }
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load the dashboard.');
+
+      const s = result.summary;
+      document.getElementById('greetingSub').textContent = `Today is ${s.today}.`;
+
+      document.getElementById('statNewIntakes').textContent = s.newIntakeCount;
+      renderIntakes(s.newIntakes || []);
+
+      document.getElementById('statTodaysOrders').textContent = s.todaysOrders.total;
+      document.getElementById('statTodaysOrdersNote').textContent = s.todaysOrders.total === 1 ? 'order placed today' : 'orders placed today';
+      document.getElementById('todaysOrdersSub').textContent = `${s.todaysOrders.total} order(s) with today's order date, by status.`;
+      renderStatusBreakdown(s.todaysOrders.byStatus, s.todaysOrders.total);
+
+      if (s.money) {
+        document.getElementById('statCollected').textContent = peso(s.money.totalCollectedToday);
+        document.getElementById('statCollectedNote').textContent = `across ${s.money.todaysOrderCount} order(s)`;
+        document.getElementById('statOutstanding').textContent = peso(s.money.totalOutstanding);
+      }
+    } catch (err) {
+      document.getElementById('intakeList').innerHTML = `<div class="error-note">${escapeHtml(err.message)}</div>`;
+      document.getElementById('statusBreakdown').innerHTML = `<div class="error-note">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/staff-auth?action=logout', { method: 'POST' });
+    window.location.href = 'staff-login.html';
+  });
+
+  checkAuth().then(ok => { if (ok) loadDashboard(); });
+})();
+</script>
+<script src="staff-assistant.js" defer></script>
+</body>
+</html>

@@ -575,3 +575,16 @@ alter table patients add column if not exists deleted_at timestamptz;
 alter table patients add column if not exists deleted_by text;
 create index if not exists patients_deleted_at_idx on patients (deleted_at);
 
+
+-- ---------------------------------------------------------------------
+-- Intake status for the staff/admin Dashboard's "new intakes" queue.
+-- Every intake starts 'new' (needs a look) and any logged-in staff
+-- member can mark it 'contacted' once they've called the patient and
+-- either booked them in or resolved the inquiry some other way. This is
+-- deliberately manual and separate from whether an order exists yet --
+-- an intake can be marked contacted without an order (patient
+-- rescheduled, didn't qualify, etc.), and the dashboard cross-references
+-- orders separately just as a hint, not as the dismiss mechanism.
+-- ---------------------------------------------------------------------
+alter table intake_submissions add column if not exists status text not null default 'new' check (status in ('new', 'contacted'));
+create index if not exists intake_status_idx on intake_submissions (status);

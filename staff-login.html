@@ -130,9 +130,9 @@
   const btn = document.getElementById('loginBtn');
 
   // If redirected here with ?next=..., go there after login; otherwise
-  // default to the staff orders list.
+  // default to the staff Dashboard.
   const params = new URLSearchParams(window.location.search);
-  const next = params.get('next') || 'staff-orders.html';
+  const next = params.get('next') || 'staff-dashboard.html';
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

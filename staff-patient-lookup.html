@@ -525,6 +525,7 @@
     Staff only — patient lookup
   </div>
   <div class="actions">
+    <a href="staff-dashboard.html" class="btn-light">Dashboard</a>
     <a href="staff-orders.html" class="btn-light">All orders</a>
     <a href="staff-catalog.html" class="btn-light">Catalog</a>
     <a href="staff-reports.html" class="btn-light">Reports</a>
@@ -1087,7 +1088,18 @@
   }
 
   searchBtn.addEventListener('click', search);
-  search(); // initial load — empty query returns the full patient list
+
+  // Arriving from the Dashboard's "Look up" link on a new intake
+  // (staff-patient-lookup.html?phone=...) -- jump straight into that
+  // patient's detail view instead of the full list.
+  const linkedPhone = new URLSearchParams(window.location.search).get('phone');
+  if (linkedPhone) {
+    phoneInput.value = linkedPhone;
+    viewPatient(linkedPhone);
+  } else {
+    search(); // initial load — empty query returns the full patient list
+  }
+
   phoneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
