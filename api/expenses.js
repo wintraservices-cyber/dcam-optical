@@ -4,15 +4,13 @@
 // Hobby plan caps a project at 12 serverless functions and this project
 // is already at that cap.
 //
-// Admin can always log/view/delete entries of either kind. Whether
-// ordinary staff can also log EXPENSE entries is controlled by the
-// app_settings 'expense_access' key ({staff_enabled: true|false}) --
-// admin-only by default until that flag is turned on in Settings.
-// Withdrawals are always admin-only, with no equivalent staff-access
-// flag, since they represent larger, less frequent cash movements
-// (payroll, draws) rather than day-to-day petty cash. Staff (non-admin)
-// can never delete an expense entry, even when their access is enabled,
-// since expenses double as a lightweight financial record.
+// Both resources are admin-only for every method, full stop -- staff
+// never see the Expenses page at all (its nav button is hidden for
+// them), and this endpoint backs that up server-side rather than
+// relying on the UI alone. There used to be an app_settings
+// 'expense_access' toggle letting an admin opt staff into logging
+// expenses; that's been removed in favor of a flat admin-only rule, so
+// there's no longer a setting that can quietly widen access.
 //
 // Both resources share the same request shape, selected via
 // ?resource=expenses (default) or ?resource=withdrawals:
@@ -24,13 +22,10 @@
 // POST { ... } -> create an entry (expenses: expense_date, type,
 //      details, amount; withdrawals: withdrawal_date, description,
 //      amount, source)
-// PATCH ?id=X { ... } -> edit an entry (admin only, same as delete --
-//      both resources double as a lightweight financial record, so
-//      correcting a past entry is kept to the same trust level as
-//      removing one)
-// DELETE ?id=X -> remove an entry (admin only)
+// PATCH ?id=X { ... } -> edit an entry
+// DELETE ?id=X -> remove an entry
 
-const { requireAuth, requireAdmin } = require('../lib/auth');
+const { requireAdmin } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 
 const TYPE_MAX_LEN = 60;
@@ -43,22 +38,6 @@ function sanitizeText(value, maxLen) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, maxLen) : null;
-}
-
-// Reads the current staff-access flag from app_settings. Defaults to
-// disabled (admin-only) if the key has never been set, so a fresh
-// deploy can't accidentally let anyone log expenses before an admin
-// has deliberately turned it on.
-async function staffAccessEnabled() {
-  try {
-    const resp = await supabaseRequest('app_settings?key=eq.expense_access&limit=1', { method: 'GET' });
-    if (!resp.ok) return false;
-    const [row] = await resp.json();
-    return !!(row && row.value && row.value.staff_enabled === true);
-  } catch (err) {
-    console.error('Could not read expense_access setting, defaulting to admin-only:', err);
-    return false;
-  }
 }
 
 function dateRangeFilter(from, to) {
@@ -452,15 +431,13 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const session = requireAuth(req, res);
+  // Both resources, every method: admin only. No staff exception.
+  const session = requireAdmin(req, res);
   if (!session) return;
 
   const resource = (req.query && req.query.resource) === 'withdrawals' ? 'withdrawals' : 'expenses';
 
-  // Withdrawals: always admin-only for every method, no staff-access flag.
   if (resource === 'withdrawals') {
-    if (!requireAdmin(req, res)) return;
-
     if (req.method === 'GET') return listWithdrawals(req, res);
     if (req.method === 'POST') return createWithdrawal(req, res, session);
     if (req.method === 'PATCH') return updateWithdrawal(req, res);
@@ -472,38 +449,12 @@ module.exports = async (req, res) => {
 
   if (req.method === 'GET') {
     if (req.query && req.query.types === '1') return listTypes(req, res);
-    if (req.query && req.query.access === '1') {
-      // Lets the page ask "can I even show the entry form to this
-      // person?" without duplicating the settings lookup client-side.
-      const enabled = session.role === 'admin' || await staffAccessEnabled();
-      res.status(200).json({ ok: true, can_log: enabled, is_admin: session.role === 'admin' });
-      return;
-    }
     return listExpenses(req, res);
   }
 
-  if (req.method === 'POST') {
-    if (session.role !== 'admin') {
-      const enabled = await staffAccessEnabled();
-      if (!enabled) {
-        res.status(403).json({ ok: false, error: 'Logging expenses is currently admin-only.' });
-        return;
-      }
-    }
-    return createExpense(req, res, session);
-  }
-
-  if (req.method === 'PATCH') {
-    // Editing is admin-only, same as delete -- see the note above.
-    if (!requireAdmin(req, res)) return;
-    return updateExpense(req, res);
-  }
-
-  if (req.method === 'DELETE') {
-    // Deleting is always admin-only, regardless of the staff-logging flag.
-    if (!requireAdmin(req, res)) return;
-    return deleteExpense(req, res);
-  }
+  if (req.method === 'POST') return createExpense(req, res, session);
+  if (req.method === 'PATCH') return updateExpense(req, res);
+  if (req.method === 'DELETE') return deleteExpense(req, res);
 
   res.status(405).json({ ok: false, error: 'Method not allowed' });
 };

@@ -123,16 +123,6 @@
   .entry-status.error { color: #B0405A; }
   .entry-status.success { color: #3E8E5A; }
 
-  .locked-note {
-    background: #fff;
-    border-radius: 16px;
-    padding: 24px 22px;
-    margin-bottom: 22px;
-    color: var(--charcoal-soft);
-    font-size: 0.92rem;
-    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
-  }
-
   .controls { margin-bottom: 18px; }
 
   .total-tile {
@@ -230,6 +220,8 @@
   }
   .edit-row input:focus, .edit-row select:focus { border-color: var(--blue); }
 
+  .not-admin-state { text-align: center; padding: 80px 20px; color: var(--charcoal-soft); }
+
   .tab-bar {
     display: flex;
     gap: 8px;
@@ -317,13 +309,13 @@
     <a href="staff-orders.html" class="btn-light">Orders</a>
     <a href="staff-catalog.html" class="btn-light">Catalog</a>
     <a href="staff-reports.html" class="btn-light">Reports</a>
-    <a href="staff-settings.html" class="btn-light">Settings</a>
+    <a href="staff-settings.html" class="btn-light nav-admin-only">Settings</a>
     <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
     <button class="btn-ghost" id="logoutBtn">Log out</button>
   </div>
 </div>
 
-<div class="wrap">
+<div class="wrap" id="mainWrap" style="display:none;">
   <div class="tab-bar">
     <button type="button" class="tab-btn active" id="tabBtnExpenses">Expenses</button>
     <button type="button" class="tab-btn" id="tabBtnWithdrawal">Withdrawal</button>
@@ -374,6 +366,10 @@
   </div>
 </div>
 
+<div class="not-admin-state" id="notAdminState" style="display:none;">
+  <p>This page requires an admin account.</p>
+</div>
+
 <script src="period-filter.js"></script>
 <script>
 (function() {
@@ -402,6 +398,10 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
+  // Expenses (and Withdrawal) are admin-only end to end -- staff don't
+  // get a nav button to this page, and this gate blocks anyone who
+  // reaches it directly by URL, same "not-admin-state" pattern as
+  // staff-settings.html. There's no partial staff access anymore.
   async function checkAuth() {
     try {
       const resp = await fetch('/api/staff-auth');
@@ -512,14 +512,6 @@
         btn.disabled = false;
       }
     });
-  }
-
-  function renderLockedNote() {
-    entrySection.innerHTML = `
-      <div class="locked-note">
-        Logging expenses is currently admin-only. Ask an admin to enable staff access in Settings if you need to add entries here.
-      </div>
-    `;
   }
 
   async function loadExpenses() {
@@ -964,11 +956,7 @@
     panelExpenses.classList.remove('active');
     if (!withdrawalsLoadedOnce) {
       withdrawalsLoadedOnce = true;
-      if (isAdmin) {
-        renderWithdrawalEntryForm();
-      } else {
-        withdrawalEntrySection.innerHTML = '<div class="locked-note">Withdrawals are admin-only.</div>';
-      }
+      renderWithdrawalEntryForm();
       loadWithdrawals();
     }
   });
@@ -981,20 +969,16 @@
   (async function init() {
     const auth = await checkAuth();
     if (!auth) return;
-    isAdmin = auth.role === 'admin';
 
-    try {
-      const accessResp = await fetch('/api/expenses?access=1');
-      const accessResult = await accessResp.json();
-      if (accessResult.ok && accessResult.can_log) {
-        renderEntryForm();
-      } else {
-        renderLockedNote();
-      }
-    } catch (e) {
-      renderLockedNote();
+    if (auth.role !== 'admin') {
+      document.getElementById('notAdminState').style.display = 'block';
+      document.querySelectorAll('.nav-admin-only').forEach(el => el.remove());
+      return;
     }
+    isAdmin = true;
+    document.getElementById('mainWrap').style.display = 'block';
 
+    renderEntryForm();
     loadExpenses();
   })();
 })();

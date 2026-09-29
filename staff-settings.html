@@ -366,7 +366,7 @@
     <a href="staff-dashboard.html" class="btn-light">Dashboard</a>
     <a href="staff-orders.html" class="btn-light">Orders</a>
     <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
-    <a href="staff-expenses.html" class="btn-light">Expenses</a>
+    <a href="staff-expenses.html" class="btn-light nav-admin-only">Expenses</a>
     <a href="staff-catalog.html" class="btn-light">Catalog</a>
     <a href="staff-reports.html" class="btn-light">Reports</a>
     <button class="btn-ghost" id="logoutBtn">Log out</button>
@@ -469,20 +469,6 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>Expenses</h2>
-      <div class="card-sub">By default only admins can log expenses. Turn this on to let regular staff log entries too (they still can't delete one — only an admin can).</div>
-      <div class="field-grid" style="grid-template-columns: 1fr;">
-        <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem;">
-          <input type="checkbox" id="expenseStaffAccess" style="width:auto;">
-          Allow staff (non-admin) accounts to log expenses
-        </label>
-      </div>
-      <div class="save-row">
-        <button class="save-btn" id="saveExpenseAccess">Save</button>
-        <span class="save-status" id="expenseAccessStatus"></span>
-      </div>
-    </div>
   </div>
 
   <!-- Staff Accounts -->
@@ -737,6 +723,7 @@
       if (result.role !== 'admin') {
         mainWrap.style.display = 'none';
         notAdminState.style.display = 'block';
+        document.querySelectorAll('.nav-admin-only').forEach(el => el.remove());
         return false;
       }
       return true;
@@ -878,36 +865,6 @@
     const radio = document.querySelector(`input[name="phoneValidationMode"][value="${mode}"]`);
     if (radio) radio.checked = true;
   }
-
-  function renderExpenseAccess(setting) {
-    const checkbox = document.getElementById('expenseStaffAccess');
-    if (checkbox) checkbox.checked = !!(setting && setting.staff_enabled === true);
-  }
-
-  document.getElementById('saveExpenseAccess').addEventListener('click', async () => {
-    const btn = document.getElementById('saveExpenseAccess');
-    const statusEl = document.getElementById('expenseAccessStatus');
-    const staffEnabled = document.getElementById('expenseStaffAccess').checked;
-    btn.disabled = true;
-    statusEl.textContent = 'Saving…';
-    statusEl.className = 'save-status';
-    try {
-      const resp = await fetch('/api/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'expense_access', value: { staff_enabled: staffEnabled } }),
-      });
-      const result = await resp.json();
-      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
-      statusEl.textContent = 'Saved.';
-      statusEl.className = 'save-status success';
-    } catch (err) {
-      statusEl.textContent = err.message;
-      statusEl.className = 'save-status error';
-    } finally {
-      btn.disabled = false;
-    }
-  });
 
   document.getElementById('savePhoneValidation').addEventListener('click', async () => {
     const btn = document.getElementById('savePhoneValidation');
@@ -1702,7 +1659,6 @@
       renderRxRangesForm(result.settings.rx_ranges);
       renderBusinessInfo(result.settings.business_info);
       renderPhoneValidation(result.settings.phone_validation);
-      renderExpenseAccess(result.settings.expense_access);
       renderAiAccess(result.settings.ai_access);
       kbEntries = (result.settings.ai_knowledge && result.settings.ai_knowledge.entries) || [];
       renderKnowledge();
@@ -1712,7 +1668,6 @@
       renderRxRangesForm(null);
       renderBusinessInfo(null);
       renderPhoneValidation(null);
-      renderExpenseAccess(null);
       renderAiAccess(null);
       renderKnowledge();
       loadAccounts();

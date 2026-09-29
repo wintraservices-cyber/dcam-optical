@@ -184,9 +184,9 @@
     <a href="staff-dashboard.html" class="btn-light">Dashboard</a>
     <a href="staff-orders.html" class="btn-light">Orders</a>
     <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
-    <a href="staff-expenses.html" class="btn-light">Expenses</a>
+    <a href="staff-expenses.html" class="btn-light nav-admin-only">Expenses</a>
     <a href="staff-reports.html" class="btn-light">Reports</a>
-    <a href="staff-settings.html" class="btn-light">Settings</a>
+    <a href="staff-settings.html" class="btn-light nav-admin-only">Settings</a>
     <a href="order-form.html" class="btn-light">New order</a>
     <button class="btn-ghost" id="logoutBtn">Log out</button>
   </div>
@@ -266,12 +266,18 @@
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // Expenses and Settings are admin-only pages -- hide their nav buttons
+  // for non-admin staff.
   async function checkAuth() {
     try {
       const resp = await fetch('/api/staff-auth');
       const result = await resp.json();
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=staff-catalog.html';
+        return;
+      }
+      if (result.role !== 'admin') {
+        document.querySelectorAll('.nav-admin-only').forEach(el => el.remove());
       }
     } catch (e) {
       window.location.href = 'staff-login.html?next=staff-catalog.html';

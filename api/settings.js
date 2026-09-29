@@ -14,7 +14,7 @@ const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport } = require('../lib/ai-usage');
 const { normalizeKnowledge, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'ai_access', 'ai_knowledge', 'expense_access'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'ai_access', 'ai_knowledge'];
 
 async function getSettings(req, res) {
   const { key } = req.query || {};

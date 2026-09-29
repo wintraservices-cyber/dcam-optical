@@ -1048,9 +1048,9 @@
     <a href="staff-orders.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">View orders</a>
     <a href="staff-catalog.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Catalog</a>
     <a href="staff-reports.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Reports</a>
-    <a href="staff-settings.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Settings</a>
+    <a href="staff-settings.html" class="btn-new nav-admin-only" style="text-decoration:none; display:inline-flex; align-items:center;">Settings</a>
     <a href="staff-patient-lookup.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Patient lookup</a>
-    <a href="staff-expenses.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Expenses</a>
+    <a href="staff-expenses.html" class="btn-new nav-admin-only" style="text-decoration:none; display:inline-flex; align-items:center;">Expenses</a>
     <button class="btn-new" id="clearBtn">Clear form</button>
     <button class="btn-new" id="saveBtn" style="background:var(--purple); color:#fff; border:none !important;">Save order</button>
     <button class="btn-print" id="printThreeUpBtn">Print</button>
@@ -1695,6 +1695,11 @@
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=order-form.html';
         return;
+      }
+      // Expenses and Settings are admin-only pages -- hide their nav
+      // buttons for non-admin staff.
+      if (result.role !== 'admin') {
+        document.querySelectorAll('.nav-admin-only').forEach(el => el.remove());
       }
       // If ?id=<uuid> is present, this is an edit of an existing order
       // rather than a new one -- load it instead of suggesting a fresh

@@ -311,9 +311,9 @@
     <a href="staff-dashboard.html" class="btn-light">Dashboard</a>
     <a href="staff-catalog.html" class="btn-light">Catalog</a>
     <a href="staff-reports.html" class="btn-light">Reports</a>
-    <a href="staff-settings.html" class="btn-light">Settings</a>
+    <a href="staff-settings.html" class="btn-light nav-admin-only">Settings</a>
     <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
-    <a href="staff-expenses.html" class="btn-light">Expenses</a>
+    <a href="staff-expenses.html" class="btn-light nav-admin-only">Expenses</a>
     <a href="order-form.html" class="btn-light">New order</a>
     <button class="btn-ghost" id="logoutBtn">Log out</button>
   </div>
@@ -377,12 +377,20 @@
     return escapeHtml(order.item_name) || '—';
   }
 
+  // Expenses and Settings are admin-only pages now -- their nav buttons
+  // are hidden for non-admin staff so the bar isn't cluttered with links
+  // to pages they can't use. Direct-URL access is still blocked
+  // server-side/page-side on those pages themselves; this is just the nav.
   async function checkAuth() {
     try {
       const resp = await fetch('/api/staff-auth');
       const result = await resp.json();
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=staff-orders.html';
+        return;
+      }
+      if (result.role !== 'admin') {
+        document.querySelectorAll('.nav-admin-only').forEach(el => el.remove());
       }
     } catch (e) {
       window.location.href = 'staff-login.html?next=staff-orders.html';
