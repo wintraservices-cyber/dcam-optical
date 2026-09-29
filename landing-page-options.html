@@ -35,13 +35,35 @@ body.theme-dark{background:#0E0B0C}
 .theme-dark .opt-b{--bg:#1C1819;--surface:#272223;--text:#F4EEE6;--muted:#C2B8AF;--border:#574F50;--link:#DDA3D1;--placeholder:#332D2E;--ink:#110E0F;--photo:#2F292A;--inputBg:#2F292A;--shadow:rgba(0,0,0,0.45);--mapLand:#2A2526;--mapRoad:#443C3D;--mapMinor:#342E2F;--mapPark:#1F3A40}
 .opt-c{--bg:#FBF8F3;--surface:#FFFFFF;--text:#383334;--muted:#5E5759;--line:#E4DACB;--accent:#8A3F7B;--onAccent:#FFFFFF;--link:#8A3F7B;--teal:#26707F;--skyTint:#DCEEF1;--skyTint2:#EAF5F7;--orchidTint:#F1E0EC;--sand:#EDE5D8;--ink:#383334;--inputBg:#FBF8F3;--shadow:rgba(56,51,52,0.10);--shadowSoft:rgba(56,51,52,0.06)}
 .theme-dark .opt-c{--bg:#1C1819;--surface:#272223;--text:#F4EEE6;--muted:#C2B8AF;--line:#3A3334;--accent:#D08BC2;--onAccent:#1C1819;--link:#DDA3D1;--teal:#8FD0DC;--skyTint:#1F3A40;--skyTint2:#1F3A40;--orchidTint:#3A2536;--sand:#2F2A26;--ink:#110E0F;--inputBg:#1C1819;--shadow:rgba(0,0,0,0.45);--shadowSoft:rgba(0,0,0,0.3)}
+.opt-d{--bg:#F7F1E8;--surface:#FFFFFF;--soft:#EFE6D9;--text:#383334;--muted:#5E5759;--line:#DCD1C2;--accent:#8A3F7B;--onAccent:#FFFFFF;--link:#8A3F7B;--teal:#26707F;--skyTint:#DCEEF1;--orchidTint:#F1E0EC;--ink:#383334;--inputBg:#FFFFFF;--shadow:rgba(56,51,52,0.14);--mapLand:#EDE5D8;--mapRoad:#FFFFFF;--mapMinor:#F7F1E8;--mapPark:#DCEEF1}
+.theme-dark .opt-d{--bg:#1C1819;--surface:#272223;--soft:#231E1F;--text:#F4EEE6;--muted:#C2B8AF;--line:#3A3334;--accent:#D08BC2;--onAccent:#1C1819;--link:#DDA3D1;--teal:#8FD0DC;--skyTint:#1F3A40;--orchidTint:#3A2536;--ink:#110E0F;--inputBg:#2F292A;--shadow:rgba(0,0,0,0.45);--mapLand:#2A2526;--mapRoad:#443C3D;--mapMinor:#342E2F;--mapPark:#1F3A40}
+
+
+
+
+
+@keyframes dKen{from{transform:scale(1)}to{transform:scale(1.09)}}
+@keyframes dDrift{0%{transform:translate(0px,0px)}25%{transform:translate(-200px,30px)}50%{transform:translate(-90px,-50px)}75%{transform:translate(70px,20px)}100%{transform:translate(0px,0px)}}
+@keyframes dCounter{0%{transform:translate(0px,0px)}25%{transform:translate(200px,-30px)}50%{transform:translate(90px,50px)}75%{transform:translate(-70px,-20px)}100%{transform:translate(0px,0px)}}
+@keyframes dGlint{0%{transform:translateX(-160%) rotate(12deg)}28%{transform:translateX(260%) rotate(12deg)}100%{transform:translateX(260%) rotate(12deg)}}
+@keyframes dUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes dFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes dMarquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes dCue{0%{transform:translateY(0);opacity:1}70%{transform:translateY(12px);opacity:0}100%{transform:translateY(0);opacity:0}}
+@keyframes dPulse{0%{box-shadow:0 0 0 0 rgba(91,175,192,.6)}100%{box-shadow:0 0 0 14px rgba(91,175,192,0)}}
+.d-card{transition:transform .35s ease, box-shadow .35s ease}
+.d-card:hover{transform:translateY(-6px);box-shadow:0 24px 48px rgba(28,24,25,.16)}
+.d-btn{transition:transform .2s ease, filter .2s ease}
+.d-btn:hover{transform:translateY(-2px);filter:brightness(1.06)}
+@media (prefers-reduced-motion: reduce){.d-anim{animation:none!important}}
+
 </style>
 </head>
 <body>
 <header class="bar">
 <img src="/assets/landing-options/dcam-logo-ivory.png" alt="DCAM Optical">
 <div class="title">Home page options<small>Sample designs for review · not the live site</small></div>
-<div class="tabs" role="group" aria-label="Choose a design"><button type="button" class="tab" data-tab="a" aria-pressed="true">Option A · Editorial Ivory</button><button type="button" class="tab" data-tab="b" aria-pressed="false">Option B · Orchid Bold</button><button type="button" class="tab" data-tab="c" aria-pressed="false">Option C · Booking First</button></div>
+<div class="tabs" role="group" aria-label="Choose a design"><button type="button" class="tab" data-tab="a" aria-pressed="true">Option A · Editorial Ivory</button><button type="button" class="tab" data-tab="b" aria-pressed="false">Option B · Orchid Bold</button><button type="button" class="tab" data-tab="c" aria-pressed="false">Option C · Booking First</button><button type="button" class="tab" data-tab="d" aria-pressed="false">Option D · Cinematic Lens</button></div>
 <button type="button" class="mode" id="mode" aria-pressed="false">Dark mode</button>
 </header>
 <main class="stage" id="stage">
@@ -462,6 +484,200 @@ body.theme-dark{background:#0E0B0C}
 </footer>
 </div>
 </section>
+<section class="opt opt-d" data-opt="d" aria-label="Option D · Cinematic Lens" hidden>
+<div style="width: 1440px; display: flex; flex-direction: column; background: var(--bg); font-family: 'Sora', sans-serif; color: var(--text)">
+
+<section style="position: relative; height: 900px; overflow: hidden; background: #141011; color: #F7F1E8; flex-shrink: 0">
+<div class="d-anim" style="position: absolute; left: 0; top: 0; width: 1440px; height: 900px; animation: dKen 26s ease-in-out infinite alternate">
+<img src="/assets/landing-options/display-case.jpg" alt="" style="width: 1440px; height: 900px; object-fit: cover; object-position: center 58%; display: block; filter: blur(10px) saturate(1.05) brightness(0.62); transform: scale(1.06)">
+</div>
+<div style="position: absolute; left: 0; top: 0; width: 1440px; height: 900px; background: linear-gradient(90deg, rgba(20,16,17,0.88) 0%, rgba(20,16,17,0.55) 42%, rgba(20,16,17,0.12) 100%)"></div>
+<div style="position: absolute; left: 0; bottom: 0; width: 1440px; height: 260px; background: linear-gradient(0deg, rgba(20,16,17,0.9) 0%, rgba(20,16,17,0) 100%)"></div>
+
+<div class="d-anim" style="position: absolute; left: 700px; top: 140px; width: 640px; height: 250px; animation: dDrift 20s ease-in-out infinite">
+<div style="position: absolute; left: 0px; top: 0px; width: 290px; height: 250px; border-radius: 100px; overflow: hidden; box-shadow: inset 0 0 40px rgba(91,175,192,0.35), 0 30px 60px rgba(0,0,0,0.45)">
+<div class="d-anim" style="position: absolute; left: -700px; top: -140px; width: 1440px; height: 900px; animation: dCounter 20s ease-in-out infinite">
+<div class="d-anim" style="position: absolute; left: 0; top: 0; width: 1440px; height: 900px; animation: dKen 26s ease-in-out infinite alternate">
+<img src="/assets/landing-options/display-case.jpg" alt="" style="width: 1440px; height: 900px; object-fit: cover; object-position: center 58%; display: block; filter: saturate(1.12) brightness(1.04); transform: scale(1.06)">
+</div>
+</div>
+<div class="d-anim" style="position: absolute; left: 0; top: -60px; width: 90px; height: 380px; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%); animation: dGlint 7s ease-in-out infinite"></div>
+</div>
+<div style="position: absolute; left: 350px; top: 0px; width: 290px; height: 250px; border-radius: 100px; overflow: hidden; box-shadow: inset 0 0 40px rgba(91,175,192,0.35), 0 30px 60px rgba(0,0,0,0.45)">
+<div class="d-anim" style="position: absolute; left: -1050px; top: -140px; width: 1440px; height: 900px; animation: dCounter 20s ease-in-out infinite">
+<div class="d-anim" style="position: absolute; left: 0; top: 0; width: 1440px; height: 900px; animation: dKen 26s ease-in-out infinite alternate">
+<img src="/assets/landing-options/display-case.jpg" alt="" style="width: 1440px; height: 900px; object-fit: cover; object-position: center 58%; display: block; filter: saturate(1.12) brightness(1.04); transform: scale(1.06)">
+</div>
+</div>
+<div class="d-anim" style="position: absolute; left: 0; top: -60px; width: 90px; height: 380px; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%); animation: dGlint 7s ease-in-out infinite; animation-delay: 0.25s"></div>
+</div>
+<svg width="640" height="250" viewBox="0 0 640 250" overflow="visible" style="position: absolute; left: 0; top: 0; overflow: visible" aria-hidden="true"><rect x="3" y="3" width="284" height="244" rx="98" fill="none" stroke="#F7F1E8" stroke-width="7"></rect><rect x="353" y="3" width="284" height="244" rx="98" fill="none" stroke="#F7F1E8" stroke-width="7"></rect><path d="M287 92 C 305 66, 335 66, 353 92" fill="none" stroke="#F7F1E8" stroke-width="7" stroke-linecap="round"></path><path d="M4 74 L -120 52" fill="none" stroke="#F7F1E8" stroke-width="7" stroke-linecap="round"></path><path d="M636 74 L 760 52" fill="none" stroke="#F7F1E8" stroke-width="7" stroke-linecap="round"></path><circle cx="10" cy="72" r="6" fill="#B05A9E"></circle><circle cx="630" cy="72" r="6" fill="#B05A9E"></circle></svg>
+</div>
+
+<nav style="position: absolute; left: 0; top: 0; width: 1440px; height: 104px; box-sizing: border-box; padding: 0 80px; display: flex; align-items: center; justify-content: space-between">
+<a href="#" style="display: flex; align-items: center; text-decoration: none"><img src="/assets/landing-options/dcam-logo-ivory.png" alt="DCAM Optical" style="height: 54px; width: auto; display: block"></a>
+<div style="display: flex; gap: 36px; font-size: 15px">
+<a href="#d-services" style="color: #F7F1E8; text-decoration: none">Services</a>
+<a href="#d-story" style="color: #F7F1E8; text-decoration: none">Our story</a>
+<a href="#d-book" style="color: #F7F1E8; text-decoration: none">Book</a>
+<a href="#d-visit" style="color: #F7F1E8; text-decoration: none">Visit</a>
+</div>
+<a href="#d-book" class="d-btn" style="background: #5BAFC0; color: #1C1819; text-decoration: none; padding: 14px 26px; border-radius: 999px; font-weight: 600; font-size: 15px">Book an eye exam</a>
+</nav>
+
+<div style="position: absolute; left: 80px; top: 396px; width: 700px; display: flex; flex-direction: column; gap: 26px">
+<span class="d-anim" style="align-self: flex-start; display: flex; align-items: center; gap: 10px; background: rgba(247,241,232,0.12); border: 1px solid rgba(247,241,232,0.25); border-radius: 999px; padding: 9px 16px; font-size: 14px; animation: dUp 0.9s cubic-bezier(.2,.7,.2,1) both; animation-delay: 0.1s"><span class="d-anim" style="width: 8px; height: 8px; border-radius: 50%; background: #5BAFC0; animation: dPulse 1.8s ease-out infinite"></span>Now open · Ever Gotesco Commonwealth</span>
+<h1 class="d-anim" style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 96px; line-height: 0.96; font-weight: 800; letter-spacing: -3.5px; animation: dUp 1s cubic-bezier(.2,.7,.2,1) both; animation-delay: 0.25s">See the world<br><span style="color: #D08BC2">in focus.</span></h1>
+<p class="d-anim" style="margin: 0; font-size: 19px; line-height: 1.6; color: #E4DACB; max-width: 560px; animation: dUp 1s cubic-bezier(.2,.7,.2,1) both; animation-delay: 0.45s">Eye exams by licensed optometrists and eyewear chosen with care, right in Quezon City. Step inside, and everything gets clearer from here.</p>
+<div class="d-anim" style="display: flex; gap: 14px; animation: dUp 1s cubic-bezier(.2,.7,.2,1) both; animation-delay: 0.6s">
+<a href="#d-book" class="d-btn" style="background: #B05A9E; color: #FFFFFF; text-decoration: none; padding: 18px 32px; border-radius: 999px; font-weight: 600; font-size: 16px">Book an eye exam</a>
+<a href="#d-story" class="d-btn" style="border: 1.5px solid rgba(247,241,232,0.7); color: #F7F1E8; text-decoration: none; padding: 17px 30px; border-radius: 999px; font-weight: 600; font-size: 16px">Our story</a>
+</div>
+</div>
+
+<div class="d-anim" style="position: absolute; right: 80px; bottom: 64px; display: flex; gap: 12px; animation: dFloat 6s ease-in-out infinite">
+<div style="background: rgba(247,241,232,0.12); border: 1px solid rgba(247,241,232,0.22); border-radius: 18px; padding: 16px 20px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #C2B8AF">Licensed optometrist</span><span style="font-weight: 600; font-size: 15px">PRC Lic. No. [NO.]</span></div>
+<div style="background: rgba(247,241,232,0.12); border: 1px solid rgba(247,241,232,0.22); border-radius: 18px; padding: 16px 20px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #C2B8AF">Glasses ready in</span><span style="font-weight: 600; font-size: 15px">[X] days</span></div>
+</div>
+
+<div style="position: absolute; left: 700px; bottom: 36px; width: 40px; display: flex; flex-direction: column; align-items: center; gap: 8px; color: #C2B8AF; font-size: 11px; letter-spacing: 2px">
+<div style="width: 24px; height: 38px; border: 2px solid rgba(247,241,232,0.6); border-radius: 14px; display: flex; justify-content: center; padding-top: 7px; box-sizing: border-box"><span class="d-anim" style="width: 4px; height: 8px; border-radius: 2px; background: #F7F1E8; animation: dCue 1.8s ease-in-out infinite"></span></div>
+</div>
+</section>
+
+<div style="height: 76px; background: #B05A9E; color: #FFFFFF; overflow: hidden; display: flex; align-items: center; flex-shrink: 0">
+<div class="d-anim" style="display: flex; white-space: nowrap; animation: dMarquee 34s linear infinite; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 26px; letter-spacing: -0.5px">
+<span style="display: flex; align-items: center; gap: 36px; padding-right: 36px"><span>Eye exams</span><span style="width: 10px; height: 10px; border-radius: 50%; background: #5BAFC0"></span><span>Prescription glasses</span><span style="width: 10px; height: 10px; border-radius: 50%; background: #5BAFC0"></span><span>Frames &amp; sunwear</span><span style="width: 10px; height: 10px; border-radius: 50%; background: #5BAFC0"></span><span>Order tracking</span><span style="width: 10px; height: 10px; border-radius: 50%; background: #5BAFC0"></span><span>Ever Gotesco Commonwealth</span><span style="width: 10px; height: 10px; border-radius: 50%; background: #5BAFC0"></span></span>
+<span style="display: flex; align-items: center; gap: 36px; padding-right: 36px"><span>Eye exams</span><span style="width: 10px; height: 10px; border-radius: 50%; background: #5BAFC0"></span><span>Prescription glasses</span><span style="width: 10px; height: 10px; border-radius: 50%; background: #5BAFC0"></span><span>Frames &amp; sunwear</span><span style="width: 10px; height: 10px; border-radius: 50%; background: #5BAFC0"></span><span>Order tracking</span><span style="width: 10px; height: 10px; border-radius: 50%; background: #5BAFC0"></span><span>Ever Gotesco Commonwealth</span><span style="width: 10px; height: 10px; border-radius: 50%; background: #5BAFC0"></span></span>
+</div>
+</div>
+
+<section id="d-services" style="padding: 120px 80px 112px; display: flex; flex-direction: column; gap: 56px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 48px">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<span style="font-size: 13px; letter-spacing: 3px; text-transform: uppercase; font-weight: 600; color: var(--link)">What we do</span>
+<h2 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 56px; line-height: 1.05; font-weight: 800; letter-spacing: -2px; max-width: 640px">Clear sight, start to finish.</h2>
+</div>
+<p style="margin: 0; font-size: 17px; line-height: 1.6; color: var(--muted); max-width: 440px">From your first exam to the day you pick up your new glasses, one team looks after you.</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+<div class="d-card" style="background: var(--surface); border-radius: 28px; padding: 40px; display: flex; flex-direction: column; gap: 18px; min-height: 320px; box-sizing: border-box">
+<div style="width: 60px; height: 60px; border-radius: 18px; background: var(--skyTint); display: flex; align-items: center; justify-content: center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" style="stroke: var(--teal)" stroke-width="1.7" aria-hidden="true"><path d="M2 12c2.5-4.5 6-7 10-7s7.5 2.5 10 7c-2.5 4.5-6 7-10 7s-7.5-2.5-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg></div>
+<h3 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; font-weight: 700">Eye exams</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted); flex-grow: 1">Vision and eye health checks for adults and kids, with results explained in plain language.</p>
+<a href="#d-book" style="font-weight: 600; font-size: 15px; color: var(--link)">Book an exam →</a>
+</div>
+<div class="d-card" style="background: var(--surface); border-radius: 28px; padding: 40px; display: flex; flex-direction: column; gap: 18px; min-height: 320px; box-sizing: border-box">
+<div style="width: 60px; height: 60px; border-radius: 18px; background: var(--orchidTint); display: flex; align-items: center; justify-content: center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" style="stroke: var(--link)" stroke-width="1.7" aria-hidden="true"><circle cx="6.5" cy="14" r="4"></circle><circle cx="17.5" cy="14" r="4"></circle><path d="M10.5 14h3M2.5 14 4 7M21.5 14 20 7"></path></svg></div>
+<h3 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; font-weight: 700">Glasses &amp; frames</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted); flex-grow: 1">Prescription or non-prescription frames and sunwear. Bring your own Rx or use ours.</p>
+<a href="#d-book" style="font-weight: 600; font-size: 15px; color: var(--link)">Start an order →</a>
+</div>
+<div class="d-card" style="background: var(--ink); color: #F7F1E8; border-radius: 28px; padding: 40px; display: flex; flex-direction: column; gap: 18px; min-height: 320px; box-sizing: border-box">
+<div style="width: 60px; height: 60px; border-radius: 18px; background: rgba(91,175,192,0.18); display: flex; align-items: center; justify-content: center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5BAFC0" stroke-width="1.7" aria-hidden="true"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"></path><path d="M4 7l8 4 8-4M12 11v10"></path></svg></div>
+<h3 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; font-weight: 700">Order tracking</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #E4DACB; flex-grow: 1">Enter your job order number and see if your glasses are ready for pickup.</p>
+<a href="#d-book" style="font-weight: 600; font-size: 15px; color: #5BAFC0">Track my order →</a>
+</div>
+</div>
+</section>
+
+<section id="d-story" style="background: var(--soft); padding: 128px 80px; display: flex; gap: 96px; align-items: center">
+<div style="width: 520px; height: 600px; position: relative; flex-shrink: 0">
+<div style="position: absolute; left: 40px; top: 40px; width: 480px; height: 560px; border-radius: 240px 240px 28px 28px; background: #B05A9E; opacity: 0.9"></div>
+<img src="/assets/landing-options/storefront.jpg" alt="DCAM Optical storefront signage" style="position: absolute; left: 0; top: 0; width: 480px; height: 560px; border-radius: 240px 240px 28px 28px; object-fit: cover; object-position: 45% center; display: block">
+<div class="d-anim" style="position: absolute; right: -24px; bottom: 60px; background: var(--surface); border-radius: 20px; padding: 20px 24px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 18px 40px var(--shadow); animation: dFloat 6s ease-in-out infinite"><span style="font-size: 12px; color: var(--muted)">Find us at</span><span style="font-weight: 700; font-size: 16px">Ever Gotesco Commonwealth</span></div>
+</div>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 28px">
+<span style="font-size: 13px; letter-spacing: 3px; text-transform: uppercase; font-weight: 600; color: var(--link)">Our story</span>
+<h2 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 56px; line-height: 1.05; font-weight: 800; letter-spacing: -2px">Built around a clearer way to see.</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.7; color: var(--muted)">DCAM Optical began with a simple belief: everyone deserves an eye exam that isn't rushed, and glasses they're genuinely happy to wear. [ADD ORIGIN: who started DCAM, and why.]</p>
+<p style="margin: 0; font-size: 18px; line-height: 1.7; color: var(--muted)">Today we welcome patients at Ever Gotesco Commonwealth in Quezon City, with licensed optometrists, frames picked for everyday life, and a team that explains every step in plain language.</p>
+<div style="display: flex; align-items: center; gap: 16px; padding-top: 4px">
+<div style="width: 56px; height: 56px; border-radius: 50%; background: var(--orchidTint); display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; color: var(--link)">DC</div>
+<div style="display: flex; flex-direction: column; gap: 2px"><strong style="font-size: 16px">[FOUNDER NAME]</strong><span style="font-size: 14px; color: var(--muted)">[TITLE], DCAM Optical</span></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 16px; border-top: 1px solid var(--line)">
+<div style="display: flex; flex-direction: column; gap: 6px; padding-top: 20px"><span style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 28px; color: var(--link)">[YEAR]</span><span style="font-size: 14px; line-height: 1.5; color: var(--muted)">The idea for DCAM takes shape</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding-top: 20px"><span style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 28px; color: var(--link)">[YEAR]</span><span style="font-size: 14px; line-height: 1.5; color: var(--muted)">Doors open at Ever Gotesco Commonwealth</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding-top: 20px"><span style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 28px; color: var(--link)">Today</span><span style="font-size: 14px; line-height: 1.5; color: var(--muted)">Online booking and order tracking</span></div>
+</div>
+</div>
+</section>
+
+<section style="padding: 112px 80px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px">
+<div style="display: flex; flex-direction: column; gap: 14px; border-top: 2px solid var(--text); padding-top: 24px"><h3 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 24px; font-weight: 700">Unhurried exams</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Time to ask questions, and results you actually understand.</p></div>
+<div style="display: flex; flex-direction: column; gap: 14px; border-top: 2px solid var(--text); padding-top: 24px"><h3 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 24px; font-weight: 700">Honest advice</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">We recommend what you need, not the most expensive option.</p></div>
+<div style="display: flex; flex-direction: column; gap: 14px; border-top: 2px solid var(--text); padding-top: 24px"><h3 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 24px; font-weight: 700">Frames that fit your life</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Try on as many as you like. We'll help you find the one.</p></div>
+</section>
+
+<section id="d-book" style="padding: 112px 80px; display: flex; gap: 24px">
+<div style="flex: 1.35; background: #8A3F7B; color: #FFFFFF; border-radius: 32px; padding: 56px; display: flex; flex-direction: column; gap: 24px">
+<h2 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 44px; font-weight: 800; letter-spacing: -1px">Book your eye exam</h2>
+<form style="display: flex; flex-direction: column; gap: 16px">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px">Full name<input type="text" style="height: 50px; border: none; border-radius: 12px; padding: 0 14px; font-family: 'Sora', sans-serif; font-size: 15px; background: var(--inputBg); color: var(--text)"></label>
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px">Mobile number<input type="tel" style="height: 50px; border: none; border-radius: 12px; padding: 0 14px; font-family: 'Sora', sans-serif; font-size: 15px; background: var(--inputBg); color: var(--text)"></label>
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px">Service<select style="height: 50px; border: none; border-radius: 12px; padding: 0 14px; font-family: 'Sora', sans-serif; font-size: 15px; background: var(--inputBg); color: var(--text)"><option>Eye exam</option><option>Eye exam + glasses</option><option>Glasses with my own Rx</option><option>Frames / sunglasses</option></select></label>
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px">Preferred date<input type="date" style="height: 50px; border: none; border-radius: 12px; padding: 0 14px; font-family: 'Sora', sans-serif; font-size: 15px; background: var(--inputBg); color: var(--text)"></label>
+</div>
+<label style="display: flex; gap: 12px; align-items: flex-start; font-size: 13px; line-height: 1.55; color: #F3E3EF"><input type="checkbox" style="width: 20px; height: 20px; margin: 2px 0 0; accent-color: #5BAFC0">I agree to DCAM Optical using my details to schedule this visit, per the <a href="#" style="color: #FFFFFF">Privacy Notice</a>.</label>
+<button type="button" class="d-btn" style="align-self: flex-start; height: 54px; padding: 0 36px; border: none; border-radius: 999px; background: #F7F1E8; color: #383334; font-family: 'Sora', sans-serif; font-weight: 600; font-size: 16px">Request appointment</button>
+</form>
+</div>
+<div style="flex: 1; background: #5BAFC0; color: #1C1819; border-radius: 32px; padding: 56px; display: flex; flex-direction: column; gap: 20px">
+<h2 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 44px; font-weight: 800; letter-spacing: -1px; line-height: 1.05">Are my glasses ready?</h2>
+<p style="margin: 0; font-size: 16px; line-height: 1.6">Enter the job order number on your receipt.</p>
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; font-weight: 500">Job order number<input type="text" placeholder="JO-000000" style="height: 50px; border: none; border-radius: 12px; padding: 0 14px; font-family: 'Sora', sans-serif; font-size: 15px; background: #FFFFFF; color: #383334"></label>
+<button type="button" class="d-btn" style="align-self: flex-start; height: 54px; padding: 0 36px; border: none; border-radius: 999px; background: #1C1819; color: #F7F1E8; font-family: 'Sora', sans-serif; font-weight: 600; font-size: 16px">Check status</button>
+</div>
+</section>
+
+<section id="d-visit" style="padding: 0 80px 112px; display: flex; gap: 48px">
+<div style="width: 440px; display: flex; flex-direction: column; gap: 28px">
+<h2 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; font-weight: 800; letter-spacing: -1.5px">Visit the shop</h2>
+<div style="display: flex; flex-direction: column; gap: 4px; font-size: 16px; line-height: 1.5"><span style="font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--link); font-weight: 600">Address</span><strong>Ever Gotesco</strong><span style="color: var(--muted)">Commonwealth, Quezon City</span><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&amp;query=Ever+Gotesco+Commonwealth+Quezon+City" style="color: var(--link)">Get directions</a></div>
+<div style="display: flex; flex-direction: column; gap: 4px; font-size: 16px; line-height: 1.5"><span style="font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--link); font-weight: 600">Hours</span><span>Mon – Fri · [OPEN – CLOSE]</span><span>Saturday · [OPEN – CLOSE]</span><span>Sunday · [OPEN / CLOSED]</span></div>
+<div style="display: flex; flex-direction: column; gap: 4px; font-size: 16px; line-height: 1.5"><span style="font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--link); font-weight: 600">Contact</span><span>[+63 MOBILE] · [LANDLINE]</span><span>[EMAIL]</span></div>
+</div>
+<div style="flex: 1; height: 480px; border-radius: 28px; background: var(--mapLand); position: relative; overflow: hidden">
+<svg viewBox="0 0 792 480" preserveAspectRatio="xMidYMid slice" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%" aria-hidden="true"><rect x="540" y="40" width="200" height="130" rx="20" style="fill: var(--mapPark)"></rect><rect x="50" y="350" width="170" height="100" rx="20" style="fill: var(--mapPark)"></rect><path d="M-20 100 L812 160" style="stroke: var(--mapMinor)" stroke-width="10" fill="none"></path><path d="M150 -20 L210 500" style="stroke: var(--mapMinor)" stroke-width="10" fill="none"></path><path d="M500 -20 L460 500" style="stroke: var(--mapMinor)" stroke-width="10" fill="none"></path><path d="M-20 410 L812 360" style="stroke: var(--mapMinor)" stroke-width="10" fill="none"></path><path d="M-20 280 C 190 250, 380 310, 812 230" style="stroke: var(--mapRoad)" stroke-width="24" fill="none"></path><path d="M350 -20 C 330 130, 370 220, 330 500" style="stroke: var(--mapRoad)" stroke-width="14" fill="none"></path><circle cx="396" cy="220" r="36" fill="#B05A9E" opacity="0.18"></circle><path d="M396 226 C 382 208, 374 196, 374 184 A 22 22 0 0 1 418 184 C 418 196, 410 208, 396 226 Z" fill="#B05A9E"></path><circle cx="396" cy="184" r="8" fill="#F7F1E8"></circle></svg>
+<div style="position: absolute; left: 24px; right: 24px; bottom: 24px; background: var(--surface); border-radius: 18px; padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 8px 24px var(--shadow)">
+<div style="display: flex; flex-direction: column; gap: 2px; font-size: 14px; line-height: 1.45"><strong style="font-size: 15px">DCAM Optical</strong><span style="color: var(--muted)">Ever Gotesco, Commonwealth, Quezon City</span></div>
+<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&amp;query=Ever+Gotesco+Commonwealth+Quezon+City" class="d-btn" style="background: var(--accent); color: var(--onAccent); text-decoration: none; padding: 12px 18px; border-radius: 999px; font-weight: 600; font-size: 14px; white-space: nowrap">Open in Google Maps</a>
+</div>
+</div>
+</section>
+
+<section style="background: var(--ink); color: #F7F1E8; padding: 72px 80px; display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 15px; color: #C2B8AF">Follow along for new arrivals &amp; eye-care tips</span><span style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 52px; letter-spacing: -2px">@[handle]</span></div>
+<div style="display: flex; gap: 12px">
+<a href="#" class="d-btn" style="border: 1px solid #7A7274; color: #F7F1E8; text-decoration: none; padding: 16px 24px; border-radius: 999px; font-weight: 600; font-size: 15px">Facebook</a>
+<a href="#" class="d-btn" style="border: 1px solid #7A7274; color: #F7F1E8; text-decoration: none; padding: 16px 24px; border-radius: 999px; font-weight: 600; font-size: 15px">Instagram</a>
+<a href="#" class="d-btn" style="border: 1px solid #7A7274; color: #F7F1E8; text-decoration: none; padding: 16px 24px; border-radius: 999px; font-weight: 600; font-size: 15px">TikTok</a>
+<a href="#" class="d-btn" style="border: 1px solid #7A7274; color: #F7F1E8; text-decoration: none; padding: 16px 24px; border-radius: 999px; font-weight: 600; font-size: 15px">Messenger</a>
+</div>
+</section>
+
+<section style="padding: 88px 80px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<div style="background: var(--surface); border-radius: 24px; padding: 36px; display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 20px; font-weight: 700">Your privacy</h3>
+<p style="margin: 0; font-size: 15px; line-height: 1.65; color: var(--muted)">We handle your personal and health information in line with the Data Privacy Act of 2012 (RA 10173). We collect only what we need for your care and orders, keep it secure, and never sell it. Ask our Data Protection Officer at [DPO EMAIL] to access, correct or delete your data.</p>
+<a href="#" style="font-size: 15px; font-weight: 600; color: var(--link)">Read our Privacy Notice</a>
+</div>
+<div style="background: var(--surface); border-radius: 24px; padding: 36px; display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 20px; font-weight: 700">How we use AI</h3>
+<p style="margin: 0; font-size: 15px; line-height: 1.65; color: var(--muted)">Our website chat uses AI to answer common questions and help you book. It doesn't diagnose or give medical advice; eye health questions go to our licensed optometrists. Please don't share sensitive health details in chat. A person is always reachable at [+63 MOBILE].</p>
+<a href="#" style="font-size: 15px; font-weight: 600; color: var(--link)">AI Use Policy</a>
+</div>
+</section>
+
+<footer style="flex-grow: 1; background: #141011; color: #C2B8AF; padding: 56px 80px; display: flex; flex-direction: column; gap: 28px; font-size: 13px">
+<div style="display: flex; justify-content: space-between; align-items: center"><img src="/assets/landing-options/dcam-logo-ivory.png" alt="DCAM Optical" style="height: 48px; width: auto; display: block"><span style="display: flex; gap: 28px; font-size: 14px"><a href="#d-services" style="color: #C2B8AF">Services</a><a href="#d-story" style="color: #C2B8AF">Our story</a><a href="#d-book" style="color: #C2B8AF">Book</a><a href="#d-visit" style="color: #C2B8AF">Visit</a></span></div>
+<div style="border-top: 1px solid #3A3334; padding-top: 24px; display: flex; justify-content: space-between"><span>© 2026 DCAM Optical · Ever Gotesco Commonwealth, Quezon City · Optometrist PRC Lic. No. [NO.] · Business permit [NO.]</span><span style="display: flex; gap: 20px"><a href="#" style="color: #C2B8AF">Privacy Notice</a><a href="#" style="color: #C2B8AF">Terms of Use</a><a href="#" style="color: #C2B8AF">AI Use</a><a href="#" style="color: #C2B8AF">Cookie settings</a></span></div>
+</footer>
+</div>
+</section>
 </main>
 <script>
 (function(){
@@ -476,7 +692,7 @@ body.theme-dark{background:#0E0B0C}
   var mode=document.getElementById('mode');
   function setDark(d){document.body.classList.toggle('theme-dark',d);mode.setAttribute('aria-pressed',d);mode.textContent=d?'Light mode':'Dark mode';}
   mode.addEventListener('click',function(){setDark(!document.body.classList.contains('theme-dark'));});
-  var m=location.hash.match(/option-([abc])/); if(m) document.querySelector('.tab[data-tab="'+m[1]+'"]').click();
+  var m=location.hash.match(/option-([abcd])/); if(m) document.querySelector('.tab[data-tab="'+m[1]+'"]').click();
   if(/dark/.test(location.search)) setDark(true);
   window.addEventListener('resize',fit); fit();
 })();
