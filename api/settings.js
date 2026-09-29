@@ -171,6 +171,29 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && req.query && req.query.view === 'public_info') {
+    // Public: the contact details the home page shows (hours, phone,
+    // address...), straight from Settings > Business info, plus the
+    // Facebook link from Settings > Website. Only these fields go out.
+    const PUBLIC_FIELDS = ['name', 'branch', 'tel', 'mobile', 'email', 'hours', 'address'];
+    try {
+      const [biz, site] = await Promise.all([readSetting('business_info'), readSetting('site_mode')]);
+      const info = {};
+      PUBLIC_FIELDS.forEach(f => {
+        const v = biz && typeof biz[f] === 'string' ? biz[f].trim() : '';
+        if (v) info[f] = v.slice(0, 400);
+      });
+      if (site && site.facebook_url) info.facebook_url = site.facebook_url;
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Vercel-CDN-Cache-Control', 'max-age=60, stale-while-revalidate=300');
+      res.status(200).json({ ok: true, info });
+    } catch (err) {
+      console.error('public_info read error:', err.message);
+      res.status(200).json({ ok: true, info: {} });
+    }
+    return;
+  }
+
   if (req.method === 'POST' && req.query && req.query.action === 'site_preview') {
     // Public: check the preview PIN from the Coming Soon page.
     let body = req.body;
