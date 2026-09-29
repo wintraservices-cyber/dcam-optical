@@ -1,21 +1,33 @@
-// Staff-facing reports, exported as CSV. Four report types, chosen via
-// ?type=:
-//   orders    -> every order, one row per order (Rx + Non-Rx combined)
-//   sales     -> one row per order within a date range (order date, order
-//                #, patient, frame, lens, type, qty, total, deposit,
-//                payment type, balance, payment status, status, taken
-//                by), with Amount/Deposit/Balance totals at the bottom
-//   patients  -> the full patient list
-//   inventory -> current catalog stock levels
+// Staff-facing reports, exported as CSV. Report types, chosen via ?type=:
+//   orders      -> every order, one row per order (Rx + Non-Rx combined)
+//   sales       -> one row per order within a date range (order date,
+//                  order #, patient, frame, lens, type, qty, total,
+//                  deposit, payment type, balance, payment status,
+//                  status, taken by), with Amount/Deposit/Balance
+//                  totals at the bottom
+//   patients    -> the full patient list
+//   inventory   -> current catalog stock levels
+//   expenses    -> logged business expenses within a date range
+//   withdrawals -> logged cash/check withdrawals within a date range,
+//                  with Cash/Checking split columns and totals
 //
-// Date filtering (orders, sales) via ?from=YYYY-MM-DD&to=YYYY-MM-DD,
-// both optional -- omitting both returns everything.
+// Date filtering (orders, sales, expenses, withdrawals) via
+// ?from=YYYY-MM-DD&to=YYYY-MM-DD, both optional -- omitting both returns
+// everything.
 //
-// Available to any logged-in staff member, same access level as the
-// orders list, patient lookup, and catalog already have.
+// Role-based access (RBAC): admins can export every report type above.
+// Staff (non-admin) can only export orders, patients, and inventory --
+// the same records they can already see and work with elsewhere in the
+// app (orders list, patient lookup, catalog). Sales, expenses, and
+// withdrawals surface money movement (revenue, payroll, cash draws)
+// and are admin-only, matching the Expenses/Withdrawal tabs' own
+// admin-gating on staff-expenses.html.
 
 const { requireAuth } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
+
+const STAFF_ALLOWED_TYPES = ['orders', 'patients', 'inventory'];
+const ADMIN_ONLY_TYPES = ['sales', 'expenses', 'withdrawals'];
 
 function csvEscape(value) {
   if (value === null || value === undefined) return '';
@@ -217,6 +229,46 @@ async function expensesReport(req, res, from, to) {
   }
 }
 
+async function withdrawalsReport(req, res, from, to) {
+  try {
+    const path = `withdrawals?select=*&order=withdrawal_date.desc,created_at.desc&limit=5000${dateRangeFilter(from, to, 'withdrawal_date')}`;
+    const resp = await supabaseRequest(path, { method: 'GET' });
+    if (!resp.ok) {
+      res.status(502).json({ ok: false, error: 'Could not load withdrawals for the report.' });
+      return;
+    }
+    const withdrawals = await resp.json();
+
+    // Cash/Checking are split display columns -- each row's amount shows
+    // under whichever source it was, the other left blank -- matching
+    // how the sample data (and a paper ledger) lays this out, rather
+    // than a single "amount" column paired with a separate "source" one.
+    const columns = [
+      { label: 'Date', value: 'withdrawal_date' },
+      { label: 'Description', value: 'description' },
+      { label: 'Amount', value: 'amount' },
+      { label: 'Source', value: (w) => (w.source === 'check' ? 'CHECK' : 'CASH') },
+      { label: 'Cash', value: (w) => (w.source === 'cash' ? w.amount : '') },
+      { label: 'Checking', value: (w) => (w.source === 'check' ? w.amount : '') },
+      { label: 'Logged By', value: 'created_by' },
+    ];
+
+    const totalCash = withdrawals.reduce((sum, w) => sum + (w.source === 'cash' ? (parseFloat(w.amount) || 0) : 0), 0);
+    const totalCheck = withdrawals.reduce((sum, w) => sum + (w.source === 'check' ? (parseFloat(w.amount) || 0) : 0), 0);
+
+    let csvContent = toCsv(withdrawals, columns);
+    csvContent += '\r\n\r\n';
+    csvContent += `Total Cash,${totalCash.toFixed(2)}\r\n`;
+    csvContent += `Total Checking,${totalCheck.toFixed(2)}\r\n`;
+    csvContent += `Total Withdrawals,${(totalCash + totalCheck).toFixed(2)}\r\n`;
+
+    sendCsv(res, `withdrawals-report-${new Date().toISOString().slice(0, 10)}.csv`, csvContent);
+  } catch (err) {
+    console.error('Unexpected error generating withdrawals report:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -231,15 +283,25 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (!requireAuth(req, res)) return;
+  const session = requireAuth(req, res);
+  if (!session) return;
 
   const { type, from, to } = req.query || {};
+
+  const validTypes = [...STAFF_ALLOWED_TYPES, ...ADMIN_ONLY_TYPES];
+  if (!validTypes.includes(type)) {
+    res.status(400).json({ ok: false, error: `type must be one of: ${validTypes.join(', ')}` });
+    return;
+  }
+  if (ADMIN_ONLY_TYPES.includes(type) && session.role !== 'admin') {
+    res.status(403).json({ ok: false, error: 'This report requires an admin account.' });
+    return;
+  }
 
   if (type === 'orders') return ordersReport(req, res, from, to);
   if (type === 'sales') return salesReport(req, res, from, to);
   if (type === 'patients') return patientsReport(req, res);
   if (type === 'inventory') return inventoryReport(req, res);
   if (type === 'expenses') return expensesReport(req, res, from, to);
-
-  res.status(400).json({ ok: false, error: 'type must be one of: orders, sales, patients, inventory, expenses' });
+  if (type === 'withdrawals') return withdrawalsReport(req, res, from, to);
 };

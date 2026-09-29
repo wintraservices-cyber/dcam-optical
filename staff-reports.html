@@ -145,7 +145,7 @@
 <div class="wrap">
   <div class="date-filter">
     <div id="periodFilterMount"></div>
-    <div class="note">Applies to Orders, Sales, and Expenses reports. Choose "All" to export everything. Patients and Inventory always export the current full list.</div>
+    <div class="note">Applies to Orders, Sales, Expenses, and Withdrawals reports. Choose "All" to export everything. Patients and Inventory always export the current full list.</div>
   </div>
 
   <div class="report-grid">
@@ -156,7 +156,7 @@
       <span class="download-status" id="status-orders"></span>
     </div>
 
-    <div class="report-card">
+    <div class="report-card admin-only-report" data-report="sales">
       <h2>Sales / revenue report</h2>
       <div class="card-sub">Money actually collected — order deposits plus balance payments — with cash/GCash totals.</div>
       <button class="download-btn" data-type="sales">Download CSV</button>
@@ -177,11 +177,18 @@
       <span class="download-status" id="status-inventory"></span>
     </div>
 
-    <div class="report-card">
+    <div class="report-card admin-only-report" data-report="expenses">
       <h2>Expenses</h2>
       <div class="card-sub">Petty cash, payroll advances, supplies, and other business expenses logged in Expenses.</div>
       <button class="download-btn" data-type="expenses">Download CSV</button>
       <span class="download-status" id="status-expenses"></span>
+    </div>
+
+    <div class="report-card admin-only-report" data-report="withdrawals">
+      <h2>Withdrawals</h2>
+      <div class="card-sub">Cash and check withdrawals (payroll runs, owner draws) logged in the Withdrawal tab.</div>
+      <button class="download-btn" data-type="withdrawals">Download CSV</button>
+      <span class="download-status" id="status-withdrawals"></span>
     </div>
   </div>
 </div>
@@ -189,12 +196,23 @@
 <script src="period-filter.js"></script>
 <script>
 (function() {
+  // RBAC: Orders, Patients, and Inventory are visible to any logged-in
+  // staff member -- the same records they already work with elsewhere.
+  // Sales, Expenses, and Withdrawals surface money movement (revenue,
+  // payroll, cash draws) and are admin-only, so those report cards are
+  // hidden for non-admin staff. The API enforces this independently
+  // (403 on an admin-only ?type= for a non-admin session), so hiding the
+  // card here is just to keep staff from seeing options they can't use.
   async function checkAuth() {
     try {
       const resp = await fetch('/api/staff-auth');
       const result = await resp.json();
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=staff-reports.html';
+        return;
+      }
+      if (result.role !== 'admin') {
+        document.querySelectorAll('.admin-only-report').forEach(el => el.remove());
       }
     } catch (e) {
       window.location.href = 'staff-login.html?next=staff-reports.html';
@@ -221,7 +239,7 @@
 
       try {
         let url = `/api/reports?type=${encodeURIComponent(type)}`;
-        if ((type === 'orders' || type === 'sales' || type === 'expenses')) {
+        if ((type === 'orders' || type === 'sales' || type === 'expenses' || type === 'withdrawals')) {
           if (from) url += `&from=${encodeURIComponent(from)}`;
           if (to) url += `&to=${encodeURIComponent(to)}`;
         }
