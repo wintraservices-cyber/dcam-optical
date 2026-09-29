@@ -147,18 +147,32 @@ async function dashboardSummary(req, res, session) {
     const today = todayManila();
     const todayFilter = `&order_date=eq.${encodeURIComponent(today)}`;
 
-    const [newIntakesResp, todaysOrdersResp] = await Promise.all([
+    // "Due" orders: still status=ordered (nothing's arrived/been fitted
+    // yet) but due_date has reached today -- these are the ones staff
+    // need to chase a vendor or call the patient about, since the order
+    // itself says it should already be here or ready. due.lte.today
+    // also catches anything overdue, not just due exactly today.
+    const dueFilter = `&status=eq.ordered&due_date=lte.${encodeURIComponent(today)}&due_date=not.is.null`;
+    // "Unclaimed Rx (Ready)": status=ready, any date -- glasses are done
+    // and waiting at the counter for the patient to pick up.
+    const unclaimedFilter = `&status=eq.ready`;
+
+    const [newIntakesResp, todaysOrdersResp, dueOrdersResp, unclaimedOrdersResp] = await Promise.all([
       supabaseRequest('intake_submissions?select=id,fname,lname,phone,reason,pref_date,pref_time,created_at&status=eq.new&order=created_at.desc&limit=50', { method: 'GET' }),
       supabaseRequest(`orders?select=id,order_no,patient_name,status,balance,amount,payment_status${todayFilter}&deleted_at=is.null&order=created_at.desc&limit=200`, { method: 'GET' }),
+      supabaseRequest(`orders?select=id,order_no,patient_name,tel_no,due_date${dueFilter}&deleted_at=is.null&order=due_date.asc&limit=200`, { method: 'GET' }),
+      supabaseRequest(`orders?select=id,order_no,patient_name,tel_no,due_date${unclaimedFilter}&deleted_at=is.null&order=due_date.asc&limit=200`, { method: 'GET' }),
     ]);
 
-    if (!newIntakesResp.ok || !todaysOrdersResp.ok) {
+    if (!newIntakesResp.ok || !todaysOrdersResp.ok || !dueOrdersResp.ok || !unclaimedOrdersResp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load the dashboard.' });
       return;
     }
 
     const newIntakes = await newIntakesResp.json();
     const todaysOrders = await todaysOrdersResp.json();
+    const dueOrders = await dueOrdersResp.json();
+    const unclaimedOrders = await unclaimedOrdersResp.json();
 
     const ordersByStatus = { ordered: 0, ready: 0, claimed: 0 };
     todaysOrders.forEach((o) => {
@@ -173,6 +187,10 @@ async function dashboardSummary(req, res, session) {
         total: todaysOrders.length,
         byStatus: ordersByStatus,
       },
+      dueOrderCount: dueOrders.length,
+      dueOrders: dueOrders.slice(0, 8),
+      unclaimedCount: unclaimedOrders.length,
+      unclaimedOrders: unclaimedOrders.slice(0, 8),
     };
 
     if (session.role === 'admin') {

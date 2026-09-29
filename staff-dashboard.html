@@ -20,6 +20,7 @@
     --line: rgba(56,51,52,0.14);
     --green: #3E8E5A;
     --red: #B0405A;
+    --amber: #B8792A;
     --display: 'Plus Jakarta Sans', sans-serif;
     --body: 'Sora', sans-serif;
   }
@@ -75,7 +76,7 @@
 
   .stat-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
     margin-bottom: 32px;
   }
@@ -108,6 +109,7 @@
   .stat-card.accent-blue .stat-value { color: var(--blue-deep); }
   .stat-card.accent-green .stat-value { color: var(--green); }
   .stat-card.accent-red .stat-value { color: var(--red); }
+  .stat-card.accent-amber .stat-value { color: var(--amber); }
 
   .section {
     background: #fff;
@@ -225,6 +227,16 @@
       <div class="stat-value" id="statTodaysOrders">—</div>
       <div class="stat-note" id="statTodaysOrdersNote">&nbsp;</div>
     </div>
+    <div class="stat-card accent-amber">
+      <div class="stat-label">Due</div>
+      <div class="stat-value" id="statDue">—</div>
+      <div class="stat-note">Still "Ordered" past due date</div>
+    </div>
+    <div class="stat-card accent-blue">
+      <div class="stat-label">Unclaimed Rx</div>
+      <div class="stat-value" id="statUnclaimed">—</div>
+      <div class="stat-note">Ready, waiting for pickup</div>
+    </div>
     <div class="stat-card accent-green" id="statMoneyCard" style="display:none;">
       <div class="stat-label">Collected today</div>
       <div class="stat-value" id="statCollected">—</div>
@@ -249,6 +261,22 @@
     <h2>Today's orders</h2>
     <div class="section-sub" id="todaysOrdersSub">&nbsp;</div>
     <div class="status-breakdown" id="statusBreakdown">
+      <div class="loading-note">Loading…</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Due</h2>
+    <div class="section-sub">Still marked "Ordered" and past (or at) the due date on file — chase the lab/vendor or call the patient, then mark it Ready once it's actually in.</div>
+    <div class="intake-list" id="dueList">
+      <div class="loading-note">Loading…</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Unclaimed Rx (Ready)</h2>
+    <div class="section-sub">Marked Ready and waiting for the patient to pick up.</div>
+    <div class="intake-list" id="unclaimedList">
       <div class="loading-note">Loading…</div>
     </div>
   </div>
@@ -370,6 +398,63 @@
     });
   }
 
+  // Shared renderer for the Due and Unclaimed Rx lists -- both are a
+  // list of orders with a one-click action that advances its status
+  // (Due -> Ready once the lab/vendor confirms it's in; Ready -> Claimed
+  // once the patient picks it up), plus a "Look up" link into that
+  // patient's record for calling them.
+  function renderOrderActionList(containerId, orders, opts) {
+    const list = document.getElementById(containerId);
+    if (!orders.length) {
+      list.innerHTML = `<div class="empty-note">${opts.emptyText}</div>`;
+      return;
+    }
+    list.innerHTML = orders.map(o => `
+      <div class="intake-row" data-order-id="${o.id}">
+        <div class="intake-info">
+          <div class="intake-name">#${escapeHtml(o.order_no)} — ${escapeHtml(o.patient_name)}</div>
+          <div class="intake-meta">
+            ${escapeHtml(o.tel_no) || '—'}
+            ${o.due_date ? ' · due ' + escapeHtml(o.due_date) : ''}
+          </div>
+        </div>
+        <div class="intake-actions">
+          <a href="staff-patient-lookup.html?phone=${encodeURIComponent(o.tel_no || '')}" class="btn-pill">Look up</a>
+          <button type="button" class="btn-pill primary advance-status-btn" data-id="${o.id}" data-next-status="${opts.nextStatus}">${opts.actionLabel}</button>
+        </div>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('.advance-status-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const nextStatus = btn.getAttribute('data-next-status');
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        try {
+          const resp = await fetch('/api/orders', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, status: nextStatus }),
+          });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not update this order.');
+          const row = btn.closest('.intake-row');
+          if (row) row.remove();
+          const remaining = list.querySelectorAll('.intake-row').length;
+          document.getElementById(opts.statId).textContent = remaining;
+          if (!remaining) {
+            list.innerHTML = `<div class="empty-note">${opts.emptyText}</div>`;
+          }
+        } catch (err) {
+          alert(err.message || 'Could not update this order.');
+          btn.disabled = false;
+          btn.textContent = opts.actionLabel;
+        }
+      });
+    });
+  }
+
   function renderStatusBreakdown(byStatus, total) {
     const el = document.getElementById('statusBreakdown');
     if (!total) {
@@ -403,6 +488,22 @@
       document.getElementById('statTodaysOrdersNote').textContent = s.todaysOrders.total === 1 ? 'order placed today' : 'orders placed today';
       document.getElementById('todaysOrdersSub').textContent = `${s.todaysOrders.total} order(s) with today's order date, by status.`;
       renderStatusBreakdown(s.todaysOrders.byStatus, s.todaysOrders.total);
+
+      document.getElementById('statDue').textContent = s.dueOrderCount;
+      renderOrderActionList('dueList', s.dueOrders || [], {
+        emptyText: 'Nothing due — everything on order is still ahead of schedule.',
+        actionLabel: 'Mark Ready',
+        nextStatus: 'ready',
+        statId: 'statDue',
+      });
+
+      document.getElementById('statUnclaimed').textContent = s.unclaimedCount;
+      renderOrderActionList('unclaimedList', s.unclaimedOrders || [], {
+        emptyText: 'Nothing waiting for pickup right now.',
+        actionLabel: 'Mark Claimed',
+        nextStatus: 'claimed',
+        statId: 'statUnclaimed',
+      });
 
       if (s.money) {
         document.getElementById('statCollected').textContent = peso(s.money.totalCollectedToday);
