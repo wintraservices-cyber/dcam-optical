@@ -100,6 +100,30 @@
     color: var(--purple-deep);
   }
 
+  /* Compact icon button for deleting an order from the list row -- a
+     small "x" circle instead of a full "Delete" pill, so the Edit/Print
+     actions don't get crowded on narrower screens. */
+  .delete-order-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin-top: 4px;
+    margin-left: 2px;
+    border-radius: 50%;
+    border: 1px solid #B0405A;
+    background: #fff;
+    color: #B0405A;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.8rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .delete-order-btn:hover { background: rgba(176,64,90,0.08); }
+
   table {
     width: 100%;
     border-collapse: collapse;
@@ -284,6 +308,11 @@
       <button data-status="ready">Ready</button>
       <button data-status="claimed">Claimed</button>
     </div>
+    <div class="status-filter type-filter">
+      <button class="active" data-type="">All types</button>
+      <button data-type="rx">Rx</button>
+      <button data-type="non_rx">Non-Rx</button>
+    </div>
   </div>
 
   <div id="content">
@@ -296,8 +325,10 @@
 (function() {
   const content = document.getElementById('content');
   const searchInput = document.getElementById('searchInput');
-  const statusButtons = document.querySelectorAll('.status-filter button');
+  const statusButtons = document.querySelectorAll('.status-filter:not(.type-filter) button');
+  const typeButtons = document.querySelectorAll('.type-filter button');
   let currentStatus = '';
+  let currentType = '';
   let searchDebounce = null;
   // Defaults to "All" -- staff pulling up the order list usually want
   // everything (a specific order # search, or checking today's ready
@@ -354,6 +385,7 @@
     const params = new URLSearchParams();
     if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
     if (currentStatus) params.set('status', currentStatus);
+    if (currentType) params.set('order_type', currentType);
     const { from, to } = periodFilter.getRange();
     if (from) params.set('from', from);
     if (to) params.set('to', to);
@@ -381,7 +413,7 @@
 
     const rows = orders.map(o => `
       <tr>
-        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a> <a href="order-form.html?id=${o.id}&threeup=1" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Print</a> <button type="button" class="delete-order-btn" style="font-family: var(--display); font-weight: 600; font-size: 0.72rem; padding: 4px 10px; border-radius: 100px; border: 1px solid #B0405A; background: #fff; color: #B0405A; cursor: pointer; margin-top: 4px; display: inline-block;" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">Delete</button></td>
+        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a> <a href="order-form.html?id=${o.id}&threeup=1" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Print</a> <button type="button" class="delete-order-btn" title="Delete order #${escapeHtml(o.order_no)}" aria-label="Delete order #${escapeHtml(o.order_no)}" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">&times;</button></td>
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
         <td data-label="Date">${escapeHtml(o.order_date) || '—'}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>
@@ -562,6 +594,15 @@
       statusButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentStatus = btn.getAttribute('data-status');
+      loadOrders();
+    });
+  });
+
+  typeButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      typeButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentType = btn.getAttribute('data-type');
       loadOrders();
     });
   });
