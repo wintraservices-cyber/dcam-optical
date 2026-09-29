@@ -194,17 +194,27 @@ async function dashboardSummary(req, res, session) {
     };
 
     if (session.role === 'admin') {
-      const salesResp = await supabaseRequest(`orders?select=amount,deposit,balance,payment_status,created_at${todayFilter}&deleted_at=is.null`, { method: 'GET' });
+      const [salesResp, expensesResp] = await Promise.all([
+        supabaseRequest(`orders?select=amount,deposit,balance,payment_status,created_at${todayFilter}&deleted_at=is.null`, { method: 'GET' }),
+        supabaseRequest(`expenses?select=amount&expense_date=eq.${encodeURIComponent(today)}`, { method: 'GET' }),
+      ]);
       if (salesResp.ok) {
         const salesOrders = await salesResp.json();
         const totalAmount = salesOrders.reduce((sum, o) => sum + num(o.amount), 0);
         const totalDeposit = salesOrders.reduce((sum, o) => sum + num(o.deposit), 0);
         const totalOutstanding = salesOrders.reduce((sum, o) => sum + num(o.balance), 0);
+        let totalExpenses = 0;
+        if (expensesResp.ok) {
+          const todaysExpenses = await expensesResp.json();
+          totalExpenses = todaysExpenses.reduce((sum, e) => sum + num(e.amount), 0);
+        }
         summary.money = {
           todaysOrderCount: salesOrders.length,
           totalAmount,
           totalCollectedToday: totalDeposit,
           totalOutstanding,
+          totalExpensesToday: totalExpenses,
+          netCashToday: totalDeposit - totalExpenses,
         };
       }
     }

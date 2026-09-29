@@ -76,12 +76,22 @@
 
   .stat-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
-    margin-bottom: 32px;
+    margin-bottom: 20px;
   }
   @media (max-width: 900px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 520px) { .stat-row { grid-template-columns: 1fr; } }
+
+  .stat-row-label {
+    font-family: var(--display);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--charcoal-soft);
+    margin-bottom: 10px;
+  }
 
   .stat-card {
     background: #fff;
@@ -237,15 +247,31 @@
       <div class="stat-value" id="statUnclaimed">—</div>
       <div class="stat-note">Ready, waiting for pickup</div>
     </div>
-    <div class="stat-card accent-green" id="statMoneyCard" style="display:none;">
-      <div class="stat-label">Collected today</div>
-      <div class="stat-value" id="statCollected">—</div>
-      <div class="stat-note" id="statCollectedNote">&nbsp;</div>
-    </div>
-    <div class="stat-card accent-purple" id="statOutstandingCard" style="display:none;">
-      <div class="stat-label">Outstanding today</div>
-      <div class="stat-value" id="statOutstanding">—</div>
-      <div class="stat-note">Balance left on today's orders</div>
+  </div>
+
+  <div id="moneyRowWrap" style="display:none;">
+    <div class="stat-row-label">Today's financials</div>
+    <div class="stat-row">
+      <div class="stat-card accent-purple">
+        <div class="stat-label">Today's sales</div>
+        <div class="stat-value" id="statSales">—</div>
+        <div class="stat-note" id="statSalesNote">&nbsp;</div>
+      </div>
+      <div class="stat-card accent-green">
+        <div class="stat-label">Collected today</div>
+        <div class="stat-value" id="statCollected">—</div>
+        <div class="stat-note">Deposits taken today</div>
+      </div>
+      <div class="stat-card accent-red">
+        <div class="stat-label">Outstanding</div>
+        <div class="stat-value" id="statOutstanding">—</div>
+        <div class="stat-note">Balance left on today's orders</div>
+      </div>
+      <div class="stat-card accent-amber">
+        <div class="stat-label">Expenses today</div>
+        <div class="stat-value" id="statExpenses">—</div>
+        <div class="stat-note" id="statNetCash">&nbsp;</div>
+      </div>
     </div>
   </div>
 
@@ -319,8 +345,7 @@
       currentUsername = result.username || '';
       document.getElementById('greeting').textContent = currentUsername ? `Welcome back, ${currentUsername}` : 'Welcome back';
       if (currentRole === 'admin') {
-        document.getElementById('statMoneyCard').style.display = '';
-        document.getElementById('statOutstandingCard').style.display = '';
+        document.getElementById('moneyRowWrap').style.display = '';
       } else {
         // Expenses and Settings are admin-only pages -- hide their nav
         // buttons and the Expenses quick-link tile for non-admin staff.
@@ -506,9 +531,13 @@
       });
 
       if (s.money) {
+        document.getElementById('statSales').textContent = peso(s.money.totalAmount);
+        document.getElementById('statSalesNote').textContent = `across ${s.money.todaysOrderCount} order(s)`;
         document.getElementById('statCollected').textContent = peso(s.money.totalCollectedToday);
-        document.getElementById('statCollectedNote').textContent = `across ${s.money.todaysOrderCount} order(s)`;
         document.getElementById('statOutstanding').textContent = peso(s.money.totalOutstanding);
+        document.getElementById('statExpenses').textContent = peso(s.money.totalExpensesToday);
+        const net = s.money.netCashToday;
+        document.getElementById('statNetCash').textContent = `Net cash: ${net < 0 ? '-' : ''}${peso(Math.abs(net))}`;
       }
     } catch (err) {
       document.getElementById('intakeList').innerHTML = `<div class="error-note">${escapeHtml(err.message)}</div>`;
