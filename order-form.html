@@ -1052,8 +1052,8 @@
     <a href="staff-expenses.html" class="btn-new" style="text-decoration:none; display:inline-flex; align-items:center;">Expenses</a>
     <button class="btn-new" id="clearBtn">Clear form</button>
     <button class="btn-new" id="saveBtn" style="background:var(--purple); color:#fff; border:none !important;">Save order</button>
-    <button class="btn-print" id="printBtn">Print order + stub</button>
-    <button class="btn-new" id="printThreeUpBtn" title="Alternate layout: 3 compact copies on one full sheet, instead of 1 copy on a pre-cut strip">Print (3-up)</button>
+    <button class="btn-print" id="printThreeUpBtn">Print</button>
+    <button class="btn-new" id="logoutBtn">Log out</button>
   </div>
 </div>
 
@@ -1421,8 +1421,9 @@
 
   <div class="bottom-actions no-print">
     <button class="btn-bottom-secondary" id="clearBtnBottom">Clear form</button>
+    <button class="btn-bottom-secondary" id="cancelBtnBottom">Cancel</button>
     <button class="btn-bottom-primary" id="saveBtnBottom">Save order</button>
-    <button class="btn-bottom-secondary" id="printBtnBottom">Print order + stub</button>
+    <button class="btn-bottom-secondary" id="printBtnBottom">Print</button>
   </div>
 </div>
 
@@ -1497,22 +1498,11 @@
   ordLensType.addEventListener('input', () => autoGrowTextarea(ordLensType));
 
   // Browsers suggest document.title as the default filename when printing
-  // to PDF / printing to file -- swap it to "<order no> - <patient name>"
-  // just for the print, so staff don't have to rename "Order Form —
-  // DCAM Optical" by hand every time, then restore the tab's real title
-  // once the print dialog closes.
+  // to PDF / printing to file -- the 3-up print handler below (printThreeUp)
+  // swaps it to "<order no> - <patient name>" for the duration of the print,
+  // so staff don't have to rename "Order Form — DCAM Optical" by hand every
+  // time, then restores the tab's real title once the print dialog closes.
   const originalDocTitle = document.title;
-  document.getElementById('printBtn').addEventListener('click', () => {
-    const orderNoVal = (document.getElementById('orderNo').value || '').trim();
-    const patientNameVal = (document.getElementById('ordName').value || '').trim();
-    const parts = [orderNoVal, patientNameVal].filter(Boolean);
-    if (parts.length) {
-      // Strip characters that aren't safe in a filename on Windows/macOS.
-      document.title = parts.join(' - ').replace(/[\\/:*?"<>|]/g, '-');
-    }
-    window.print();
-  });
-  window.addEventListener('afterprint', () => { document.title = originalDocTitle; });
 
   // ---- Alternate print layout: 3-up on one full Letter sheet ----
   // Reads the same live form fields as the normal print (no separate
@@ -1623,7 +1613,7 @@
     const patientNameVal = (document.getElementById('ordName').value || '').trim();
     const parts = [orderNoVal, patientNameVal].filter(Boolean);
     if (parts.length) {
-      document.title = (parts.join(' - ') + ' (3-up)').replace(/[\\/:*?"<>|]/g, '-');
+      document.title = parts.join(' - ').replace(/[\\/:*?"<>|]/g, '-');
     }
 
     window.print();
@@ -1643,10 +1633,22 @@
   // (and the "Save order" / "Save changes" label swap) stays in one place.
   const saveBtnBottom = document.getElementById('saveBtnBottom');
   const clearBtnBottom = document.getElementById('clearBtnBottom');
+  const cancelBtnBottom = document.getElementById('cancelBtnBottom');
   const printBtnBottom = document.getElementById('printBtnBottom');
   if (saveBtnBottom) saveBtnBottom.addEventListener('click', () => document.getElementById('saveBtn').click());
   if (clearBtnBottom) clearBtnBottom.addEventListener('click', () => document.getElementById('clearBtn').click());
-  if (printBtnBottom) printBtnBottom.addEventListener('click', () => document.getElementById('printBtn').click());
+  if (printBtnBottom) printBtnBottom.addEventListener('click', () => document.getElementById('printThreeUpBtn').click());
+  // Cancel discards any changes on this form and leaves the page, going
+  // back to wherever staff came from (the orders list, most often) rather
+  // than clearing the form and staying here like "Clear form" does.
+  if (cancelBtnBottom) cancelBtnBottom.addEventListener('click', () => {
+    if (!confirm('Discard changes and leave this order form?')) return;
+    if (document.referrer && new URL(document.referrer).origin === window.location.origin) {
+      window.location.href = document.referrer;
+    } else {
+      window.location.href = 'staff-orders.html';
+    }
+  });
   // Keep the bottom Save button's label (and disabled state) in sync with
   // the top one -- e.g. "Save order" -> "Save changes" in edit mode, or
   // "Saving..." / "Saved" during the save request -- without touching
@@ -1754,6 +1756,11 @@
   }
   checkAuth();
 
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/staff-auth?action=logout', { method: 'POST' });
+    window.location.href = 'staff-login.html';
+  });
+
   // ---- Editing an existing order (order-form.html?id=<uuid>) ----
   let editingOrderId = null;
 
@@ -1770,15 +1777,9 @@
       loadOrderHistory(id);
 
       // Came here from the "Print" link on the View orders list
-      // (order-form.html?id=...&print=1) -- open the print dialog
+      // (order-form.html?id=...&threeup=1) -- open the print dialog
       // automatically once the order's data has actually loaded, rather
       // than making staff open the order first and click Print by hand.
-      if (new URLSearchParams(window.location.search).get('print') === '1') {
-        setTimeout(() => document.getElementById('printBtn').click(), 300);
-      }
-      // Same idea, but for the "Print 3-up" link
-      // (order-form.html?id=...&threeup=1) -- opens the alternate-layout
-      // print dialog automatically instead of the normal one.
       if (new URLSearchParams(window.location.search).get('threeup') === '1') {
         setTimeout(() => document.getElementById('printThreeUpBtn').click(), 300);
       }
