@@ -883,16 +883,14 @@
     body.three-up-print .no-print { display: none !important; }
     body.three-up-print #threeUpSlip { display: block !important; }
     body.three-up-print .page-wrap { margin: 0; padding: 0; max-width: 100%; }
-    /* The 3 copies are built compact (small font-size below) so the
-       underlying layout math stays simple, then scaled up uniformly to
-       actually fill the full 8.5x11in sheet -- unscaled, 3 copies only
-       used the top ~1/3 of the page, leaving 2/3 blank. zoom (like the
-       normal print's zoom above) scales padding/borders/gaps along with
-       text, so the enlarged copies keep the same proportions rather than
-       just growing text inside fixed-size boxes. Measured the unscaled
-       3 copies at ~3.65in tall against a ~10.4in usable page height
-       (11in sheet minus 0.3in margins top and bottom) -- 10.4/3.65 ~= 2.85. */
-    #threeUpContainer { zoom: 2.85; }
+    /* Each copy is built compact (small font-size below) so the
+       underlying layout math stays simple, then scaled up uniformly with
+       zoom (like the normal print's zoom above) so padding/borders/gaps
+       grow along with text, keeping proportions intact rather than just
+       stretching text inside fixed-size boxes. This value is tuned for
+       whatever paper size printThreeUp() currently sets -- re-measure
+       and adjust whenever THREE_UP_COPY_COUNT or the @page size changes. */
+    #threeUpContainer { zoom: 2.5; }
 
     .tu-copy {
       display: grid;
@@ -1581,25 +1579,31 @@
     return node;
   }
 
+  // Currently set to print just 1 copy on the same pre-cut 8.5x3.67in
+  // strip as the normal "Print order + stub" button, so the two can be
+  // compared side by side on identical paper while deciding which
+  // design to keep -- not yet decided, see printThreeUp()'s @page note.
+  const THREE_UP_COPY_COUNT = 1;
   function buildThreeUpSlips() {
     const data = collectThreeUpData();
     const container = document.getElementById('threeUpContainer');
     container.innerHTML = '';
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < THREE_UP_COPY_COUNT; i++) {
       container.appendChild(renderThreeUpCopy(data));
     }
   }
 
-  // @page can't be scoped to a class selector, so the full-Letter-page
-  // size for this mode is set via a <style> tag added to <head> only for
-  // the duration of this one print, then removed -- the normal print's
-  // own @page rule (the 8.5x3.67in strip) is untouched and takes effect
-  // again as soon as this tag is gone.
+  // @page can't be scoped to a class selector, so this mode's page size
+  // is set via a <style> tag added to <head> only for the duration of
+  // this one print, then removed -- the normal print's own @page rule
+  // is untouched and takes effect again as soon as this tag is gone.
+  // Currently matches the normal print's 8.5x3.67in strip (see
+  // THREE_UP_COPY_COUNT above) rather than a full Letter page.
   function printThreeUp() {
     buildThreeUpSlips();
     const pageStyle = document.createElement('style');
     pageStyle.id = 'threeUpPageStyle';
-    pageStyle.textContent = '@page { size: 8.5in 11in; margin: 0.3in; }';
+    pageStyle.textContent = '@page { size: 8.5in 3.67in; margin: 0.08in; }';
     document.head.appendChild(pageStyle);
     document.body.classList.add('three-up-print');
 
