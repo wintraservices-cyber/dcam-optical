@@ -981,12 +981,23 @@
     .tu-box.checked { background: #000 !important; }
     .tu-full { margin-bottom: 2px; border-bottom: 0.75px solid #000; padding-bottom: 2px; }
     .tu-sig { margin-top: 3px; font-weight: 700; font-size: 5.4px; }
-    .tu-sig .tu-line { display: inline-block; width: 60px; border-bottom: 0.75px solid #000; }
+    .tu-sig [data-field="takenBy"] {
+      display: inline-block;
+      min-width: 60px;
+      font-weight: 400;
+      border-bottom: 0.75px solid #000;
+      padding-bottom: 1px;
+    }
 
     .tu-stub .tu-brandbox { width: 20px; height: 20px; margin-bottom: 2px; }
     .tu-stub .tu-loc-name { font-weight: 700; font-size: 6px; margin-bottom: 3px; }
     .tu-stub-field { margin-bottom: 2px; border-bottom: 0.75px solid #000; padding-bottom: 1px; }
     .tu-stub-field label { display: block; font-weight: 700; text-transform: uppercase; font-size: 4.6px; color: #333; }
+    /* Reserve height for the value even when it's blank (e.g. no deposit
+       yet), so every row keeps the same height and the stub's rows stay
+       evenly spaced instead of the empty one collapsing shorter than its
+       neighbors. */
+    .tu-stub-field span { display: block; min-height: 6px; }
     .tu-stub-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-bottom: 2px; }
     .tu-stub-row2 label { display: block; font-weight: 700; text-transform: uppercase; font-size: 4.6px; color: #333; }
     .tu-stub-row2 > div { border-bottom: 0.75px solid #000; padding-bottom: 1px; }
@@ -1383,7 +1394,7 @@
           </table>
           <div class="tu-field tu-full"><label>Frame</label><span data-field="ordFrame"></span></div>
           <div class="tu-field tu-full"><label>Special Instructions</label><span data-field="ordNotes"></span></div>
-          <div class="tu-sig">By: <span class="tu-line"></span></div>
+          <div class="tu-sig">By: <span data-field="takenBy"></span></div>
         </div>
         <div class="tu-stub">
           <div class="tu-brandbox"></div>
@@ -1546,6 +1557,7 @@
       deposit: fmtMoney(val('deposit')),
       balance: fmtMoney(val('balance')),
       lensMaterial: checkedVal('lensMaterial'),
+      takenBy: val('takenBy'),
     };
   }
 
