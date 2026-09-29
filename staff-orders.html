@@ -124,6 +124,26 @@
   }
   .delete-order-btn:hover { background: rgba(176,64,90,0.08); }
 
+  /* Compact icon button for printing an order from the list row -- a
+     small printer-glyph circle next to Delete, instead of a "Print"
+     text link, so the two sit beside each other without crowding Edit. */
+  .print-order-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin-top: 4px;
+    border-radius: 50%;
+    border: 1px solid var(--purple);
+    background: #fff;
+    color: var(--purple-deep);
+    cursor: pointer;
+  }
+  .print-order-btn:hover { background: rgba(176,90,158,0.08); }
+  .print-order-btn svg { width: 13px; height: 13px; display: block; }
+
   table {
     width: 100%;
     border-collapse: collapse;
@@ -413,7 +433,7 @@
 
     const rows = orders.map(o => `
       <tr>
-        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a> <a href="order-form.html?id=${o.id}&threeup=1" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Print</a> <button type="button" class="delete-order-btn" title="Delete order #${escapeHtml(o.order_no)}" aria-label="Delete order #${escapeHtml(o.order_no)}" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">&times;</button></td>
+        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a> <a href="order-form.html?id=${o.id}&threeup=1" class="print-order-btn" title="Print order #${escapeHtml(o.order_no)}" aria-label="Print order #${escapeHtml(o.order_no)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg></a> <button type="button" class="delete-order-btn" title="Delete order #${escapeHtml(o.order_no)}" aria-label="Delete order #${escapeHtml(o.order_no)}" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">&times;</button></td>
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
         <td data-label="Date">${escapeHtml(o.order_date) || '—'}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>
