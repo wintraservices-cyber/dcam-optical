@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>DCAM Optical (formerly Limuaco Optical) — New website coming soon</title>
+<meta name="description" content="DCAM Optical, formerly Limuaco Optical, is your family-friendly optical shop at Ever Gotesco Commonwealth, Quezon City. Our new website is coming soon.">
+<meta property="og:title" content="DCAM Optical — Coming soon">
+<meta property="og:description" content="Formerly Limuaco Optical. Eye exams and eyewear at Ever Gotesco Commonwealth, Quezon City.">
+<meta property="og:image" content="/assets/landing-options/display-case.jpg">
+<meta name="theme-color" content="#141011">
+<link rel="icon" href="/assets/landing-options/dcam-logo.png">
+<link rel="preload" as="image" href="/assets/landing-options/display-case.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orchid: #B05A9E; --orchid-soft: #D08BC2; --sky: #5BAFC0;
+    --ivory: #F7F1E8; --muted: #C9BFB6; --ink: #141011;
+    --display: 'Plus Jakarta Sans', sans-serif; --body: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: var(--ink); color: var(--ivory); font-family: var(--body); overflow: hidden; }
+
+  .stage { position: fixed; inset: 0; overflow: hidden; }
+  .kb { position: absolute; left: 0; top: 0; width: 100%; height: 100%; animation: ken 26s ease-in-out infinite alternate; }
+  .kb img { width: 100%; height: 100%; object-fit: cover; object-position: center 58%; display: block; transform: scale(1.06); }
+  .bg .kb img { filter: blur(10px) saturate(1.05) brightness(0.55); }
+  .shade { position: absolute; inset: 0; background:
+      radial-gradient(ellipse at 50% 42%, rgba(20,16,17,0.05) 0%, rgba(20,16,17,0.55) 70%),
+      linear-gradient(0deg, rgba(20,16,17,0.92) 0%, rgba(20,16,17,0) 45%); }
+
+  .rig { position: absolute; left: 0; top: 0; will-change: transform; }
+  .lens { position: absolute; top: 0; overflow: hidden; box-shadow: inset 0 0 40px rgba(91,175,192,0.35), 0 30px 60px rgba(0,0,0,0.45); }
+  .lens .shift { position: absolute; left: 0; top: 0; will-change: transform; }
+  .lens .kb img { filter: saturate(1.12) brightness(1.04); }
+  .glint { position: absolute; top: -20%; left: 0; width: 30%; height: 140%;
+    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+    animation: glint 7s ease-in-out infinite; }
+  .lens + .lens .glint { animation-delay: .25s; }
+  .frame { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+
+  .top { position: absolute; left: 0; right: 0; top: 0; display: flex; justify-content: center; padding: max(28px, env(safe-area-inset-top)) 24px 0; }
+  .top img { height: 58px; width: auto; display: block; }
+
+  .copy { position: absolute; left: 50%; bottom: max(120px, 14vh); transform: translateX(-50%); width: min(760px, calc(100% - 40px)); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 10px; background: rgba(247,241,232,0.12); border: 1px solid rgba(247,241,232,0.25); border-radius: 999px; padding: 8px 16px; font-size: 13px; letter-spacing: .3px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sky); animation: pulse 1.8s ease-out infinite; }
+  h1 { font-family: var(--display); font-weight: 800; font-size: clamp(38px, 6.4vw, 84px); line-height: 1; letter-spacing: -0.04em; }
+  h1 span { color: var(--orchid-soft); }
+  .lede { font-size: clamp(15px, 1.5vw, 18px); line-height: 1.6; color: var(--muted); max-width: 600px; }
+  .up { animation: up 1s cubic-bezier(.2,.7,.2,1) both; }
+
+  .corner { position: absolute; right: max(20px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(247,241,232,0.3); background: rgba(20,16,17,0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--ivory); font: 600 14px var(--body); text-decoration: none; cursor: pointer; transition: background .2s, border-color .2s, transform .2s; }
+  .pill:hover { background: rgba(247,241,232,0.16); border-color: rgba(247,241,232,0.6); transform: translateY(-1px); }
+  .pill:focus-visible { outline: 3px solid var(--sky); outline-offset: 3px; }
+  .pill.icon { width: 46px; padding: 0; justify-content: center; }
+  .pill.primary { background: var(--orchid); border-color: var(--orchid); }
+  .pill.primary:hover { background: #9C4A8B; }
+  .pill[aria-disabled="true"] { opacity: .45; cursor: default; }
+  .pill svg { flex-shrink: 0; }
+
+  .foot { position: absolute; left: max(20px, env(safe-area-inset-left)); bottom: max(28px, env(safe-area-inset-bottom)); font-size: 12px; color: #8F8680; }
+
+  dialog { margin: auto; border: none; border-radius: 22px; padding: 28px; width: min(360px, calc(100% - 32px)); background: #F7F1E8; color: #383334; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  dialog::backdrop { background: rgba(10,8,9,0.6); backdrop-filter: blur(4px); }
+  dialog h2 { font-family: var(--display); font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  dialog p { font-size: 14px; color: #5E5759; margin-top: 6px; line-height: 1.5; }
+  dialog label { display: block; font-size: 13px; font-weight: 600; margin-top: 18px; }
+  dialog input { width: 100%; height: 50px; margin-top: 8px; border: 1.5px solid #CFC5B8; border-radius: 12px; padding: 0 14px; font: 500 20px var(--body); letter-spacing: 6px; text-align: center; color: #383334; background: #fff; }
+  dialog input:focus { outline: none; border-color: var(--sky); }
+  .dlg-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .dlg-actions button { flex: 1; height: 46px; border-radius: 999px; font: 600 15px var(--body); cursor: pointer; border: 1.5px solid #CFC5B8; background: transparent; color: #383334; }
+  .dlg-actions button.go { background: #8A3F7B; border-color: #8A3F7B; color: #fff; }
+  .dlg-actions button:disabled { opacity: .6; cursor: default; }
+  .err { color: #A3302B; font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+  @keyframes ken { from { transform: scale(1); } to { transform: scale(1.09); } }
+  @keyframes glint { 0% { transform: translateX(-160%) rotate(12deg); } 28%, 100% { transform: translateX(420%) rotate(12deg); } }
+  @keyframes up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(91,175,192,.6); } 100% { box-shadow: 0 0 0 14px rgba(91,175,192,0); } }
+
+  @media (max-width: 640px) {
+    .top img { height: 46px; }
+    .copy { bottom: 96px; gap: 12px; }
+    .corner { left: 16px; right: 16px; justify-content: center; }
+    .pill .lbl-long { display: none; }
+    .foot { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .kb, .glint, .dot, .up { animation: none !important; } }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <div class="bg"><div class="kb"><img src="/assets/landing-options/display-case.jpg" alt=""></div></div>
+  <div class="shade"></div>
+
+  <div class="rig" id="rig" aria-hidden="true">
+    <div class="lens" id="lensL"><div class="shift"><div class="kb"><img src="/assets/landing-options/display-case.jpg" alt=""></div></div><div class="glint"></div></div>
+    <div class="lens" id="lensR"><div class="shift"><div class="kb"><img src="/assets/landing-options/display-case.jpg" alt=""></div></div><div class="glint"></div></div>
+    <svg class="frame" viewBox="0 0 640 250" preserveAspectRatio="none"><rect x="3" y="3" width="284" height="244" rx="98" fill="none" stroke="#F7F1E8" stroke-width="7"/><rect x="353" y="3" width="284" height="244" rx="98" fill="none" stroke="#F7F1E8" stroke-width="7"/><path d="M287 92 C 305 66, 335 66, 353 92" fill="none" stroke="#F7F1E8" stroke-width="7" stroke-linecap="round"/></svg>
+  </div>
+
+  <header class="top"><img src="/assets/landing-options/dcam-logo-ivory.png" alt="DCAM Optical"></header>
+
+  <section class="copy">
+    <span class="eyebrow up" style="animation-delay:.1s"><span class="dot"></span><span id="eyebrowText">Formerly Limuaco Optical · Ever Gotesco Commonwealth</span></span>
+    <h1 class="up" style="animation-delay:.25s" id="headline">Something clearer<br><span>is coming.</span></h1>
+    <p class="lede up" style="animation-delay:.45s" id="lede">Our new website is almost ready. Until then, the shop is open as usual at the LGF, Ever Gotesco Commonwealth, Quezon City.</p>
+  </section>
+
+  <div class="foot">© <span id="yr">2026</span> DCAM Optical</div>
+
+  <nav class="corner" aria-label="Quick links">
+    <a class="pill icon" id="fbLink" href="#" aria-label="DCAM Optical on Facebook" aria-disabled="true" target="_blank" rel="noopener">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-7.5h2.5l.4-3h-2.9V8.6c0-.9.3-1.5 1.5-1.5h1.5V4.4c-.3 0-1.2-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8v2.4H8.1v3h2.5V21h2.9z"/></svg>
+    </a>
+    <button class="pill" id="pinBtn" type="button" aria-haspopup="dialog">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      <span>View site<span class="lbl-long"> (PIN)</span></span>
+    </button>
+    <a class="pill primary" href="/staff-login">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+      <span>Staff portal</span>
+    </a>
+  </nav>
+</main>
+
+<dialog id="pinDlg" aria-labelledby="pinTitle">
+  <form id="pinForm" method="dialog">
+    <h2 id="pinTitle">Preview the website</h2>
+    <p>Enter the preview PIN to see the full DCAM Optical site.</p>
+    <label for="pinInput">PIN</label>
+    <input id="pinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="12" required>
+    <div class="err" id="pinErr" role="alert"></div>
+    <div class="dlg-actions">
+      <button type="button" id="pinCancel">Cancel</button>
+      <button type="submit" class="go" id="pinGo">View site</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  var PREVIEW_KEY = 'dcam_site_preview';
+  var params = new URLSearchParams(location.search);
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  // ---- Content: coming soon vs maintenance, Facebook link, message ----
+  function applyMode(d) {
+    var mode = params.get('mode') || d.mode;
+    if (mode === 'maintenance') {
+      document.title = 'DCAM Optical — Website under maintenance';
+      document.getElementById('eyebrowText').textContent = 'Quick tune-up in progress';
+      document.getElementById('headline').innerHTML = 'Adjusting the<br><span>focus.</span>';
+      document.getElementById('lede').textContent = 'Our website is getting a quick tune-up and will be back shortly. The shop at Ever Gotesco Commonwealth, Quezon City is open as usual.';
+    }
+    if (d.message) document.getElementById('lede').textContent = d.message;
+    var fb = document.getElementById('fbLink');
+    if (d.facebook_url) { fb.href = d.facebook_url; fb.removeAttribute('aria-disabled'); }
+  }
+  document.getElementById('fbLink').addEventListener('click', function (e) {
+    if (this.getAttribute('aria-disabled') === 'true') e.preventDefault();
+  });
+
+  fetch('/api/settings?view=site_mode').then(function (r) { return r.json(); }).then(function (d) {
+    if (!d || !d.ok) return;
+    // Site is live again: send visitors to the real home page,
+    // unless someone is deliberately looking at the teaser (?view).
+    if (d.mode === 'live' && !params.has('view') && !params.has('mode')) { location.replace('/'); return; }
+    applyMode(d);
+  }).catch(function () {});
+
+  // ---- Preview PIN ----
+  var dlg = document.getElementById('pinDlg'), input = document.getElementById('pinInput'),
+      err = document.getElementById('pinErr'), go = document.getElementById('pinGo');
+  document.getElementById('pinBtn').addEventListener('click', function () {
+    err.textContent = ''; input.value = '';
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    input.focus();
+  });
+  document.getElementById('pinCancel').addEventListener('click', function () { dlg.close(); });
+  document.getElementById('pinForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var pin = input.value.trim();
+    if (!pin) return;
+    go.disabled = true; go.textContent = 'Checking…'; err.textContent = '';
+    fetch('/api/settings?action=site_preview', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: pin })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok && j.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok) {
+          try { localStorage.setItem(PREVIEW_KEY, '1'); } catch (x) {}
+          location.href = '/';
+        } else {
+          err.textContent = (res.j && res.j.error) || 'That PIN is not right.';
+          input.select();
+        }
+      }).catch(function () { err.textContent = 'Could not check the PIN. Please try again.'; })
+      .then(function () { go.disabled = false; go.textContent = 'View site'; });
+  });
+
+  // ---- See-through glasses: follow the pointer, wander when idle ----
+  var stage = document.getElementById('stage'), rig = document.getElementById('rig');
+  var lenses = [document.getElementById('lensL'), document.getElementById('lensR')];
+  var shifts = lenses.map(function (l) { return l.querySelector('.shift'); });
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var W, H, s, RW, RH, homeX, homeY, AX = 0, AY = 0, lensX = [0, 350];
+  var logoEl = document.querySelector('.top'), copyEl = document.querySelector('.copy');
+  var x = 0, y = 0, tx = 0, ty = 0, pointer = null, lastMove = 0, t0 = performance.now();
+
+  function layout() {
+    W = stage.clientWidth; H = stage.clientHeight;
+    // Fit the glasses in the gap between the logo and the text.
+    var topLimit = logoEl.getBoundingClientRect().bottom + 16;
+    var bottomLimit = copyEl.getBoundingClientRect().top - 20;
+    var avail = Math.max(120, bottomLimit - topLimit);
+    s = Math.min(1, (W * 0.84) / 640, (avail * 0.82) / 250);
+    RW = 640 * s; RH = 250 * s;
+    homeX = (W - RW) / 2; homeY = topLimit + (avail - RH) / 2;
+    AX = Math.max(0, Math.min(180, (W - RW) / 2 - 12));
+    AY = Math.max(0, Math.min(40, (avail - RH) / 2 - 4));
+    rig.style.width = RW + 'px'; rig.style.height = RH + 'px';
+    lenses.forEach(function (l, i) {
+      l.style.left = (lensX[i] * s) + 'px'; l.style.width = (290 * s) + 'px'; l.style.height = RH + 'px';
+      l.style.borderRadius = (100 * s) + 'px';
+    });
+    shifts.forEach(function (sh) { sh.style.width = W + 'px'; sh.style.height = H + 'px'; });
+    if (!pointer) { x = tx = homeX; y = ty = homeY; }
+    place();
+  }
+  function place() {
+    rig.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)';
+    shifts.forEach(function (sh, i) {
+      sh.style.transform = 'translate(' + (-(x + lensX[i] * s)).toFixed(1) + 'px,' + (-y).toFixed(1) + 'px)';
+    });
+  }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function point(cx, cy) { pointer = { x: cx, y: cy }; lastMove = performance.now(); }
+  stage.addEventListener('mousemove', function (e) {
+    // Browsers fire zero-distance moves on load/scroll; only real movement steers.
+    if (!pointer && e.movementX === 0 && e.movementY === 0) return;
+    point(e.clientX, e.clientY);
+  });
+  stage.addEventListener('mouseleave', function () { pointer = null; });
+  stage.addEventListener('touchmove', function (e) { var t = e.touches[0]; if (t) point(t.clientX, t.clientY); }, { passive: true });
+  stage.addEventListener('touchend', function () { pointer = null; });
+  window.addEventListener('resize', layout);
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    var idle = !pointer || now - lastMove > 3500, k;
+    if (idle) {
+      if (reduce) { tx = homeX; ty = homeY; }
+      else {
+        var t = (now - t0) / 1000;
+        tx = homeX + AX * (0.77 * Math.sin(t * 0.31) + 0.23 * Math.sin(t * 0.73 + 0.6));
+        ty = homeY + AY * (0.74 * Math.sin(t * 0.47 + 1) + 0.26 * Math.sin(t * 1.13));
+      }
+      k = 0.025;
+    } else {
+      tx = clamp(pointer.x - RW / 2, -RW * 0.35, W - RW * 0.65);
+      ty = clamp(pointer.y - RH / 2, -RH * 0.2, H - RH * 0.8);
+      k = 0.09;
+    }
+    x += (tx - x) * k; y += (ty - y) * k;
+    place();
+  }
+  layout();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+  setTimeout(layout, 1200);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

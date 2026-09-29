@@ -280,6 +280,11 @@
   }
 
   .ai-cards-wrap.off { opacity: 0.45; pointer-events: none; }
+  .site-status { display: inline-block; margin-left: 8px; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; border-radius: 100px; padding: 2px 9px; vertical-align: 2px; }
+  .site-status.live { background: #E3F2E8; color: #2F7A4A; }
+  .site-status.gated { background: #F6E3F1; color: #8F4680; }
+  .pin-note { font-size: 0.8rem; color: var(--charcoal-soft); margin-top: 6px; }
+  .pin-note button { background: none; border: none; color: #B0405A; font: inherit; text-decoration: underline; cursor: pointer; padding: 0; margin-left: 6px; }
   .ai-master.kill .ai-label { font-size: 1rem; }
   .test-pill { display: inline-block; margin-left: 6px; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em;
     background: rgba(91,175,192,0.18); color: var(--blue-deep); padding: 2px 7px; border-radius: 100px; vertical-align: 2px; }
@@ -379,6 +384,7 @@
     <button data-tab="business">Business info</button>
     <button data-tab="accounts">Staff accounts</button>
     <button data-tab="ai">AI assistant</button>
+    <button data-tab="website">Website</button>
     <button data-tab="trash">Trash</button>
   </div>
 
@@ -507,6 +513,54 @@
       </div>
     </div>
   </div>
+  <!-- Website -->
+  <div class="panel" id="panel-website">
+    <div class="card">
+      <div class="ai-master kill" style="border-bottom:none; padding:0;">
+        <div>
+          <div class="ai-label">Coming Soon / Maintenance page <span class="site-status live" id="siteStatusPill">Live</span></div>
+          <div class="ai-help">Saves as soon as you flip it. When on, visitors to the home page see the teaser page instead of the website (it can take up to 30 seconds to switch). Staff pages, staff login and the intake form keep working.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="siteGateOn" aria-label="Show Coming Soon or Maintenance page"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Teaser page</h2>
+      <div class="card-sub">What the Coming Soon / Maintenance page shows. <a href="/coming-soon?view=1" target="_blank" rel="noopener" style="color: var(--purple-deep, #8F4680);">Open the teaser page ↗</a></div>
+      <div class="field-grid">
+        <div>
+          <label for="siteVariant">Page to show</label>
+          <select id="siteVariant">
+            <option value="coming_soon">Coming soon</option>
+            <option value="maintenance">Maintenance</option>
+          </select>
+        </div>
+        <div>
+          <label for="siteFacebook">Facebook page link</label>
+          <input type="url" id="siteFacebook" placeholder="https://www.facebook.com/yourpage">
+        </div>
+      </div>
+      <div class="field-grid" style="grid-template-columns: 1fr;">
+        <div>
+          <label for="siteMessage">Message (optional)</label>
+          <input type="text" id="siteMessage" maxlength="240" placeholder="Leave blank to use the default message">
+        </div>
+      </div>
+      <div class="field-grid">
+        <div>
+          <label for="sitePin">Preview PIN</label>
+          <input type="password" id="sitePin" autocomplete="new-password" maxlength="12" placeholder="4–12 characters">
+          <div class="pin-note" id="sitePinNote">No PIN set — the "View site" button on the teaser page won't work until you set one.</div>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="save-btn" id="saveSiteMode">Save teaser page</button>
+        <span class="save-status" id="siteModeStatus"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- AI Assistant -->
   <div class="panel" id="panel-ai">
     <div class="card">
@@ -1646,6 +1700,83 @@
   });
 
   // ---- Init ----
+  // ---- Website: Coming Soon / Maintenance ----
+  let sitePinSet = false;
+  let siteClearPin = false;
+  function renderSitePinNote() {
+    const note = document.getElementById('sitePinNote');
+    if (siteClearPin) {
+      note.innerHTML = 'PIN will be removed when you save.';
+    } else if (sitePinSet) {
+      note.innerHTML = 'A PIN is set. Type a new one to change it.<button type="button" id="siteClearPin">Remove PIN</button>';
+      document.getElementById('siteClearPin').onclick = () => { siteClearPin = true; renderSitePinNote(); };
+    } else {
+      note.textContent = 'No PIN set — the "View site" button on the teaser page won\'t work until you set one.';
+    }
+  }
+  function syncSiteStatus() {
+    const on = document.getElementById('siteGateOn').checked;
+    const pill = document.getElementById('siteStatusPill');
+    const variant = document.getElementById('siteVariant').value;
+    pill.className = 'site-status ' + (on ? 'gated' : 'live');
+    pill.textContent = on ? (variant === 'maintenance' ? 'Maintenance showing' : 'Coming soon showing') : 'Live';
+  }
+  function renderSiteMode(v) {
+    v = v || {};
+    document.getElementById('siteGateOn').checked = v.enabled === true;
+    document.getElementById('siteVariant').value = v.variant === 'maintenance' ? 'maintenance' : 'coming_soon';
+    document.getElementById('siteFacebook').value = v.facebook_url || '';
+    document.getElementById('siteMessage').value = v.message || '';
+    document.getElementById('sitePin').value = '';
+    sitePinSet = !!v.pin_set;
+    siteClearPin = false;
+    renderSitePinNote();
+    syncSiteStatus();
+  }
+  async function saveSiteMode() {
+    const btn = document.getElementById('saveSiteMode');
+    const statusEl = document.getElementById('siteModeStatus');
+    btn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    statusEl.className = 'save-status';
+    const value = {
+      enabled: document.getElementById('siteGateOn').checked,
+      variant: document.getElementById('siteVariant').value,
+      facebook_url: document.getElementById('siteFacebook').value.trim(),
+      message: document.getElementById('siteMessage').value.trim(),
+    };
+    const pin = document.getElementById('sitePin').value.trim();
+    if (pin) value.pin = pin; else if (siteClearPin) value.clear_pin = true;
+    try {
+      const resp = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'site_mode', value }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      renderSiteMode(result.setting && result.setting.value);
+      statusEl.textContent = 'Saved.';
+      statusEl.className = 'save-status success';
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+      return false;
+    } finally {
+      btn.disabled = false;
+    }
+    return true;
+  }
+  document.getElementById('saveSiteMode').addEventListener('click', saveSiteMode);
+  document.getElementById('siteVariant').addEventListener('change', syncSiteStatus);
+  // The switch saves the moment it's flipped, like the AI master switch.
+  document.getElementById('siteGateOn').addEventListener('change', async (e) => {
+    const box = e.target;
+    syncSiteStatus();
+    const ok = await saveSiteMode();
+    if (!ok) { box.checked = !box.checked; syncSiteStatus(); }
+  });
+
   (async function init() {
     const authed = await checkAuth();
     if (!authed) return;
@@ -1660,6 +1791,7 @@
       renderBusinessInfo(result.settings.business_info);
       renderPhoneValidation(result.settings.phone_validation);
       renderAiAccess(result.settings.ai_access);
+      renderSiteMode(result.settings.site_mode);
       kbEntries = (result.settings.ai_knowledge && result.settings.ai_knowledge.entries) || [];
       renderKnowledge();
       loadAccounts();
@@ -1669,6 +1801,7 @@
       renderBusinessInfo(null);
       renderPhoneValidation(null);
       renderAiAccess(null);
+      renderSiteMode(null);
       renderKnowledge();
       loadAccounts();
     }

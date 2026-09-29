@@ -131,3 +131,14 @@ this" — never a free-text field staff type in themselves.
 
 These are natural next steps once the basic login + database loop is
 running smoothly in practice.
+
+## Coming Soon / Maintenance page
+
+Settings → **Website** has a switch that puts the public home page behind a teaser page (`/coming-soon`), either **Coming soon** or **Maintenance**. It saves as soon as it's flipped; visitors switch over within ~30 seconds (Vercel edge cache).
+
+- Stored in `app_settings` under `site_mode` — no schema change needed.
+- `index.html` loads `site-gate.js` first; it asks `GET /api/settings?view=site_mode` (public, no login) and redirects to `/coming-soon` when the switch is on. If the check fails, the page just shows.
+- Staff pages, staff login and `intake.html` are never gated.
+- **Preview PIN:** the teaser's "View site" button checks the PIN via `POST /api/settings?action=site_preview`. The PIN is hashed with scrypt (same as staff passwords) and never returned to any browser; wrong attempts are slowed down. A correct PIN sets a flag in that browser so it sees the real site, with an "Exit preview" pill.
+- **Facebook link:** set it in the same card; the teaser's Facebook icon stays inactive until it's filled in.
+- `/coming-soon?view=1` shows the teaser even when the site is live; `?mode=maintenance` previews the maintenance wording.

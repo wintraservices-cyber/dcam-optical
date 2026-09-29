@@ -13,8 +13,16 @@ const { supabaseRequest } = require('../lib/supabase');
 const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport } = require('../lib/ai-usage');
 const { normalizeKnowledge, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
+const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'ai_access', 'ai_knowledge'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'ai_access', 'ai_knowledge', 'site_mode'];
+
+async function readSetting(key) {
+  const resp = await supabaseRequest(`app_settings?key=eq.${encodeURIComponent(key)}&limit=1`, { method: 'GET' });
+  if (!resp.ok) throw new Error(`app_settings read ${resp.status}`);
+  const rows = await resp.json();
+  return rows[0] ? rows[0].value : null;
+}
 
 async function getSettings(req, res) {
   const { key } = req.query || {};
@@ -33,12 +41,14 @@ async function getSettings(req, res) {
     const rows = await resp.json();
 
     if (key) {
-      res.status(200).json({ ok: true, value: rows[0] ? rows[0].value : null });
+      const value = rows[0] ? rows[0].value : null;
+      res.status(200).json({ ok: true, value: key === 'site_mode' ? redactSiteMode(value) : value });
       return;
     }
 
     const settings = {};
     rows.forEach(row => { settings[row.key] = row.value; });
+    if (settings.site_mode) settings.site_mode = redactSiteMode(settings.site_mode);
     res.status(200).json({ ok: true, settings });
   } catch (err) {
     console.error('Unexpected error reading settings:', err);
@@ -68,9 +78,21 @@ async function putSetting(req, res, sessionUser) {
   // AI access toggles are always stored in their full, normalized shape
   // (unknown fields dropped, missing ones filled with safe defaults), so
   // the assistant never has to guess what a partial value meant.
-  const storedValue = key === 'ai_access' ? normalizeAiAccess(value)
-    : key === 'ai_knowledge' ? normalizeKnowledge(value)
-    : value;
+  let storedValue;
+  try {
+    storedValue = key === 'ai_access' ? normalizeAiAccess(value)
+      : key === 'ai_knowledge' ? normalizeKnowledge(value)
+      : key === 'site_mode' ? normalizeSiteMode(value, await readSetting('site_mode'))
+      : value;
+  } catch (err) {
+    if (err instanceof SiteModeError) {
+      res.status(400).json({ ok: false, error: err.message });
+      return;
+    }
+    console.error('Could not prepare setting:', err.message);
+    res.status(502).json({ ok: false, error: 'Could not save this setting.' });
+    return;
+  }
 
   try {
     // Upsert via PostgREST: POST with Prefer: resolution=merge-duplicates
@@ -96,6 +118,7 @@ async function putSetting(req, res, sessionUser) {
     }
 
     const [saved] = await resp.json();
+    if (saved && saved.key === 'site_mode') saved.value = redactSiteMode(saved.value);
     res.status(200).json({ ok: true, setting: saved });
   } catch (err) {
     console.error('Unexpected error saving setting:', err);
@@ -128,6 +151,47 @@ module.exports = async (req, res) => {
 
   if (req.method === 'OPTIONS') {
     res.status(204).end();
+    return;
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'site_mode') {
+    // Public: is the website live, or showing Coming Soon / Maintenance?
+    // No login needed (the home page asks on every visit), so it only
+    // returns public fields and is cached at the edge for a few seconds.
+    try {
+      const value = await readSetting('site_mode');
+      // Browsers always re-ask; Vercel's edge may reuse the answer briefly.
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Vercel-CDN-Cache-Control', 'max-age=15, stale-while-revalidate=30');
+      res.status(200).json({ ok: true, ...publicSiteMode(value) });
+    } catch (err) {
+      console.error('site_mode read error:', err.message);
+      res.status(200).json({ ok: true, mode: 'live', message: '', facebook_url: '', pin_set: false });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && req.query && req.query.action === 'site_preview') {
+    // Public: check the preview PIN from the Coming Soon page.
+    let body = req.body;
+    if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
+    try {
+      const value = await readSetting('site_mode');
+      if (!value || !value.pin_hash) {
+        res.status(400).json({ ok: false, error: 'No preview PIN has been set yet.' });
+        return;
+      }
+      if (checkPreviewPin(value, body && body.pin)) {
+        res.status(200).json({ ok: true });
+        return;
+      }
+      // Slow down guessing.
+      await new Promise(r => setTimeout(r, 900));
+      res.status(401).json({ ok: false, error: 'That PIN is not right.' });
+    } catch (err) {
+      console.error('site_preview error:', err.message);
+      res.status(502).json({ ok: false, error: 'Could not check the PIN right now.' });
+    }
     return;
   }
 
