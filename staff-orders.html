@@ -369,7 +369,7 @@
 
     const rows = orders.map(o => `
       <tr>
-        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a> <a href="order-form.html?id=${o.id}&print=1" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Print</a></td>
+        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a> <a href="order-form.html?id=${o.id}&print=1" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Print</a> <a href="order-form.html?id=${o.id}&threeup=1" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Print (3-up)</a></td>
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
         <td data-label="Date">${escapeHtml(o.order_date) || '—'}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>

@@ -1764,6 +1764,12 @@
       if (new URLSearchParams(window.location.search).get('print') === '1') {
         setTimeout(() => document.getElementById('printBtn').click(), 300);
       }
+      // Same idea, but for the "Print 3-up" link
+      // (order-form.html?id=...&threeup=1) -- opens the alternate-layout
+      // print dialog automatically instead of the normal one.
+      if (new URLSearchParams(window.location.search).get('threeup') === '1') {
+        setTimeout(() => document.getElementById('printThreeUpBtn').click(), 300);
+      }
     } catch (err) {
       alert('Could not load this order for editing: ' + err.message);
       // Loading failed -- re-enable Save so staff aren't stuck, but
