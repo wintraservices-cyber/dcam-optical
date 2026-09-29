@@ -1,8 +1,10 @@
 // Staff-facing reports, exported as CSV. Four report types, chosen via
 // ?type=:
 //   orders    -> every order, one row per order (Rx + Non-Rx combined)
-//   sales     -> revenue summary: orders + balance payments within a
-//                date range, with running totals by payment method
+//   sales     -> one row per order within a date range (order date, order
+//                #, patient, frame, lens, type, qty, total, deposit,
+//                payment type, balance, payment status, status, taken
+//                by), with Amount/Deposit/Balance totals at the bottom
 //   patients  -> the full patient list
 //   inventory -> current catalog stock levels
 //
@@ -87,82 +89,45 @@ async function ordersReport(req, res, from, to) {
 
 async function salesReport(req, res, from, to) {
   try {
-    const [ordersResp, paymentsResp] = await Promise.all([
-      supabaseRequest(
-        `orders?select=order_no,created_at,patient_name,amount,deposit,balance,payment_status,payment_method,split_cash,split_gcash&order=created_at.desc&limit=5000${dateRangeFilter(from, to, 'created_at')}`,
-        { method: 'GET' }
-      ),
-      supabaseRequest(
-        `balance_payments?select=*&order=created_at.desc&limit=5000${dateRangeFilter(from, to, 'created_at')}`,
-        { method: 'GET' }
-      ),
-    ]);
+    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000${dateRangeFilter(from, to, 'created_at')}`;
+    const resp = await supabaseRequest(path, { method: 'GET' });
+    if (!resp.ok) {
+      res.status(502).json({ ok: false, error: 'Could not load orders for the report.' });
+      return;
+    }
+    const orders = await resp.json();
 
-    const orders = ordersResp.ok ? await ordersResp.json() : [];
-    const payments = paymentsResp.ok ? await paymentsResp.json() : [];
-
-    // Combine both into one chronological list of payment EVENTS -- an
-    // order's own deposit/amount collected at creation, plus any later
-    // balance payments logged against it. This gives a true picture of
-    // money actually collected in the date range, not just orders placed.
-    const rows = [];
-    orders.forEach(o => {
-      const collected = parseFloat(o.deposit) || 0;
-      if (collected > 0) {
-        rows.push({
-          date: (o.created_at || '').slice(0, 10),
-          order_no: o.order_no,
-          patient_name: o.patient_name,
-          amount_collected: collected.toFixed(2),
-          method: o.payment_method || 'cash',
-          split_cash: o.split_cash || '',
-          split_gcash: o.split_gcash || '',
-          source: 'Order deposit',
-        });
-      }
-    });
-    payments.forEach(p => {
-      rows.push({
-        date: (p.created_at || '').slice(0, 10),
-        order_no: p.order_no,
-        patient_name: '',
-        amount_collected: parseFloat(p.amount || 0).toFixed(2),
-        method: p.payment_method || 'cash',
-        split_cash: p.split_cash || '',
-        split_gcash: p.split_gcash || '',
-        source: 'Balance payment',
-      });
-    });
-    rows.sort((a, b) => (a.date < b.date ? 1 : -1));
-
-    const totalCollected = rows.reduce((sum, r) => sum + (parseFloat(r.amount_collected) || 0), 0);
-    const totalCash = rows.reduce((sum, r) => {
-      if (r.method === 'cash') return sum + (parseFloat(r.amount_collected) || 0);
-      if (r.method === 'split') return sum + (parseFloat(r.split_cash) || 0);
-      return sum;
-    }, 0);
-    const totalGcash = rows.reduce((sum, r) => {
-      if (r.method === 'gcash_cc') return sum + (parseFloat(r.amount_collected) || 0);
-      if (r.method === 'split') return sum + (parseFloat(r.split_gcash) || 0);
-      return sum;
-    }, 0);
+    // One row per order (not per payment event) -- qty is every line
+    // item's quantity added together, so it reads as "how many units on
+    // this order" rather than a list of individual items.
+    const totalQty = (o) => (o.order_items || []).reduce((sum, i) => sum + (parseInt(i.item_qty, 10) || 0), 0) || '';
 
     const columns = [
-      { label: 'Date', value: 'date' },
+      { label: 'Order Date', value: (o) => o.order_date || '' },
       { label: 'Order #', value: 'order_no' },
       { label: 'Patient', value: 'patient_name' },
-      { label: 'Amount Collected', value: 'amount_collected' },
-      { label: 'Method', value: 'method' },
-      { label: 'Split — Cash', value: 'split_cash' },
-      { label: 'Split — GCash/CC', value: 'split_gcash' },
-      { label: 'Source', value: 'source' },
+      { label: 'Frame', value: 'frame' },
+      { label: 'Lens', value: 'lens_type' },
+      { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
+      { label: 'Qty', value: totalQty },
+      { label: 'Total', value: 'amount' },
+      { label: 'Deposit', value: 'deposit' },
+      { label: 'Payment Type', value: 'payment_method' },
+      { label: 'Balance', value: 'balance' },
+      { label: 'Payment Status', value: 'payment_status' },
+      { label: 'Status', value: 'status' },
+      { label: 'Taken By', value: 'taken_by' },
     ];
 
-    let csvContent = toCsv(rows, columns);
+    const totalAmount = orders.reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0);
+    const totalDeposit = orders.reduce((sum, o) => sum + (parseFloat(o.deposit) || 0), 0);
+    const totalBalance = orders.reduce((sum, o) => sum + (parseFloat(o.balance) || 0), 0);
+
+    let csvContent = toCsv(orders, columns);
     csvContent += '\r\n\r\n';
-    csvContent += `Total Collected,${totalCollected.toFixed(2)}\r\n`;
-    csvContent += `Total Cash,${totalCash.toFixed(2)}\r\n`;
-    csvContent += `Total GCash/CC,${totalGcash.toFixed(2)}\r\n`;
+    csvContent += `Total Amount,${totalAmount.toFixed(2)}\r\n`;
+    csvContent += `Total Deposit,${totalDeposit.toFixed(2)}\r\n`;
+    csvContent += `Total Balance,${totalBalance.toFixed(2)}\r\n`;
 
     sendCsv(res, `sales-report-${new Date().toISOString().slice(0, 10)}.csv`, csvContent);
   } catch (err) {
