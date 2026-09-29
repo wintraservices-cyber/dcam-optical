@@ -91,7 +91,7 @@
     font-family: var(--display);
     font-weight: 700;
   }
-  .entry-grid input {
+  .entry-grid input, .entry-grid select {
     width: 100%;
     border: 1.5px solid var(--line);
     background: #fff;
@@ -102,7 +102,7 @@
     color: var(--charcoal);
     outline: none;
   }
-  .entry-grid input:focus { border-color: var(--blue); }
+  .entry-grid input:focus, .entry-grid select:focus { border-color: var(--blue); }
   .entry-add-btn {
     font-family: var(--display);
     font-weight: 700;
@@ -217,7 +217,7 @@
   .cancel-edit-btn { border: 1px solid var(--line); color: var(--charcoal-soft); }
   .cancel-edit-btn:hover { background: var(--ivory-dim); }
 
-  .edit-row input {
+  .edit-row input, .edit-row select {
     width: 100%;
     border: 1.5px solid var(--line);
     background: #fff;
@@ -228,7 +228,45 @@
     color: var(--charcoal);
     outline: none;
   }
-  .edit-row input:focus { border-color: var(--blue); }
+  .edit-row input:focus, .edit-row select:focus { border-color: var(--blue); }
+
+  .tab-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 22px;
+    border-bottom: 1.5px solid var(--line);
+  }
+  .tab-btn {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.88rem;
+    padding: 10px 18px;
+    border: none;
+    background: transparent;
+    color: var(--charcoal-soft);
+    cursor: pointer;
+    border-bottom: 2.5px solid transparent;
+    margin-bottom: -1.5px;
+  }
+  .tab-btn.active { color: var(--purple-deep); border-bottom-color: var(--purple); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .source-chip {
+    display: inline-block;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 3px 10px;
+    border-radius: 100px;
+    background: rgba(91,175,192,0.16);
+    color: var(--blue-deep);
+  }
+
+  .totals-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+  .totals-row .total-tile { margin-bottom: 0; flex: 1; min-width: 160px; }
 
   .empty-state, .loading-state, .error-state {
     text-align: center;
@@ -285,19 +323,53 @@
 </div>
 
 <div class="wrap">
-  <div id="entrySection">
-    <div class="loading-state">Loading…</div>
+  <div class="tab-bar">
+    <button type="button" class="tab-btn active" id="tabBtnExpenses">Expenses</button>
+    <button type="button" class="tab-btn" id="tabBtnWithdrawal">Withdrawal</button>
   </div>
 
-  <div class="controls" id="periodFilterMount"></div>
+  <div class="tab-panel active" id="panelExpenses">
+    <div id="entrySection">
+      <div class="loading-state">Loading…</div>
+    </div>
 
-  <div class="total-tile">
-    <span class="label">Total for this range</span>
-    <span class="value" id="totalValue">₱0.00</span>
+    <div class="controls" id="periodFilterMount"></div>
+
+    <div class="total-tile">
+      <span class="label">Total for this range</span>
+      <span class="value" id="totalValue">₱0.00</span>
+    </div>
+
+    <div id="content">
+      <div class="loading-state">Loading expenses…</div>
+    </div>
   </div>
 
-  <div id="content">
-    <div class="loading-state">Loading expenses…</div>
+  <div class="tab-panel" id="panelWithdrawal">
+    <div id="withdrawalEntrySection">
+      <div class="loading-state">Loading…</div>
+    </div>
+
+    <div class="controls" id="withdrawalPeriodFilterMount"></div>
+
+    <div class="totals-row">
+      <div class="total-tile">
+        <span class="label">Total</span>
+        <span class="value" id="withdrawalTotalValue">₱0.00</span>
+      </div>
+      <div class="total-tile">
+        <span class="label">Cash</span>
+        <span class="value" id="withdrawalCashValue">₱0.00</span>
+      </div>
+      <div class="total-tile">
+        <span class="label">Checking</span>
+        <span class="value" id="withdrawalCheckValue">₱0.00</span>
+      </div>
+    </div>
+
+    <div id="withdrawalContent">
+      <div class="loading-state">Loading withdrawals…</div>
+    </div>
   </div>
 </div>
 
@@ -596,6 +668,309 @@
     });
   }
 
+
+  // ---------------------------------------------------------------------
+  // Withdrawal tab (cash/check payroll runs, owner draws, etc.) -- always
+  // admin-only, no staff-access flag like Expenses has. Same entry-form +
+  // list + inline-edit pattern as Expenses above, against
+  // /api/expenses?resource=withdrawals (kept in the same serverless
+  // function as expenses since this project is already at Vercel's
+  // 12-function cap).
+  // ---------------------------------------------------------------------
+  const withdrawalEntrySection = document.getElementById('withdrawalEntrySection');
+  const withdrawalContent = document.getElementById('withdrawalContent');
+  const withdrawalTotalValue = document.getElementById('withdrawalTotalValue');
+  const withdrawalCashValue = document.getElementById('withdrawalCashValue');
+  const withdrawalCheckValue = document.getElementById('withdrawalCheckValue');
+  let withdrawalsLoadedOnce = false;
+
+  const withdrawalPeriodFilter = PeriodFilter.mount(document.getElementById('withdrawalPeriodFilterMount'), {
+    defaultPreset: 'last7',
+    onChange: () => loadWithdrawals(),
+  });
+
+  function fmtPeso(n) {
+    return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function renderWithdrawalEntryForm() {
+    withdrawalEntrySection.innerHTML = `
+      <div class="entry-card">
+        <h2>Log a withdrawal</h2>
+        <div class="entry-grid">
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="wdDate" value="${todayIso()}">
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <input type="text" id="wdDescription" placeholder="e.g. PAYROLL - MAY">
+          </div>
+          <div class="field">
+            <label>Source</label>
+            <select id="wdSource">
+              <option value="cash">Cash</option>
+              <option value="check">Check</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Amount ₱</label>
+            <input type="text" id="wdAmount" inputmode="decimal" placeholder="0.00">
+          </div>
+          <button type="button" class="entry-add-btn" id="addWithdrawalBtn">Add withdrawal</button>
+        </div>
+        <div class="entry-status" id="withdrawalEntryStatus"></div>
+      </div>
+    `;
+
+    document.getElementById('addWithdrawalBtn').addEventListener('click', async () => {
+      const dateEl = document.getElementById('wdDate');
+      const descEl = document.getElementById('wdDescription');
+      const sourceEl = document.getElementById('wdSource');
+      const amountEl = document.getElementById('wdAmount');
+      const statusEl = document.getElementById('withdrawalEntryStatus');
+      const btn = document.getElementById('addWithdrawalBtn');
+
+      const withdrawal_date = dateEl.value;
+      const description = descEl.value.trim();
+      const source = sourceEl.value;
+      const amount = parseFloat(amountEl.value);
+
+      if (!withdrawal_date) {
+        statusEl.textContent = 'Date is required.';
+        statusEl.className = 'entry-status error';
+        return;
+      }
+      if (!description) {
+        statusEl.textContent = 'Description is required.';
+        statusEl.className = 'entry-status error';
+        return;
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        statusEl.textContent = 'Enter a valid amount.';
+        statusEl.className = 'entry-status error';
+        return;
+      }
+
+      btn.disabled = true;
+      statusEl.textContent = 'Saving…';
+      statusEl.className = 'entry-status';
+
+      try {
+        const resp = await fetch('/api/expenses?resource=withdrawals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ withdrawal_date, description, source, amount }),
+        });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save the withdrawal.');
+
+        statusEl.textContent = 'Saved.';
+        statusEl.className = 'entry-status success';
+        descEl.value = '';
+        amountEl.value = '';
+        dateEl.value = todayIso();
+        sourceEl.value = 'cash';
+        loadWithdrawals();
+      } catch (err) {
+        statusEl.textContent = err.message || 'Could not save the withdrawal.';
+        statusEl.className = 'entry-status error';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  async function loadWithdrawals() {
+    withdrawalContent.innerHTML = '<div class="loading-state">Loading withdrawals…</div>';
+    const params = new URLSearchParams();
+    params.set('resource', 'withdrawals');
+    const { from, to } = withdrawalPeriodFilter.getRange();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+
+    try {
+      const resp = await fetch('/api/expenses?' + params.toString());
+      if (resp.status === 401) {
+        window.location.href = 'staff-login.html?next=staff-expenses.html';
+        return;
+      }
+      if (resp.status === 403) {
+        withdrawalContent.innerHTML = '<div class="error-state">Withdrawals are admin-only.</div>';
+        withdrawalTotalValue.textContent = fmtPeso(0);
+        withdrawalCashValue.textContent = fmtPeso(0);
+        withdrawalCheckValue.textContent = fmtPeso(0);
+        return;
+      }
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load withdrawals.');
+
+      withdrawalTotalValue.textContent = fmtPeso(result.total);
+      withdrawalCashValue.textContent = fmtPeso(result.total_cash);
+      withdrawalCheckValue.textContent = fmtPeso(result.total_check);
+      renderWithdrawals(result.withdrawals || []);
+    } catch (err) {
+      withdrawalContent.innerHTML = `<div class="error-state">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderWithdrawals(withdrawals) {
+    if (!withdrawals.length) {
+      withdrawalContent.innerHTML = '<div class="empty-state">No withdrawals in this range.</div>';
+      return;
+    }
+
+    const rows = withdrawals.map(w => `
+      <tr data-row-id="${w.id}">
+        <td data-label="Date">${escapeHtml(w.withdrawal_date)}</td>
+        <td data-label="Description">${escapeHtml(w.description)}</td>
+        <td data-label="Amount">${fmtPeso(w.amount)}</td>
+        <td data-label="Source"><span class="source-chip">${w.source === 'check' ? 'Check' : 'Cash'}</span></td>
+        <td data-label="Cash">${w.source === 'cash' ? fmtPeso(w.amount) : '—'}</td>
+        <td data-label="Checking">${w.source === 'check' ? fmtPeso(w.amount) : '—'}</td>
+        <td data-label="Logged by">${escapeHtml(w.created_by) || '—'}</td>
+        <td data-label="">
+          <div class="row-actions">
+            <button type="button" class="edit-btn" data-id="${w.id}"
+              data-date="${escapeHtmlAttr(w.withdrawal_date)}" data-description="${escapeHtmlAttr(w.description)}"
+              data-source="${escapeHtmlAttr(w.source)}" data-amount="${escapeHtmlAttr(w.amount)}">Edit</button>
+            <button type="button" class="delete-btn" data-id="${w.id}">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    withdrawalContent.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Description</th><th>Amount</th><th>Source</th><th>Cash</th><th>Checking</th><th>Logged by</th><th></th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    withdrawalContent.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this withdrawal? This cannot be undone.')) return;
+        const id = btn.getAttribute('data-id');
+        btn.disabled = true;
+        try {
+          const resp = await fetch('/api/expenses?resource=withdrawals&id=' + encodeURIComponent(id), { method: 'DELETE' });
+          const result = await resp.json();
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not delete this withdrawal.');
+          loadWithdrawals();
+        } catch (err) {
+          alert(err.message || 'Could not delete this withdrawal.');
+          btn.disabled = false;
+        }
+      });
+    });
+
+    withdrawalContent.querySelectorAll('.edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => startEditWithdrawalRow(btn));
+    });
+  }
+
+  function startEditWithdrawalRow(btn) {
+    const id = btn.getAttribute('data-id');
+    const row = withdrawalContent.querySelector(`tr[data-row-id="${id}"]`);
+    if (!row) return;
+    const date = btn.getAttribute('data-date');
+    const description = btn.getAttribute('data-description');
+    const source = btn.getAttribute('data-source');
+    const amount = btn.getAttribute('data-amount');
+
+    row.classList.add('edit-row');
+    row.innerHTML = `
+      <td data-label="Date"><input type="date" class="edit-date" value="${escapeHtmlAttr(date)}"></td>
+      <td data-label="Description"><input type="text" class="edit-description" value="${escapeHtmlAttr(description)}"></td>
+      <td data-label="Amount"><input type="text" class="edit-amount" inputmode="decimal" value="${escapeHtmlAttr(amount)}"></td>
+      <td data-label="Source">
+        <select class="edit-source">
+          <option value="cash" ${source === 'cash' ? 'selected' : ''}>Cash</option>
+          <option value="check" ${source === 'check' ? 'selected' : ''}>Check</option>
+        </select>
+      </td>
+      <td data-label="Cash"></td>
+      <td data-label="Checking"></td>
+      <td data-label="Logged by"></td>
+      <td data-label="">
+        <div class="row-actions">
+          <button type="button" class="save-edit-btn">Save</button>
+          <button type="button" class="cancel-edit-btn">Cancel</button>
+        </div>
+        <div class="entry-status" style="margin-top:6px;"></div>
+      </td>
+    `;
+
+    row.querySelector('.cancel-edit-btn').addEventListener('click', () => loadWithdrawals());
+    row.querySelector('.save-edit-btn').addEventListener('click', async () => {
+      const dateEl = row.querySelector('.edit-date');
+      const descEl = row.querySelector('.edit-description');
+      const sourceEl = row.querySelector('.edit-source');
+      const amountEl = row.querySelector('.edit-amount');
+      const statusEl = row.querySelector('.entry-status');
+      const saveBtn = row.querySelector('.save-edit-btn');
+
+      const withdrawal_date = dateEl.value;
+      const description = descEl.value.trim();
+      const source = sourceEl.value;
+      const amount = parseFloat(amountEl.value);
+
+      if (!withdrawal_date || !description || !Number.isFinite(amount) || amount <= 0) {
+        statusEl.textContent = 'Check date, description, and amount.';
+        statusEl.className = 'entry-status error';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      statusEl.textContent = 'Saving…';
+      statusEl.className = 'entry-status';
+
+      try {
+        const resp = await fetch('/api/expenses?resource=withdrawals&id=' + encodeURIComponent(id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ withdrawal_date, description, source, amount }),
+        });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save changes.');
+        loadWithdrawals();
+      } catch (err) {
+        statusEl.textContent = err.message || 'Could not save changes.';
+        statusEl.className = 'entry-status error';
+        saveBtn.disabled = false;
+      }
+    });
+  }
+
+  // ---- Tabs ----
+  const tabBtnExpenses = document.getElementById('tabBtnExpenses');
+  const tabBtnWithdrawal = document.getElementById('tabBtnWithdrawal');
+  const panelExpenses = document.getElementById('panelExpenses');
+  const panelWithdrawal = document.getElementById('panelWithdrawal');
+
+  tabBtnExpenses.addEventListener('click', () => {
+    tabBtnExpenses.classList.add('active');
+    tabBtnWithdrawal.classList.remove('active');
+    panelExpenses.classList.add('active');
+    panelWithdrawal.classList.remove('active');
+  });
+  tabBtnWithdrawal.addEventListener('click', () => {
+    tabBtnWithdrawal.classList.add('active');
+    tabBtnExpenses.classList.remove('active');
+    panelWithdrawal.classList.add('active');
+    panelExpenses.classList.remove('active');
+    if (!withdrawalsLoadedOnce) {
+      withdrawalsLoadedOnce = true;
+      if (isAdmin) {
+        renderWithdrawalEntryForm();
+      } else {
+        withdrawalEntrySection.innerHTML = '<div class="locked-note">Withdrawals are admin-only.</div>';
+      }
+      loadWithdrawals();
+    }
+  });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/api/staff-auth?action=logout', { method: 'POST' });

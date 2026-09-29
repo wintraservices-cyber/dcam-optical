@@ -535,3 +535,25 @@ create index if not exists expenses_date_idx on expenses (expense_date desc);
 
 alter table expenses enable row level security;
 
+-- ---------------------------------------------------------------------
+-- Cash/check withdrawals (payroll, owner draws, etc.) -- admin-only,
+-- unlike expenses which staff can optionally be given access to. Source
+-- is a fixed Cash/Check choice (not free text like expenses' `type`)
+-- because the amount is always attributed to exactly one of the Cash or
+-- Checking columns on the withdrawals list, and a fixed pair of sources
+-- keeps that split unambiguous.
+-- ---------------------------------------------------------------------
+create table if not exists withdrawals (
+  id uuid primary key default gen_random_uuid(),
+  withdrawal_date date not null,
+  description text not null,
+  amount numeric(12,2) not null check (amount > 0),
+  source text not null check (source in ('cash', 'check')),
+  created_by text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists withdrawals_date_idx on withdrawals (withdrawal_date desc);
+
+alter table withdrawals enable row level security;
+
