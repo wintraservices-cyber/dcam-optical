@@ -178,7 +178,9 @@
   }
   .icon-btn.toggle { color: var(--charcoal-soft); }
   .icon-btn.reset { color: var(--blue-deep); }
+  .icon-btn.edit { color: var(--purple-deep); }
   .icon-btn:hover { background: var(--ivory-dim); }
+  .edit-row td { background: var(--ivory-dim); padding: 14px 10px; }
   .icon-btn.restore { color: #3E8E5A; }
   .icon-btn.purge { color: #B0405A; }
 
@@ -482,7 +484,7 @@
   <div class="panel" id="panel-accounts">
     <div class="card">
       <h2>Staff accounts</h2>
-      <div class="card-sub">Create, deactivate, or reset passwords for individual staff logins.</div>
+      <div class="card-sub">Create, edit, deactivate, or reset passwords for individual staff logins. Changing a username takes effect the next time that person logs in — anyone already logged in keeps working under their old username until then.</div>
       <div id="accountsList"><div class="loading-state">Loading…</div></div>
 
       <div class="new-account-grid">
@@ -504,6 +506,14 @@
             <option value="staff">Staff</option>
             <option value="admin">Admin</option>
           </select>
+        </div>
+        <div>
+          <label>Email <span style="font-weight:400;color:var(--charcoal-soft);">(optional)</span></label>
+          <input type="email" id="newEmail" placeholder="e.g. maria@example.com">
+        </div>
+        <div>
+          <label>Phone <span style="font-weight:400;color:var(--charcoal-soft);">(optional)</span></label>
+          <input type="tel" id="newPhone" placeholder="e.g. 0917-123-4567">
         </div>
         <div>
           <button class="save-btn" id="addAccountBtn" style="width:100%;">Add</button>
@@ -996,19 +1006,51 @@
     }
     container.innerHTML = `
       <table>
-        <thead><tr><th>Username</th><th>Display name</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Username</th><th>Display name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th></th></tr></thead>
         <tbody>
           ${accounts.map(u => `
-            <tr class="${u.active === false ? 'inactive-row' : ''}">
+            <tr class="${u.active === false ? 'inactive-row' : ''}" data-row-id="${u.id}">
               <td>${escapeHtml(u.username)}</td>
               <td>${escapeHtml(u.display_name) || '—'}</td>
+              <td>${escapeHtml(u.email) || '—'}</td>
+              <td>${escapeHtml(u.phone) || '—'}</td>
               <td><span class="role-pill ${u.role}">${escapeHtml(u.role)}</span></td>
               <td>${u.active === false ? 'Deactivated' : 'Active'}</td>
               <td>
                 <div class="row-actions">
+                  <button class="icon-btn edit" data-id="${u.id}" data-action="edit">Edit</button>
                   <button class="icon-btn toggle" data-id="${u.id}" data-action="toggle">${u.active === false ? 'Reactivate' : 'Deactivate'}</button>
                   <button class="icon-btn reset" data-id="${u.id}" data-action="reset">Reset password</button>
                 </div>
+              </td>
+            </tr>
+            <tr class="edit-row" id="editRow-${u.id}" style="display:none;">
+              <td colspan="7">
+                <div class="new-account-grid" style="margin:0 0 10px;">
+                  <div>
+                    <label>Username</label>
+                    <input type="text" id="editUsername-${u.id}" value="${escapeHtml(u.username)}">
+                  </div>
+                  <div>
+                    <label>Display name</label>
+                    <input type="text" id="editDisplayName-${u.id}" value="${escapeHtml(u.display_name) || ''}">
+                  </div>
+                  <div>
+                    <label>Email <span style="font-weight:400;color:var(--charcoal-soft);">(optional)</span></label>
+                    <input type="email" id="editEmail-${u.id}" value="${escapeHtml(u.email) || ''}">
+                  </div>
+                  <div>
+                    <label>Phone <span style="font-weight:400;color:var(--charcoal-soft);">(optional)</span></label>
+                    <input type="tel" id="editPhone-${u.id}" value="${escapeHtml(u.phone) || ''}">
+                  </div>
+                  <div>
+                    <button class="save-btn" data-id="${u.id}" data-action="save-edit" style="width:100%;">Save</button>
+                  </div>
+                  <div>
+                    <button class="icon-btn" data-id="${u.id}" data-action="cancel-edit" style="width:100%;">Cancel</button>
+                  </div>
+                </div>
+                <div class="save-status" id="editStatus-${u.id}"></div>
               </td>
             </tr>
           `).join('')}
@@ -1020,6 +1062,42 @@
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
         const action = btn.getAttribute('data-action');
+
+        if (action === 'edit') {
+          const row = document.getElementById(`editRow-${id}`);
+          if (row) row.style.display = '';
+          return;
+        }
+
+        if (action === 'cancel-edit') {
+          const row = document.getElementById(`editRow-${id}`);
+          if (row) row.style.display = 'none';
+          return;
+        }
+
+        if (action === 'save-edit') {
+          const username = document.getElementById(`editUsername-${id}`).value.trim();
+          const displayName = document.getElementById(`editDisplayName-${id}`).value.trim();
+          const email = document.getElementById(`editEmail-${id}`).value.trim();
+          const phone = document.getElementById(`editPhone-${id}`).value.trim();
+          const statusEl = document.getElementById(`editStatus-${id}`);
+          statusEl.textContent = 'Saving…';
+          statusEl.className = 'save-status';
+          try {
+            const resp = await fetch('/api/staff-users', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, username, display_name: displayName, email, phone }),
+            });
+            const result = await resp.json();
+            if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save changes.');
+            loadAccounts();
+          } catch (err) {
+            statusEl.textContent = err.message;
+            statusEl.className = 'save-status error';
+          }
+          return;
+        }
 
         if (action === 'toggle') {
           const user = accounts.find(u => u.id === id);
@@ -1063,6 +1141,8 @@
     const displayName = document.getElementById('newDisplayName').value.trim();
     const password = document.getElementById('newPassword').value;
     const role = document.getElementById('newRole').value;
+    const email = document.getElementById('newEmail').value.trim();
+    const phone = document.getElementById('newPhone').value.trim();
     const statusEl = document.getElementById('accountsStatus');
     const btn = document.getElementById('addAccountBtn');
 
@@ -1079,7 +1159,7 @@
       const resp = await fetch('/api/staff-users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, display_name: displayName, password, role }),
+        body: JSON.stringify({ username, display_name: displayName, password, role, email, phone }),
       });
       const result = await resp.json();
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not add this account.');
@@ -1088,6 +1168,8 @@
       document.getElementById('newDisplayName').value = '';
       document.getElementById('newPassword').value = '';
       document.getElementById('newRole').value = 'staff';
+      document.getElementById('newEmail').value = '';
+      document.getElementById('newPhone').value = '';
       statusEl.textContent = 'Added.';
       statusEl.className = 'save-status success';
       loadAccounts();

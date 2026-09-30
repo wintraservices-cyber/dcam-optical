@@ -641,3 +641,19 @@ create table if not exists cash_positions (
 create index if not exists cash_positions_date_idx on cash_positions (position_date desc);
 
 alter table cash_positions enable row level security;
+
+-- ---------------------------------------------------------------------
+-- Staff account profile details: email and phone, so an account can be
+-- reached for things like a "reset your password" email or an SMS
+-- notification later on. Both are optional and unique-if-set -- two
+-- staff accounts sharing one phone/email would make a future
+-- notification or reset flow ambiguous about which account it's for.
+-- Safe to re-run: "if not exists" on the columns, and the two indexes
+-- only enforce uniqueness among non-null values (a partial unique
+-- index), so any number of accounts can still leave these blank.
+-- ---------------------------------------------------------------------
+alter table staff_users add column if not exists email text;
+alter table staff_users add column if not exists phone text;
+
+create unique index if not exists staff_users_email_idx on staff_users (lower(email)) where email is not null;
+create unique index if not exists staff_users_phone_idx on staff_users (phone) where phone is not null;

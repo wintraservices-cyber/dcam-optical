@@ -25,6 +25,38 @@ function sanitizeUsername(raw) {
   return trimmed;
 }
 
+// Returns { ok: true, value } with value either null (cleared) or the
+// cleaned string, or { ok: false } if the field was provided but isn't
+// blank and isn't valid -- lets callers tell "left alone", "cleared",
+// and "invalid" apart.
+function sanitizeEmail(raw) {
+  if (typeof raw !== 'string') return { ok: false };
+  const trimmed = raw.trim().toLowerCase();
+  if (!trimmed) return { ok: true, value: null };
+  if (trimmed.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return { ok: false };
+  return { ok: true, value: trimmed };
+}
+
+function sanitizePhone(raw) {
+  if (typeof raw !== 'string') return { ok: false };
+  const trimmed = raw.trim();
+  if (!trimmed) return { ok: true, value: null };
+  // Philippine mobile/landline numbers, allowing a leading + and the
+  // usual spaces/dashes/parens people type them with. Not exhaustive --
+  // this just filters obvious typos, not a strict carrier format.
+  const digits = trimmed.replace(/[\s().-]/g, '');
+  if (!/^\+?[0-9]{7,15}$/.test(digits)) return { ok: false };
+  return { ok: true, value: trimmed };
+}
+
+// Supabase/Postgres reports a unique-index violation as error code 23505.
+// staff_users has partial unique indexes on lower(email) and phone (see
+// supabase-schema.sql), so a duplicate here means "some other account
+// already uses that email/phone", not a database problem.
+function isUniqueViolation(errText) {
+  return typeof errText === 'string' && errText.includes('23505');
+}
+
 async function listUsers(req, res) {
   try {
     const resp = await supabaseRequest('staff_users?select=*&order=created_at.asc', { method: 'GET' });
@@ -54,6 +86,8 @@ async function createUser(req, res) {
   const password = (body && body.password) || '';
   const displayName = (body && body.display_name || '').trim().slice(0, 100) || null;
   const role = body && body.role === 'admin' ? 'admin' : 'staff';
+  const email = sanitizeEmail(body && body.email || '');
+  const phone = sanitizePhone(body && body.phone || '');
 
   if (!username) {
     res.status(400).json({ ok: false, error: 'Username must be 2-40 characters: letters, numbers, dots, underscores, or hyphens.' });
@@ -61,6 +95,14 @@ async function createUser(req, res) {
   }
   if (password.length < 6) {
     res.status(400).json({ ok: false, error: 'Password must be at least 6 characters.' });
+    return;
+  }
+  if (!email.ok) {
+    res.status(400).json({ ok: false, error: 'Enter a valid email address, or leave it blank.' });
+    return;
+  }
+  if (!phone.ok) {
+    res.status(400).json({ ok: false, error: 'Enter a valid phone number, or leave it blank.' });
     return;
   }
 
@@ -85,6 +127,8 @@ async function createUser(req, res) {
         username,
         display_name: displayName,
         role,
+        email: email.value,
+        phone: phone.value,
         password_hash: hash,
         password_salt: salt,
       }),
@@ -93,6 +137,10 @@ async function createUser(req, res) {
     if (!resp.ok) {
       const errText = await resp.text();
       console.error('Supabase staff_users insert error:', resp.status, errText);
+      if (isUniqueViolation(errText)) {
+        res.status(409).json({ ok: false, error: 'That email or phone number is already used by another account.' });
+        return;
+      }
       res.status(502).json({ ok: false, error: 'Could not create this account.' });
       return;
     }
@@ -128,6 +176,30 @@ async function updateUser(req, res) {
   if (body.display_name !== undefined) {
     patch.display_name = String(body.display_name).trim().slice(0, 100) || null;
   }
+  if (body.username !== undefined) {
+    const newUsername = sanitizeUsername(body.username);
+    if (!newUsername) {
+      res.status(400).json({ ok: false, error: 'Username must be 2-40 characters: letters, numbers, dots, underscores, or hyphens.' });
+      return;
+    }
+    patch.username = newUsername;
+  }
+  if (body.email !== undefined) {
+    const email = sanitizeEmail(body.email);
+    if (!email.ok) {
+      res.status(400).json({ ok: false, error: 'Enter a valid email address, or leave it blank.' });
+      return;
+    }
+    patch.email = email.value;
+  }
+  if (body.phone !== undefined) {
+    const phone = sanitizePhone(body.phone);
+    if (!phone.ok) {
+      res.status(400).json({ ok: false, error: 'Enter a valid phone number, or leave it blank.' });
+      return;
+    }
+    patch.phone = phone.value;
+  }
   if (body.new_password) {
     if (String(body.new_password).length < 6) {
       res.status(400).json({ ok: false, error: 'Password must be at least 6 characters.' });
@@ -154,6 +226,14 @@ async function updateUser(req, res) {
     if (!resp.ok) {
       const errText = await resp.text();
       console.error('Supabase staff_users update error:', resp.status, errText);
+      if (isUniqueViolation(errText)) {
+        let field = 'That value is';
+        if (errText.includes('staff_users_username_idx') || errText.includes('staff_users_username_key')) field = 'That username is';
+        else if (errText.includes('staff_users_email_idx')) field = 'That email is';
+        else if (errText.includes('staff_users_phone_idx')) field = 'That phone number is';
+        res.status(409).json({ ok: false, error: `${field} already used by another account.` });
+        return;
+      }
       res.status(502).json({ ok: false, error: 'Could not update this account.' });
       return;
     }
