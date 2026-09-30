@@ -77,7 +77,7 @@
   }
   .entry-grid {
     display: grid;
-    grid-template-columns: 140px 1fr 1fr 140px auto;
+    grid-template-columns: 140px 1fr 1fr 140px 120px auto;
     gap: 10px;
     align-items: end;
   }
@@ -450,6 +450,14 @@
             <label>Amount ₱</label>
             <input type="text" id="expAmount" inputmode="decimal" placeholder="0.00">
           </div>
+          <div class="field">
+            <label>Source</label>
+            <select id="expSource">
+              <option value="cash">Cash</option>
+              <option value="check">Check</option>
+              <option value="gcash">Gcash</option>
+            </select>
+          </div>
           <button type="button" class="entry-add-btn" id="addExpenseBtn">Add expense</button>
         </div>
         <div class="entry-status" id="entryStatus"></div>
@@ -462,6 +470,7 @@
       const typeEl = document.getElementById('expType');
       const detailsEl = document.getElementById('expDetails');
       const amountEl = document.getElementById('expAmount');
+      const sourceEl = document.getElementById('expSource');
       const statusEl = document.getElementById('entryStatus');
       const btn = document.getElementById('addExpenseBtn');
 
@@ -469,6 +478,7 @@
       const type = typeEl.value.trim();
       const details = detailsEl.value.trim();
       const amount = parseFloat(amountEl.value);
+      const source = sourceEl.value;
 
       if (!expense_date) {
         statusEl.textContent = 'Date is required.';
@@ -494,7 +504,7 @@
         const resp = await fetch('/api/expenses', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ expense_date, type, details, amount }),
+          body: JSON.stringify({ expense_date, type, details, amount, source }),
         });
         const result = await resp.json();
         if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save the expense.');
@@ -504,6 +514,7 @@
         typeEl.value = '';
         detailsEl.value = '';
         amountEl.value = '';
+        sourceEl.value = 'cash';
         dateEl.value = todayIso();
         loadExpenses();
       } catch (err) {
@@ -544,18 +555,22 @@
       return;
     }
 
+    const sourceLabel = (s) => s === 'gcash' ? 'Gcash' : (s === 'check' ? 'Check' : 'Cash');
+
     const rows = expenses.map(e => `
       <tr data-row-id="${e.id}">
         <td data-label="Date">${escapeHtml(e.expense_date)}</td>
         <td data-label="Type"><span class="type-chip">${escapeHtml(e.type)}</span></td>
         <td data-label="Recipient / Details">${escapeHtml(e.details) || '—'}</td>
         <td data-label="Amount">₱${escapeHtml(Number(e.amount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</td>
+        <td data-label="Source"><span class="source-chip">${sourceLabel(e.source)}</span></td>
         <td data-label="Logged by">${escapeHtml(e.created_by) || '—'}</td>
         <td data-label="">${isAdmin ? `
           <div class="row-actions">
             <button type="button" class="edit-btn" data-id="${e.id}"
               data-date="${escapeHtmlAttr(e.expense_date)}" data-type="${escapeHtmlAttr(e.type)}"
-              data-details="${escapeHtmlAttr(e.details || '')}" data-amount="${escapeHtmlAttr(e.amount)}">Edit</button>
+              data-details="${escapeHtmlAttr(e.details || '')}" data-amount="${escapeHtmlAttr(e.amount)}"
+              data-source="${escapeHtmlAttr(e.source || 'cash')}">Edit</button>
             <button type="button" class="delete-btn" data-id="${e.id}">Delete</button>
           </div>
         ` : ''}</td>
@@ -565,7 +580,7 @@
     content.innerHTML = `
       <table>
         <thead>
-          <tr><th>Date</th><th>Type</th><th>Recipient / Details</th><th>Amount</th><th>Logged by</th><th></th></tr>
+          <tr><th>Date</th><th>Type</th><th>Recipient / Details</th><th>Amount</th><th>Source</th><th>Logged by</th><th></th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -604,6 +619,7 @@
     const type = btn.getAttribute('data-type');
     const details = btn.getAttribute('data-details');
     const amount = btn.getAttribute('data-amount');
+    const source = btn.getAttribute('data-source') || 'cash';
 
     row.classList.add('edit-row');
     row.innerHTML = `
@@ -611,6 +627,13 @@
       <td data-label="Type"><input type="text" class="edit-type" value="${escapeHtmlAttr(type)}" list="expenseTypeList"></td>
       <td data-label="Recipient / Details"><input type="text" class="edit-details" value="${escapeHtmlAttr(details)}"></td>
       <td data-label="Amount"><input type="text" class="edit-amount" inputmode="decimal" value="${escapeHtmlAttr(amount)}"></td>
+      <td data-label="Source">
+        <select class="edit-source">
+          <option value="cash" ${source === 'cash' ? 'selected' : ''}>Cash</option>
+          <option value="check" ${source === 'check' ? 'selected' : ''}>Check</option>
+          <option value="gcash" ${source === 'gcash' ? 'selected' : ''}>Gcash</option>
+        </select>
+      </td>
       <td data-label="Logged by"></td>
       <td data-label="">
         <div class="row-actions">
@@ -627,6 +650,7 @@
       const typeEl = row.querySelector('.edit-type');
       const detailsEl = row.querySelector('.edit-details');
       const amountEl = row.querySelector('.edit-amount');
+      const sourceEl = row.querySelector('.edit-source');
       const statusEl = row.querySelector('.entry-status');
       const saveBtn = row.querySelector('.save-edit-btn');
 
@@ -634,6 +658,7 @@
       const type = typeEl.value.trim();
       const details = detailsEl.value.trim();
       const amount = parseFloat(amountEl.value);
+      const source = sourceEl.value;
 
       if (!expense_date || !type || !Number.isFinite(amount) || amount <= 0) {
         statusEl.textContent = 'Check date, type, and amount.';
@@ -649,7 +674,7 @@
         const resp = await fetch('/api/expenses?id=' + encodeURIComponent(id), {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ expense_date, type, details, amount }),
+          body: JSON.stringify({ expense_date, type, details, amount, source }),
         });
         const result = await resp.json();
         if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save changes.');

@@ -37,6 +37,7 @@ const DETAILS_MAX_LEN = 300;
 const DESCRIPTION_MAX_LEN = 200;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const WITHDRAWAL_SOURCES = ['cash', 'check'];
+const EXPENSE_SOURCES = ['cash', 'check', 'gcash'];
 const TZ = 'Asia/Manila';
 
 function todayManila() {
@@ -126,6 +127,7 @@ async function createExpense(req, res, session) {
   const type = sanitizeText(body.type, TYPE_MAX_LEN);
   const details = sanitizeText(body.details, DETAILS_MAX_LEN);
   const amountNum = parseFloat(body.amount);
+  const source = EXPENSE_SOURCES.includes(body.source) ? body.source : 'cash';
 
   if (!expenseDate || !DATE_RE.test(expenseDate)) {
     res.status(400).json({ ok: false, error: 'A valid expense date is required.' });
@@ -149,6 +151,7 @@ async function createExpense(req, res, session) {
         type,
         details,
         amount: amountNum.toFixed(2),
+        source,
         created_by: session.username,
       }),
     });
@@ -189,6 +192,7 @@ async function updateExpense(req, res) {
   const type = sanitizeText(body.type, TYPE_MAX_LEN);
   const details = sanitizeText(body.details, DETAILS_MAX_LEN);
   const amountNum = parseFloat(body.amount);
+  const source = EXPENSE_SOURCES.includes(body.source) ? body.source : 'cash';
 
   if (!expenseDate || !DATE_RE.test(expenseDate)) {
     res.status(400).json({ ok: false, error: 'A valid expense date is required.' });
@@ -212,6 +216,7 @@ async function updateExpense(req, res) {
         type,
         details,
         amount: amountNum.toFixed(2),
+        source,
       }),
     });
     if (!resp.ok) {
@@ -495,7 +500,7 @@ async function computeDayActivity(dateStr) {
   const dayFilter = `&order_date=eq.${encodeURIComponent(dateStr)}`;
   const [ordersResp, expensesResp, withdrawalsResp] = await Promise.all([
     supabaseRequest(`orders?select=amount,balance,payment_method${dayFilter}&deleted_at=is.null`, { method: 'GET' }),
-    supabaseRequest(`expenses?select=amount&expense_date=eq.${encodeURIComponent(dateStr)}`, { method: 'GET' }),
+    supabaseRequest(`expenses?select=amount,source&expense_date=eq.${encodeURIComponent(dateStr)}`, { method: 'GET' }),
     supabaseRequest(`withdrawals?select=amount,source&withdrawal_date=eq.${encodeURIComponent(dateStr)}`, { method: 'GET' }),
   ]);
 
@@ -503,6 +508,9 @@ async function computeDayActivity(dateStr) {
     cash_sales: 0,
     gcash_sales: 0,
     total_expenses: 0,
+    total_expenses_cash: 0,
+    total_expenses_checking: 0,
+    total_expenses_gcash: 0,
     total_withdrawals_cash: 0,
     total_withdrawals_checking: 0,
     outstanding_created: 0,
@@ -519,7 +527,16 @@ async function computeDayActivity(dateStr) {
   }
   if (expensesResp.ok) {
     const expenses = await expensesResp.json();
-    activity.total_expenses = expenses.reduce((sum, e) => sum + num(e.amount), 0);
+    expenses.forEach((e) => {
+      const amount = num(e.amount);
+      activity.total_expenses += amount;
+      // Legacy rows (logged before the source column existed) default to
+      // 'cash' in the database, so this still lands in the right bucket
+      // without a backfill.
+      if (e.source === 'check') activity.total_expenses_checking += amount;
+      else if (e.source === 'gcash') activity.total_expenses_gcash += amount;
+      else activity.total_expenses_cash += amount;
+    });
   }
   if (withdrawalsResp.ok) {
     const withdrawals = await withdrawalsResp.json();
@@ -585,9 +602,9 @@ async function cashflowToday(req, res) {
       ...beginning,
       ...activity,
       outstanding_collected: outstandingCollected,
-      ending_cash: beginning.beginning_cash + activity.cash_sales - activity.total_expenses - activity.total_withdrawals_cash,
-      ending_gcash: beginning.beginning_gcash + activity.gcash_sales,
-      ending_checking: beginning.beginning_checking - activity.total_withdrawals_checking,
+      ending_cash: beginning.beginning_cash + activity.cash_sales - activity.total_expenses_cash - activity.total_withdrawals_cash,
+      ending_gcash: beginning.beginning_gcash + activity.gcash_sales - activity.total_expenses_gcash,
+      ending_checking: beginning.beginning_checking - activity.total_withdrawals_checking - activity.total_expenses_checking,
       ending_outstanding: beginning.beginning_outstanding + activity.outstanding_created - outstandingCollected,
       closed_at: null,
     };
@@ -737,9 +754,9 @@ async function cashflowClose(req, res, session) {
       total_withdrawals_checking: activity.total_withdrawals_checking.toFixed(2),
       outstanding_created: activity.outstanding_created.toFixed(2),
       outstanding_collected: outstandingCollected.toFixed(2),
-      ending_cash: (beginning.beginning_cash + activity.cash_sales - activity.total_expenses - activity.total_withdrawals_cash).toFixed(2),
-      ending_gcash: (beginning.beginning_gcash + activity.gcash_sales).toFixed(2),
-      ending_checking: (beginning.beginning_checking - activity.total_withdrawals_checking).toFixed(2),
+      ending_cash: (beginning.beginning_cash + activity.cash_sales - activity.total_expenses_cash - activity.total_withdrawals_cash).toFixed(2),
+      ending_gcash: (beginning.beginning_gcash + activity.gcash_sales - activity.total_expenses_gcash).toFixed(2),
+      ending_checking: (beginning.beginning_checking - activity.total_withdrawals_checking - activity.total_expenses_checking).toFixed(2),
       ending_outstanding: (beginning.beginning_outstanding + activity.outstanding_created - outstandingCollected).toFixed(2),
       closed_at: new Date().toISOString(),
       closed_by: session.username,

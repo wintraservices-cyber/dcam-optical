@@ -657,3 +657,15 @@ alter table staff_users add column if not exists phone text;
 
 create unique index if not exists staff_users_email_idx on staff_users (lower(email)) where email is not null;
 create unique index if not exists staff_users_phone_idx on staff_users (phone) where phone is not null;
+
+-- ---------------------------------------------------------------------
+-- Expense payment source (Cash / Check / Gcash), matching how
+-- withdrawals already track a tender. Defaults every existing and
+-- future row to 'cash' -- that was the only real option before this
+-- column existed, so backfilling it as 'cash' keeps old expenses
+-- accurate rather than leaving them blank. Cash Position (see
+-- computeDayActivity in api/expenses.js) now splits an expense's amount
+-- out of the matching tender (cash/checking/gcash) instead of always
+-- assuming cash.
+-- ---------------------------------------------------------------------
+alter table expenses add column if not exists source text not null default 'cash' check (source in ('cash', 'check', 'gcash'));
