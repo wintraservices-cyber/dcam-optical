@@ -25,6 +25,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- AEO:SCHEMA:START -- generated from Settings > Business info + Clinic knowledge. Re-run "Copy AEO snippet" (Staff > Settings > AI assistant) after changes and paste over both script tags below. Seeded 2026-09-29 from the chat widget's placeholder content -- regenerate from live Settings data before launch. -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -39,9 +40,38 @@
     "addressLocality": "Quezon City",
     "addressRegion": "Metro Manila",
     "addressCountry": "PH"
-  }
+  },
+  "openingHours": "Mo-Sa 10:00-21:00"
 }
 </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Do you take HMO or insurance?",
+      "acceptedAnswer": { "@type": "Answer", "text": "We accept a number of HMO providers -- bring your HMO card and a valid ID for your visit and our front desk will confirm coverage." }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens at a first eye exam?",
+      "acceptedAnswer": { "@type": "Answer", "text": "A first visit starts with a quick history, then a full refraction and eye health check. Most first exams take about 20-30 minutes." }
+    },
+    {
+      "@type": "Question",
+      "name": "What are your hours and where are you located?",
+      "acceptedAnswer": { "@type": "Answer", "text": "DCAM Optical is at LGF, Ever Gotesco Commonwealth, Commonwealth Avenue, Quezon City, open Monday to Saturday, 10:00 AM to 9:00 PM." }
+    }
+  ]
+}
+</script>
+<!-- AEO:SCHEMA:END -->
+<!-- NOTE: the JSON-LD above was seeded from the chat widget's built-in placeholder text, not pulled live from Settings.
+     Before launch: Staff > Settings > AI assistant > "Generate snippet" and paste its output over both blocks above,
+     so this matches whatever HMOs, hours and FAQ wording are actually configured. -->
+
 <style>
   :root {
     --orchid: #B05A9E; --orchid-deep: #8A3F7B; --orchid-soft: #D08BC2; --sky: #5BAFC0; --teal: #26707F;
@@ -179,6 +209,15 @@
   .chat-send:hover { background: var(--orchid); }
   .chat-send:disabled { opacity: .4; cursor: default; }
   .chat-note { font-size: .76rem; color: #F7F1E8; opacity: .5; margin-top: 18px; text-align: center; }
+
+  /* ---------- Static FAQ (crawlable text -- see AEO:FAQ markers below) ---------- */
+  .faq-static { background: var(--bg); padding: clamp(56px, 8vw, 88px) 0; }
+  .faq-static .wrap { max-width: 880px; }
+  .faq-static h2 { font-size: clamp(28px, 3.4vw, 40px); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 32px; }
+  .faq-item { padding: 22px 0; border-bottom: 1px solid var(--line); }
+  .faq-item:last-child { border-bottom: none; }
+  .faq-item h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+  .faq-item p { color: var(--muted); font-size: 0.96rem; }
   .chat-book-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; background: var(--orchid); color: #fff !important; font: 600 .85rem var(--display); text-decoration: none; padding: 9px 16px; border-radius: 20px; }
 
   /* ---------- Quiz (carried over, theme-aware) ---------- */
@@ -441,6 +480,29 @@
     <p class="chat-note">Answers come from an AI assistant using DCAM Optical's current details. It can't diagnose; for urgent eye problems, please seek care right away. Please don't share sensitive health details in chat.</p>
   </div>
 </section>
+
+<!-- AEO:FAQ:START -- generated from Settings > AI assistant > Clinic knowledge (Staff > Settings > "Generate snippet"). Seeded 2026-09-29 from the chat widget's placeholder content -- regenerate from live Settings data before launch. -->
+<section class="faq-static" id="faq" aria-label="Frequently asked questions">
+  <div class="wrap">
+    <h2>Frequently asked questions</h2>
+    <div class="faq-item">
+      <h3>Do you take HMO or insurance?</h3>
+      <p>We accept a number of HMO providers — bring your HMO card and a valid ID for your visit and our front desk will confirm coverage.</p>
+    </div>
+    <div class="faq-item">
+      <h3>What happens at a first eye exam?</h3>
+      <p>A first visit starts with a quick history, then a full refraction and eye health check. Most first exams take about 20–30 minutes.</p>
+    </div>
+    <div class="faq-item">
+      <h3>What are your hours and where are you located?</h3>
+      <p>DCAM Optical is at LGF, Ever Gotesco Commonwealth, Commonwealth Avenue, Quezon City, open Monday to Saturday, 10:00 AM to 9:00 PM.</p>
+    </div>
+  </div>
+</section>
+<!-- AEO:FAQ:END -->
+<!-- NOTE: the FAQ text above was seeded from the chat widget's built-in placeholder content, not pulled live from
+     Settings. Before launch: Staff > Settings > AI assistant > "Generate snippet" and paste its output over the
+     block above, so this matches whatever HMOs, hours and FAQ wording are actually configured. -->
 
 <section class="quiz-section" id="quiz">
   <div class="wrap">

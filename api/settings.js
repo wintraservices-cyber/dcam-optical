@@ -12,7 +12,7 @@ const { requireAuth, requireAdmin } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport } = require('../lib/ai-usage');
-const { normalizeKnowledge, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
+const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 
 const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'ai_access', 'ai_knowledge', 'site_mode'];
@@ -144,6 +144,92 @@ async function getAiUsage(req, res) {
   }
 }
 
+// ---------------------------------------------------------------------
+// AEO snippet generator -- admin-only, view=aeo_snippet.
+//
+// This site is plain static HTML with no build step and no server-side
+// rendering (Vercel Hobby, already at the 12-function cap), so the FAQ
+// text, hours/address, and JSON-LD that answer engines (ChatGPT,
+// Perplexity, Google AI Overviews) read have to live as real text
+// baked into index.html -- not fetched client-side after page load,
+// which a non-JS crawler never sees resolve.
+//
+// Rather than that static text silently drifting out of sync with
+// Settings, this route assembles it fresh from the CURRENT Business
+// info + Clinic knowledge (the same source the chat assistant uses)
+// and returns ready-to-paste HTML. Whenever hours, address, or an FAQ
+// answer changes in Settings, re-run this and paste the two blocks
+// into index.html in place of the old ones (marked with HTML comments
+// there so they're easy to find).
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildAeoSnippet(biz, knowledge) {
+  const b = biz || {};
+  const faqEntries = entriesFor(knowledge, 'website');
+
+  // ---- Visible FAQ section (static HTML, crawlable without JS) ----
+  const faqItemsHtml = faqEntries.map(e => (
+    `  <div class="faq-item">\n` +
+    `    <h3>${escapeHtml(e.title)}</h3>\n` +
+    `    <p>${escapeHtml(e.answer)}</p>\n` +
+    `  </div>`
+  )).join('\n');
+  const faqSectionHtml =
+    `<!-- AEO:FAQ:START -- generated from Settings > AI assistant > Clinic knowledge. Re-run "Copy AEO snippet" after editing hours/FAQs and paste over this block. -->\n` +
+    `<section class="faq-static" id="faq" aria-label="Frequently asked questions">\n` +
+    `${faqItemsHtml || '  <!-- no website-audience clinic knowledge entries yet -->'}\n` +
+    `</section>\n` +
+    `<!-- AEO:FAQ:END -->`;
+
+  // ---- FAQPage JSON-LD (mirrors the visible text above exactly) ----
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqEntries.map(e => ({
+      '@type': 'Question',
+      name: e.title,
+      acceptedAnswer: { '@type': 'Answer', text: e.answer },
+    })),
+  };
+
+  // ---- Enriched business schema (Optician + LocalBusiness fields) ----
+  const bizJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Optician',
+    name: b.name || 'DCAM Optical',
+    alternateName: 'Limuaco Optical',
+    description: 'Family-friendly optical shop offering eye exams, prescription glasses and contact lenses. Formerly Limuaco Optical.',
+    image: '/assets/landing-options/display-case.jpg',
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: b.branch || 'LGF, Ever Gotesco Commonwealth, Commonwealth Avenue',
+      addressLocality: 'Quezon City',
+      addressRegion: 'Metro Manila',
+      addressCountry: 'PH',
+    },
+  };
+  if (b.tel) bizJsonLd.telephone = b.tel;
+  else if (b.mobile) bizJsonLd.telephone = b.mobile;
+  if (b.hours) {
+    // Free-text hours (e.g. "Mon - Sat . 10:00 AM - 9:00 PM") can't be
+    // reliably parsed into schema.org's structured day/time format
+    // without the admin picking days and times explicitly in Settings,
+    // so it's passed through as-is via openingHours (a valid, looser
+    // fallback) rather than guessed at.
+    bizJsonLd.openingHours = b.hours;
+  }
+
+  const schemaHtml =
+    `<!-- AEO:SCHEMA:START -- generated from Settings > Business info + Clinic knowledge. Re-run "Copy AEO snippet" after changes and paste over both script tags below. -->\n` +
+    `<script type="application/ld+json">\n${JSON.stringify(bizJsonLd, null, 2)}\n</script>\n` +
+    `<script type="application/ld+json">\n${JSON.stringify(faqJsonLd, null, 2)}\n</script>\n` +
+    `<!-- AEO:SCHEMA:END -->`;
+
+  return { schemaHtml, faqSectionHtml, faqCount: faqEntries.length, hasHours: !!b.hours, hasAddress: !!b.branch };
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
@@ -250,6 +336,23 @@ module.exports = async (req, res) => {
     // AI usage + estimated cost -- admin only.
     if (!requireAdmin(req, res)) return;
     return getAiUsage(req, res);
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'aeo_snippet') {
+    // Admin only -- generates the static FAQ + JSON-LD HTML to paste into
+    // index.html so hours/FAQ text stays crawlable and in sync with
+    // Settings. See buildAeoSnippet() above for why this can't just be
+    // rendered live.
+    if (!requireAdmin(req, res)) return;
+    try {
+      const [biz, knowledge] = await Promise.all([readSetting('business_info'), loadKnowledge()]);
+      const snippet = buildAeoSnippet(biz, knowledge);
+      res.status(200).json({ ok: true, ...snippet });
+    } catch (err) {
+      console.error('aeo_snippet error:', err.message);
+      res.status(502).json({ ok: false, error: 'Could not build the AEO snippet right now.' });
+    }
+    return;
   }
 
   if (req.method === 'GET') {

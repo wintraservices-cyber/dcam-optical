@@ -679,6 +679,31 @@
       </div>
     </div>
 
+    <div class="card" id="aeoCard">
+      <h2>Website SEO / AI-answer snippet</h2>
+      <div class="card-sub">The public website's FAQ text and hours/address are written directly into the page (not loaded live) so search engines and AI assistants like ChatGPT and Google can read and quote them correctly. Whenever you change Business info or Clinic knowledge above, generate a fresh copy here and send it to your developer to paste into the site.</div>
+      <div class="save-row">
+        <button class="save-btn secondary" id="aeoGenerate" type="button">Generate snippet</button>
+        <span class="save-status" id="aeoStatus"></span>
+      </div>
+      <div id="aeoOutput" style="display:none; margin-top:14px;">
+        <div style="margin-bottom:10px;">
+          <label style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-weight:700; font-size:0.85rem;">FAQ section (visible page text)</span>
+            <button class="save-btn secondary" id="aeoCopyFaq" type="button" style="padding:4px 12px; font-size:0.78rem;">Copy</button>
+          </label>
+          <textarea id="aeoFaqBox" readonly rows="8" style="width:100%; font-family:monospace; font-size:0.78rem; margin-top:6px;"></textarea>
+        </div>
+        <div>
+          <label style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-weight:700; font-size:0.85rem;">Structured data (for &lt;head&gt;)</span>
+            <button class="save-btn secondary" id="aeoCopySchema" type="button" style="padding:4px 12px; font-size:0.78rem;">Copy</button>
+          </label>
+          <textarea id="aeoSchemaBox" readonly rows="8" style="width:100%; font-family:monospace; font-size:0.78rem; margin-top:6px;"></textarea>
+        </div>
+      </div>
+    </div>
+
     <div class="card" id="uqCard">
       <h2>Questions it couldn't answer<span class="count-badge" id="uqBadge" style="display:none;"></span></h2>
       <div class="card-sub">When the assistants can't answer from your info, the question is saved here so you can add the answer to Clinic knowledge.</div>
@@ -1427,6 +1452,47 @@
     document.getElementById('saveAiAccess').click();
   });
   document.querySelector('.tabs button[data-tab="ai"]').addEventListener('click', () => { if (!uqLoaded) loadUnanswered(); });
+
+  // ---- Website SEO / AI-answer (AEO) snippet ----
+  document.getElementById('aeoGenerate').addEventListener('click', async () => {
+    const btn = document.getElementById('aeoGenerate');
+    const statusEl = document.getElementById('aeoStatus');
+    btn.disabled = true;
+    statusEl.textContent = 'Generating…';
+    statusEl.className = 'save-status';
+    try {
+      const resp = await fetch('/api/settings?view=aeo_snippet');
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not generate the snippet.');
+      document.getElementById('aeoFaqBox').value = result.faqSectionHtml;
+      document.getElementById('aeoSchemaBox').value = result.schemaHtml;
+      document.getElementById('aeoOutput').style.display = 'block';
+      const notes = [];
+      if (!result.hasHours) notes.push('no hours set in Business info');
+      if (!result.hasAddress) notes.push('no address set in Business info');
+      if (!result.faqCount) notes.push('no "Website" or "Website + staff" clinic knowledge entries yet');
+      statusEl.textContent = notes.length ? 'Generated, but: ' + notes.join('; ') + '.' : `Generated (${result.faqCount} FAQ ${result.faqCount === 1 ? 'entry' : 'entries'}). Send both boxes to your developer.`;
+      statusEl.className = notes.length ? 'save-status error' : 'save-status success';
+    } catch (err) {
+      statusEl.textContent = err.message || 'Could not generate the snippet.';
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  function copyBox(boxId, statusEl) {
+    const box = document.getElementById(boxId);
+    box.select();
+    navigator.clipboard && navigator.clipboard.writeText(box.value).then(() => {
+      statusEl.textContent = 'Copied.';
+      statusEl.className = 'save-status success';
+    }).catch(() => {
+      statusEl.textContent = 'Could not copy automatically — select the text and copy manually.';
+      statusEl.className = 'save-status error';
+    });
+  }
+  document.getElementById('aeoCopyFaq').addEventListener('click', () => copyBox('aeoFaqBox', document.getElementById('aeoStatus')));
+  document.getElementById('aeoCopySchema').addEventListener('click', () => copyBox('aeoSchemaBox', document.getElementById('aeoStatus')));
 
   // ---- AI usage & cost ----
   const usd = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: (Number(n) || 0) < 1 ? 4 : 2 });
