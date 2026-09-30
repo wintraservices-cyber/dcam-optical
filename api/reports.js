@@ -124,11 +124,15 @@ async function salesReport(req, res, from, to) {
 
     // Column order mirrors the client's own "Sales" sheet (Job# -> Patient
     // -> Frame -> Lens -> Type -> Qty -> Total/Unit Price -> Payment today
-    // -> Balance -> Payment Method) so this report can sit side by side
+    // -> Payment Method -> Balance) so this report can sit side by side
     // with their existing sheet without re-sorting columns by hand. Date
     // leads since their sheet has no date column at all (each tab is one
     // day). Everything their sheet doesn't have is appended at the end,
     // in the same order it was in before, rather than interleaved.
+    //
+    // Payment Method and Balance were swapped 2026-09-30 to match their
+    // "Oct 1 2026" sheet, which reordered those two columns from how
+    // their "Sep 29 2026" sheet had them (Balance, then Payment Method).
     const columns = [
       { label: 'Order Date', value: (o) => o.order_date || '' },
       { label: 'Order #', value: 'order_no' },
@@ -139,8 +143,8 @@ async function salesReport(req, res, from, to) {
       { label: 'Qty', value: totalQty },
       { label: 'Total', value: 'amount' },
       { label: 'Payment Today', value: 'deposit' },
-      { label: 'Balance', value: 'balance' },
       { label: 'Payment Method', value: 'payment_method' },
+      { label: 'Balance', value: 'balance' },
       // -- not on the client's sheet, appended at the end --
       { label: 'Payment Status', value: 'payment_status' },
       { label: 'Status', value: 'status' },
