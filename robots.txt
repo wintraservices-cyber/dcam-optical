@@ -1,0 +1,14 @@
+# DCAM Optical is in Maintenance/Coming Soon mode as of 2026-09-29.
+# Blocking all crawling until the site is ready to go live, so search
+# engines don't index the teaser page as if it were the permanent site.
+#
+# When Maintenance mode is switched off in Settings -> Website, update
+# this file to allow crawling and add the sitemap reference, e.g.:
+#   User-agent: *
+#   Allow: /
+#   Disallow: /staff-
+#   Disallow: /api/
+#   Sitemap: https://dcamoptical.com/sitemap.xml
+
+User-agent: *
+Disallow: /

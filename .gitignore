@@ -1,0 +1,11 @@
+# Environment variables / secrets — never commit these.
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# OS/editor noise
+.DS_Store
+*.log
