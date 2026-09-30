@@ -73,21 +73,29 @@ async function ordersReport(req, res, from, to) {
     }
     const orders = await resp.json();
 
+    // Column order mirrors the client's own paper/Excel "Job Orders" sheet
+    // (Job# -> Patient -> Frame -> Lens -> Type -> Total -> Deposit ->
+    // Balance -> Payment Method) so a report can be compared side by side
+    // with their existing sheet without re-sorting columns by hand.
+    // Date leads since their sheet has no date column at all (each tab is
+    // one day). Everything their sheet doesn't have is appended at the
+    // end, in the same order it was in before, rather than interleaved.
     const columns = [
-      { label: 'Order #', value: 'order_no' },
       { label: 'Order Date', value: (o) => o.order_date || '' },
-      { label: 'Created Date', value: (o) => (o.created_at || '').slice(0, 10) },
-      { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
+      { label: 'Order #', value: 'order_no' },
       { label: 'Patient', value: 'patient_name' },
-      { label: 'Phone', value: 'tel_no' },
       { label: 'Frame', value: 'frame' },
       { label: 'Lens Type', value: 'lens_type' },
-      { label: 'Items', value: (o) => (o.order_items || []).map(i => `${i.item_name} x${i.item_qty}`).join('; ') },
+      { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
       { label: 'Amount', value: 'amount' },
       { label: 'Deposit', value: 'deposit' },
       { label: 'Balance', value: 'balance' },
-      { label: 'Payment Status', value: 'payment_status' },
       { label: 'Payment Method', value: 'payment_method' },
+      // -- not on the client's sheet, appended at the end --
+      { label: 'Created Date', value: (o) => (o.created_at || '').slice(0, 10) },
+      { label: 'Phone', value: 'tel_no' },
+      { label: 'Items', value: (o) => (o.order_items || []).map(i => `${i.item_name} x${i.item_qty}`).join('; ') },
+      { label: 'Payment Status', value: 'payment_status' },
       { label: 'Status', value: 'status' },
       { label: 'Taken By', value: 'taken_by' },
     ];
@@ -114,6 +122,13 @@ async function salesReport(req, res, from, to) {
     // this order" rather than a list of individual items.
     const totalQty = (o) => (o.order_items || []).reduce((sum, i) => sum + (parseInt(i.item_qty, 10) || 0), 0) || '';
 
+    // Column order mirrors the client's own "Sales" sheet (Job# -> Patient
+    // -> Frame -> Lens -> Type -> Qty -> Total/Unit Price -> Payment today
+    // -> Balance -> Payment Method) so this report can sit side by side
+    // with their existing sheet without re-sorting columns by hand. Date
+    // leads since their sheet has no date column at all (each tab is one
+    // day). Everything their sheet doesn't have is appended at the end,
+    // in the same order it was in before, rather than interleaved.
     const columns = [
       { label: 'Order Date', value: (o) => o.order_date || '' },
       { label: 'Order #', value: 'order_no' },
@@ -123,9 +138,10 @@ async function salesReport(req, res, from, to) {
       { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
       { label: 'Qty', value: totalQty },
       { label: 'Total', value: 'amount' },
-      { label: 'Deposit', value: 'deposit' },
-      { label: 'Payment Type', value: 'payment_method' },
+      { label: 'Payment Today', value: 'deposit' },
       { label: 'Balance', value: 'balance' },
+      { label: 'Payment Method', value: 'payment_method' },
+      // -- not on the client's sheet, appended at the end --
       { label: 'Payment Status', value: 'payment_status' },
       { label: 'Status', value: 'status' },
       { label: 'Taken By', value: 'taken_by' },
