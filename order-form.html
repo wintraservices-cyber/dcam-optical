@@ -900,7 +900,7 @@
       padding: 6px 8px;
       page-break-inside: avoid;
       break-inside: avoid;
-      font-size: 6.2px;
+      font-size: 7.2px;
       line-height: 1.25;
       margin-bottom: 4px;
     }
@@ -910,8 +910,8 @@
     .tu-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .tu-brandbox { width: 26px; height: 26px; flex: none; }
     .tu-brandbox img { width: 100%; height: 100%; object-fit: contain; }
-    .tu-header-meta { flex: 1; font-size: 5.4px; line-height: 1.3; }
-    .tu-loc-name { font-weight: 700; font-size: 6.8px; }
+    .tu-header-meta { flex: 1; font-size: 6.3px; line-height: 1.3; }
+    .tu-loc-name { font-weight: 700; font-size: 7.9px; }
     .tu-orderno-box { text-align: right; font-weight: 700; }
     .tu-orderno-box .tu-hash { font-weight: 400; margin-right: 3px; }
     .tu-row3, .tu-row2 {
@@ -927,17 +927,17 @@
       display: block;
       font-weight: 700;
       text-transform: uppercase;
-      font-size: 4.8px;
+      font-size: 5.6px;
       letter-spacing: 0.02em;
       color: #333;
     }
-    .tu-field span { display: block; min-height: 7px; }
-    .tu-jobtype { font-weight: 700; margin: 2px 0; font-size: 5.6px; }
+    .tu-field span { display: block; min-height: 8px; }
+    .tu-jobtype { font-weight: 700; margin: 2px 0; font-size: 6.5px; }
     table.tu-grid {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 2px;
-      font-size: 5.6px;
+      font-size: 6.5px;
     }
     table.tu-grid th, table.tu-grid td {
       border: 0.75px solid #000;
@@ -945,7 +945,17 @@
       text-align: center;
     }
     table.tu-grid td.tu-label { font-weight: 700; background: #f2f2f2; }
-    .tu-lensmat-cell { text-align: left; font-size: 5px; }
+    /* The Type cell (rowspan=2, holding the Glass/Plastic/Others
+       checkboxes below) needs about 3 lines of content -- taller than a
+       single SPH/CYL/etc. row on its own. Without help, a rowspan cell's
+       extra height gets absorbed entirely by the LAST row it spans, so R
+       looked normal-height while L looked stretched (the actual bug
+       reported: "the L box shows bigger than others"). Giving R and L's
+       own cells a matching min-height (roughly half the Type cell's own
+       requirement each) makes the two rows share that extra height
+       evenly instead of dumping it all on L. */
+    table.tu-grid td:not(.tu-lensmat-cell) { min-height: 9px; }
+    .tu-lensmat-cell { text-align: left; font-size: 5.8px; vertical-align: middle; }
     .tu-lensmat-cell label {
       display: flex;
       align-items: center;
@@ -955,7 +965,7 @@
       /* Each row needs real vertical room of its own -- three labels
          packed with no minimum height let the browser's print rasterizer
          collapse/misplace the tiny boxes below (see .tu-box note). */
-      min-height: 9px;
+      min-height: 9.5px;
     }
     /* Below about 4px, Chromium's print rasterizer doesn't reliably
        paint small inline boxes at their correct individual size/position
@@ -971,16 +981,16 @@
        sub-pixel print rasterization. */
     .tu-box {
       display: inline-block !important;
-      width: 7px !important;
-      height: 7px !important;
-      border: 0.9px solid #000 !important;
+      width: 8px !important;
+      height: 8px !important;
+      border: 1px solid #000 !important;
       background: #fff !important;
       flex: none !important;
       box-sizing: border-box !important;
     }
     .tu-box.checked { background: #000 !important; }
     .tu-full { margin-bottom: 2px; border-bottom: 0.75px solid #000; padding-bottom: 2px; }
-    .tu-sig { margin-top: 3px; font-weight: 700; font-size: 5.4px; }
+    .tu-sig { margin-top: 3px; font-weight: 700; font-size: 6.3px; }
     .tu-sig [data-field="takenBy"] {
       display: inline-block;
       min-width: 60px;
@@ -990,20 +1000,20 @@
     }
 
     .tu-stub .tu-brandbox { width: 20px; height: 20px; margin-bottom: 2px; }
-    .tu-stub .tu-loc-name { font-weight: 700; font-size: 6px; margin-bottom: 3px; }
+    .tu-stub .tu-loc-name { font-weight: 700; font-size: 7px; margin-bottom: 3px; }
     .tu-stub-field { margin-bottom: 2px; border-bottom: 0.75px solid #000; padding-bottom: 1px; }
-    .tu-stub-field label { display: block; font-weight: 700; text-transform: uppercase; font-size: 4.6px; color: #333; }
+    .tu-stub-field label { display: block; font-weight: 700; text-transform: uppercase; font-size: 5.3px; color: #333; }
     /* Reserve height for the value even when it's blank (e.g. no deposit
        yet), so every row keeps the same height and the stub's rows stay
        evenly spaced instead of the empty one collapsing shorter than its
        neighbors. */
-    .tu-stub-field span { display: block; min-height: 6px; }
+    .tu-stub-field span { display: block; min-height: 7px; }
     .tu-stub-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-bottom: 2px; }
-    .tu-stub-row2 label { display: block; font-weight: 700; text-transform: uppercase; font-size: 4.6px; color: #333; }
+    .tu-stub-row2 label { display: block; font-weight: 700; text-transform: uppercase; font-size: 5.3px; color: #333; }
     .tu-stub-row2 > div { border-bottom: 0.75px solid #000; padding-bottom: 1px; }
     .tu-claim { text-align: center; margin-top: 6px; }
-    .tu-claim-title { font-weight: 800; letter-spacing: 0.06em; font-size: 6.4px; }
-    .tu-claim-no { font-weight: 700; margin-top: 2px; font-size: 5.6px; }
+    .tu-claim-title { font-weight: 800; letter-spacing: 0.06em; font-size: 7.4px; }
+    .tu-claim-no { font-weight: 700; margin-top: 2px; font-size: 6.5px; }
   }
 
   @media (max-width: 720px) {
@@ -1583,10 +1593,13 @@
     return node;
   }
 
-  // Currently set to print just 1 copy on the same pre-cut 8.5x3.67in
-  // strip as the normal "Print order + stub" button, so the two can be
-  // compared side by side on identical paper while deciding which
-  // design to keep -- not yet decided, see printThreeUp()'s @page note.
+  // Confirmed 2026-09-30: this compact "tu-" layout (not the normal
+  // .slip layout) is the one actually used, printed 1 copy per pre-cut
+  // 8.5x3.67in strip -- same paper as the normal "Print order + stub"
+  // button, just a denser layout. "Three-up" is a legacy name from an
+  // earlier full-Letter-page, 3-copies-per-sheet idea that was tried and
+  // not kept; the button/function names stuck around unchanged since
+  // renaming them isn't worth the churn. See printThreeUp()'s @page note.
   const THREE_UP_COPY_COUNT = 1;
   function buildThreeUpSlips() {
     const data = collectThreeUpData();
