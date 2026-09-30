@@ -233,7 +233,9 @@
     fab.className = 'dca-fab';
     fab.setAttribute('aria-label', 'Chat with DCAM Optical');
     fab.setAttribute('aria-expanded', 'false');
-    const chatIcon = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+    // Minimalistic glasses icon (two lenses + bridge + temples) instead of a
+    // chat-bubble -- ties the "Ask us" button to the optical brand at a glance.
+    const chatIcon = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="14" r="4"/><circle cx="17" cy="14" r="4"/><path d="M11 14h2"/><path d="M3 13 L1 11.5"/><path d="M21 13 L23 11.5"/></svg>';
     const closeIcon = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>';
     fab.innerHTML = chatIcon + '<span class="dca-fab-label">Ask us</span>';
 
