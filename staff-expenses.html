@@ -359,6 +359,10 @@
         <span class="label">Checking</span>
         <span class="value" id="withdrawalCheckValue">₱0.00</span>
       </div>
+      <div class="total-tile">
+        <span class="label">Gcash</span>
+        <span class="value" id="withdrawalGcashValue">₱0.00</span>
+      </div>
     </div>
 
     <div id="withdrawalContent">
@@ -701,6 +705,7 @@
   const withdrawalTotalValue = document.getElementById('withdrawalTotalValue');
   const withdrawalCashValue = document.getElementById('withdrawalCashValue');
   const withdrawalCheckValue = document.getElementById('withdrawalCheckValue');
+  const withdrawalGcashValue = document.getElementById('withdrawalGcashValue');
   let withdrawalsLoadedOnce = false;
 
   const withdrawalPeriodFilter = PeriodFilter.mount(document.getElementById('withdrawalPeriodFilterMount'), {
@@ -730,6 +735,7 @@
             <select id="wdSource">
               <option value="cash">Cash</option>
               <option value="check">Check</option>
+              <option value="gcash">Gcash</option>
             </select>
           </div>
           <div class="field">
@@ -819,6 +825,7 @@
         withdrawalTotalValue.textContent = fmtPeso(0);
         withdrawalCashValue.textContent = fmtPeso(0);
         withdrawalCheckValue.textContent = fmtPeso(0);
+        withdrawalGcashValue.textContent = fmtPeso(0);
         return;
       }
       const result = await resp.json();
@@ -827,6 +834,7 @@
       withdrawalTotalValue.textContent = fmtPeso(result.total);
       withdrawalCashValue.textContent = fmtPeso(result.total_cash);
       withdrawalCheckValue.textContent = fmtPeso(result.total_check);
+      withdrawalGcashValue.textContent = fmtPeso(result.total_gcash);
       renderWithdrawals(result.withdrawals || []);
     } catch (err) {
       withdrawalContent.innerHTML = `<div class="error-state">${escapeHtml(err.message)}</div>`;
@@ -839,14 +847,17 @@
       return;
     }
 
+    const wdSourceLabel = (s) => s === 'gcash' ? 'Gcash' : (s === 'check' ? 'Check' : 'Cash');
+
     const rows = withdrawals.map(w => `
       <tr data-row-id="${w.id}">
         <td data-label="Date">${escapeHtml(w.withdrawal_date)}</td>
         <td data-label="Description">${escapeHtml(w.description)}</td>
         <td data-label="Amount">${fmtPeso(w.amount)}</td>
-        <td data-label="Source"><span class="source-chip">${w.source === 'check' ? 'Check' : 'Cash'}</span></td>
+        <td data-label="Source"><span class="source-chip">${wdSourceLabel(w.source)}</span></td>
         <td data-label="Cash">${w.source === 'cash' ? fmtPeso(w.amount) : '—'}</td>
         <td data-label="Checking">${w.source === 'check' ? fmtPeso(w.amount) : '—'}</td>
+        <td data-label="Gcash">${w.source === 'gcash' ? fmtPeso(w.amount) : '—'}</td>
         <td data-label="Logged by">${escapeHtml(w.created_by) || '—'}</td>
         <td data-label="">
           <div class="row-actions">
@@ -862,7 +873,7 @@
     withdrawalContent.innerHTML = `
       <table>
         <thead>
-          <tr><th>Date</th><th>Description</th><th>Amount</th><th>Source</th><th>Cash</th><th>Checking</th><th>Logged by</th><th></th></tr>
+          <tr><th>Date</th><th>Description</th><th>Amount</th><th>Source</th><th>Cash</th><th>Checking</th><th>Gcash</th><th>Logged by</th><th></th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -908,10 +919,12 @@
         <select class="edit-source">
           <option value="cash" ${source === 'cash' ? 'selected' : ''}>Cash</option>
           <option value="check" ${source === 'check' ? 'selected' : ''}>Check</option>
+          <option value="gcash" ${source === 'gcash' ? 'selected' : ''}>Gcash</option>
         </select>
       </td>
       <td data-label="Cash"></td>
       <td data-label="Checking"></td>
+      <td data-label="Gcash"></td>
       <td data-label="Logged by"></td>
       <td data-label="">
         <div class="row-actions">

@@ -669,3 +669,27 @@ create unique index if not exists staff_users_phone_idx on staff_users (phone) w
 -- assuming cash.
 -- ---------------------------------------------------------------------
 alter table expenses add column if not exists source text not null default 'cash' check (source in ('cash', 'check', 'gcash'));
+
+-- ---------------------------------------------------------------------
+-- Allow 'gcash' as a Withdrawal source too, matching Expenses above --
+-- a payroll run or owner draw can come out of Gcash just as easily as
+-- cash or a check. withdrawals.source was declared with an inline CHECK
+-- at table-creation time (cash/check only), so widening it means
+-- dropping and recreating that constraint rather than a plain ALTER
+-- COLUMN; Postgres auto-names an inline check constraint
+-- "<table>_<column>_check", which is what's dropped below. Safe to
+-- re-run: "if exists" on the drop, and adding it back is idempotent in
+-- effect even though "add constraint" itself isn't "if not exists" --
+-- if this block is re-run after already succeeding once, the drop
+-- finds nothing (no-op) and the add reapplies the same rule.
+-- ---------------------------------------------------------------------
+alter table withdrawals drop constraint if exists withdrawals_source_check;
+alter table withdrawals add constraint withdrawals_source_check check (source in ('cash', 'check', 'gcash'));
+
+-- cash_positions needs its own column to freeze a day's Gcash
+-- withdrawal total once closed, same as the existing
+-- total_withdrawals_cash/total_withdrawals_checking columns -- without
+-- it there'd be nowhere to store that figure on a closed (frozen)
+-- snapshot row. Defaults to 0 so past closed days (which had no Gcash
+-- withdrawals possible yet) read as zero rather than null.
+alter table cash_positions add column if not exists total_withdrawals_gcash numeric not null default 0;

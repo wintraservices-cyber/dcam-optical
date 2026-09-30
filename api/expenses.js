@@ -36,7 +36,7 @@ const TYPE_MAX_LEN = 60;
 const DETAILS_MAX_LEN = 300;
 const DESCRIPTION_MAX_LEN = 200;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const WITHDRAWAL_SOURCES = ['cash', 'check'];
+const WITHDRAWAL_SOURCES = ['cash', 'check', 'gcash'];
 const EXPENSE_SOURCES = ['cash', 'check', 'gcash'];
 const TZ = 'Asia/Manila';
 
@@ -259,10 +259,11 @@ async function deleteExpense(req, res) {
 }
 
 // ---------------------------------------------------------------------
-// Withdrawals (cash/check payroll runs, owner draws, etc.) -- always
-// admin-only, no staff-access flag. Source is fixed to 'cash' or
-// 'check' so the list can reliably show the amount under a Cash or
-// Checking column rather than trying to split free text.
+// Withdrawals (cash/check/gcash payroll runs, owner draws, etc.) --
+// always admin-only, no staff-access flag. Source is fixed to one of
+// 'cash', 'check', or 'gcash' so the list can reliably show the amount
+// under a Cash, Checking, or Gcash column rather than trying to split
+// free text.
 // ---------------------------------------------------------------------
 
 function withdrawalDateRangeFilter(from, to) {
@@ -287,12 +288,14 @@ async function listWithdrawals(req, res) {
     const total = withdrawals.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
     const totalCash = withdrawals.reduce((sum, w) => sum + (w.source === 'cash' ? (parseFloat(w.amount) || 0) : 0), 0);
     const totalCheck = withdrawals.reduce((sum, w) => sum + (w.source === 'check' ? (parseFloat(w.amount) || 0) : 0), 0);
+    const totalGcash = withdrawals.reduce((sum, w) => sum + (w.source === 'gcash' ? (parseFloat(w.amount) || 0) : 0), 0);
     res.status(200).json({
       ok: true,
       withdrawals,
       total: total.toFixed(2),
       total_cash: totalCash.toFixed(2),
       total_check: totalCheck.toFixed(2),
+      total_gcash: totalGcash.toFixed(2),
     });
   } catch (err) {
     console.error('Unexpected error listing withdrawals:', err);
@@ -313,7 +316,7 @@ function validateWithdrawalBody(body) {
     return { error: 'Description is required.' };
   }
   if (!source || !WITHDRAWAL_SOURCES.includes(source.toLowerCase())) {
-    return { error: 'Source must be Cash or Check.' };
+    return { error: 'Source must be Cash, Check, or Gcash.' };
   }
   if (!Number.isFinite(amountNum) || amountNum <= 0) {
     return { error: 'A valid amount greater than 0 is required.' };
@@ -513,6 +516,7 @@ async function computeDayActivity(dateStr) {
     total_expenses_gcash: 0,
     total_withdrawals_cash: 0,
     total_withdrawals_checking: 0,
+    total_withdrawals_gcash: 0,
     outstanding_created: 0,
   };
 
@@ -541,8 +545,10 @@ async function computeDayActivity(dateStr) {
   if (withdrawalsResp.ok) {
     const withdrawals = await withdrawalsResp.json();
     withdrawals.forEach((w) => {
-      if (w.source === 'check') activity.total_withdrawals_checking += num(w.amount);
-      else activity.total_withdrawals_cash += num(w.amount);
+      const amount = num(w.amount);
+      if (w.source === 'check') activity.total_withdrawals_checking += amount;
+      else if (w.source === 'gcash') activity.total_withdrawals_gcash += amount;
+      else activity.total_withdrawals_cash += amount;
     });
   }
   return activity;
@@ -603,7 +609,7 @@ async function cashflowToday(req, res) {
       ...activity,
       outstanding_collected: outstandingCollected,
       ending_cash: beginning.beginning_cash + activity.cash_sales - activity.total_expenses_cash - activity.total_withdrawals_cash,
-      ending_gcash: beginning.beginning_gcash + activity.gcash_sales - activity.total_expenses_gcash,
+      ending_gcash: beginning.beginning_gcash + activity.gcash_sales - activity.total_expenses_gcash - activity.total_withdrawals_gcash,
       ending_checking: beginning.beginning_checking - activity.total_withdrawals_checking - activity.total_expenses_checking,
       ending_outstanding: beginning.beginning_outstanding + activity.outstanding_created - outstandingCollected,
       closed_at: null,
@@ -752,10 +758,11 @@ async function cashflowClose(req, res, session) {
       total_expenses: activity.total_expenses.toFixed(2),
       total_withdrawals_cash: activity.total_withdrawals_cash.toFixed(2),
       total_withdrawals_checking: activity.total_withdrawals_checking.toFixed(2),
+      total_withdrawals_gcash: activity.total_withdrawals_gcash.toFixed(2),
       outstanding_created: activity.outstanding_created.toFixed(2),
       outstanding_collected: outstandingCollected.toFixed(2),
       ending_cash: (beginning.beginning_cash + activity.cash_sales - activity.total_expenses_cash - activity.total_withdrawals_cash).toFixed(2),
-      ending_gcash: (beginning.beginning_gcash + activity.gcash_sales - activity.total_expenses_gcash).toFixed(2),
+      ending_gcash: (beginning.beginning_gcash + activity.gcash_sales - activity.total_expenses_gcash - activity.total_withdrawals_gcash).toFixed(2),
       ending_checking: (beginning.beginning_checking - activity.total_withdrawals_checking - activity.total_expenses_checking).toFixed(2),
       ending_outstanding: (beginning.beginning_outstanding + activity.outstanding_created - outstandingCollected).toFixed(2),
       closed_at: new Date().toISOString(),
