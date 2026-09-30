@@ -588,3 +588,56 @@ create index if not exists patients_deleted_at_idx on patients (deleted_at);
 -- ---------------------------------------------------------------------
 alter table intake_submissions add column if not exists status text not null default 'new' check (status in ('new', 'contacted'));
 create index if not exists intake_status_idx on intake_submissions (status);
+
+-- ---------------------------------------------------------------------
+-- Daily Cash Reconciliation (CashFlow). One row per calendar day,
+-- tracking cash/Gcash/checking balances the way the client's manual
+-- spreadsheet does: beginning balances for the day, that day's activity,
+-- and ending balances -- which become the NEXT day's beginning balances.
+--
+-- The very first row ever created has no prior day to carry from, so its
+-- beginning_* fields are entered once by an admin (the "seed"); every
+-- day after that has its beginning_* fields copied automatically from
+-- the previous day's ending_* fields when that previous day is closed.
+--
+-- closed_at is the concurrency guard that makes this safe: a day with
+-- closed_at = null is still a draft (its activity fields are computed
+-- live from orders/expenses/withdrawals on every read, not stored) and
+-- can be closed at most once. Once closed_at is set, every field on
+-- that row is a frozen snapshot -- it is never recomputed again, even if
+-- someone edits an old order afterward, exactly like a spreadsheet tab
+-- nobody reopens. This is what keeps one bad edit from silently
+-- cascading through every day since.
+-- ---------------------------------------------------------------------
+create table if not exists cash_positions (
+  id uuid primary key default gen_random_uuid(),
+  position_date date not null unique,
+
+  beginning_cash numeric not null default 0,
+  beginning_gcash numeric not null default 0,
+  beginning_checking numeric not null default 0,
+  beginning_outstanding numeric not null default 0,
+
+  -- Stored only once closed -- see comment above.
+  cash_sales numeric not null default 0,
+  gcash_sales numeric not null default 0,
+  total_expenses numeric not null default 0,
+  total_withdrawals_cash numeric not null default 0,
+  total_withdrawals_checking numeric not null default 0,
+  outstanding_created numeric not null default 0,
+  outstanding_collected numeric not null default 0,
+
+  ending_cash numeric not null default 0,
+  ending_gcash numeric not null default 0,
+  ending_checking numeric not null default 0,
+  ending_outstanding numeric not null default 0,
+
+  closed_at timestamptz,
+  closed_by text,
+
+  created_at timestamptz not null default now()
+);
+
+create index if not exists cash_positions_date_idx on cash_positions (position_date desc);
+
+alter table cash_positions enable row level security;
