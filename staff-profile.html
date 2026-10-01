@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Profile — DCAM Optical (Staff)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #B05A9E;
+    --purple-deep: #8F4680;
+    --blue: #5BAFC0;
+    --blue-deep: #458F9E;
+    --ivory: #F7F1E8;
+    --ivory-dim: #EFE6D8;
+    --charcoal: #383334;
+    --charcoal-soft: #4A4547;
+    --line: rgba(56,51,52,0.14);
+    --green: #3E8E5A;
+    --red: #B0405A;
+    --amber: #B8792A;
+    --display: 'Plus Jakarta Sans', sans-serif;
+    --body: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--charcoal); font-family: var(--body); }
+
+  .staff-bar {
+    background: var(--charcoal);
+    color: var(--ivory);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .staff-bar .tag {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .staff-bar .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .staff-bar a, .staff-bar button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-light { background: var(--ivory); color: var(--charcoal); }
+  .btn-ghost { background: transparent; color: var(--ivory); border: 1px solid rgba(247,241,232,0.4) !important; }
+  .btn-ghost:hover { background: rgba(247,241,232,0.1); }
+
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .page-title {
+    font-family: var(--display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .page-sub { color: var(--charcoal-soft); font-size: 0.92rem; margin-bottom: 28px; }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    font-family: var(--display);
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+  .card .card-sub {
+    font-size: 0.82rem;
+    color: var(--charcoal-soft);
+    margin-bottom: 16px;
+  }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .field-grid.single { grid-template-columns: 1fr; }
+  .field-grid label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    margin-bottom: 5px;
+  }
+  .field-grid input {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.9rem;
+    color: var(--charcoal);
+  }
+  .field-grid input:focus {
+    outline: none;
+    border-color: var(--blue);
+  }
+  .field-grid input:disabled {
+    background: var(--ivory-dim);
+    color: var(--charcoal-soft);
+    cursor: not-allowed;
+  }
+  .field-note { font-size: 0.76rem; color: var(--charcoal-soft); margin-top: -8px; margin-bottom: 14px; }
+
+  .save-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+  }
+  .save-btn {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: none;
+    background: var(--purple);
+    color: var(--ivory);
+    cursor: pointer;
+  }
+  .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .save-status { font-size: 0.82rem; }
+  .save-status.error { color: var(--red); }
+  .save-status.success { color: var(--green); }
+
+  .loading-state { color: var(--charcoal-soft); font-size: 0.9rem; padding: 8px 0; }
+
+  @media (max-width: 560px) {
+    .field-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="staff-bar">
+  <div class="tag">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    Staff only — my profile
+  </div>
+  <div class="actions">
+    <a href="staff-dashboard.html" class="btn-light">Dashboard</a>
+    <a href="staff-orders.html" class="btn-light">Orders</a>
+    <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
+    <a href="staff-catalog.html" class="btn-light">Catalog</a>
+    <a href="staff-expenses.html" class="btn-light nav-admin-only">Expenses</a>
+    <a href="staff-cashflow.html" class="btn-light nav-admin-only">Cash Position</a>
+    <a href="staff-reports.html" class="btn-light">Reports</a>
+    <a href="staff-settings.html" class="btn-light nav-admin-only">Settings</a>
+    <a href="order-form.html" class="btn-light">New order</a>
+    <button class="btn-ghost" id="logoutBtn">Log out</button>
+  </div>
+</div>
+
+<div class="wrap" id="mainWrap" style="display:none;">
+  <div class="page-title">My Profile</div>
+  <div class="page-sub" id="pageSub">Update your display name and contact details, or change your password.</div>
+
+  <div class="card">
+    <h2>Profile details</h2>
+    <div class="card-sub">Your display name is shown around the staff system (e.g. the Dashboard greeting) instead of your username. Email and phone are used for notifications and password-reset in the future.</div>
+    <div id="profileFormWrap"><div class="loading-state">Loading…</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Change password</h2>
+    <div class="card-sub">You'll need your current password to set a new one.</div>
+    <div id="passwordFormWrap"><div class="loading-state">Loading…</div></div>
+  </div>
+</div>
+
+<script>
+let currentRole = null;
+let isBootstrap = false;
+
+async function checkAuth() {
+  try {
+    const resp = await fetch('/api/staff-auth');
+    const result = await resp.json();
+    if (!result.authenticated) {
+      window.location.href = 'staff-login.html?next=staff-profile.html';
+      return false;
+    }
+    currentRole = result.role;
+    if (currentRole !== 'admin') {
+      document.querySelectorAll('.nav-admin-only').forEach(el => el.remove());
+    }
+    return true;
+  } catch (e) {
+    window.location.href = 'staff-login.html?next=staff-profile.html';
+    return false;
+  }
+}
+
+function renderProfileForm(user) {
+  const wrap = document.getElementById('profileFormWrap');
+  if (user.bootstrap) {
+    wrap.innerHTML = '<div class="loading-state">You\'re signed in with the shared bootstrap password — create a real staff account first (Settings &gt; Staff accounts) to have a profile of your own.</div>';
+    document.getElementById('passwordFormWrap').innerHTML = '<div class="loading-state">No password of its own to change yet.</div>';
+    isBootstrap = true;
+    return;
+  }
+  document.getElementById('pageSub').textContent = `Signed in as ${user.username}.`;
+  wrap.innerHTML = `
+    <div class="field-grid single">
+      <div>
+        <label for="pfUsername">Username</label>
+        <input type="text" id="pfUsername" disabled>
+      </div>
+    </div>
+    <div class="field-grid single">
+      <div>
+        <label for="pfDisplayName">Display name</label>
+        <input type="text" id="pfDisplayName" placeholder="e.g. Maria S.">
+      </div>
+    </div>
+    <div class="field-grid">
+      <div>
+        <label for="pfEmail">Email</label>
+        <input type="email" id="pfEmail" placeholder="you@example.com">
+      </div>
+      <div>
+        <label for="pfPhone">Phone</label>
+        <input type="text" id="pfPhone" placeholder="0917-000-0000">
+      </div>
+    </div>
+    <div class="save-row">
+      <button class="save-btn" id="profileSaveBtn">Save changes</button>
+      <span class="save-status" id="profileStatus"></span>
+    </div>
+  `;
+  document.getElementById('pfUsername').value = user.username || '';
+  document.getElementById('pfDisplayName').value = user.display_name || '';
+  document.getElementById('pfEmail').value = user.email || '';
+  document.getElementById('pfPhone').value = user.phone || '';
+
+  document.getElementById('profileSaveBtn').addEventListener('click', saveProfile);
+}
+
+function renderPasswordForm() {
+  const wrap = document.getElementById('passwordFormWrap');
+  wrap.innerHTML = `
+    <div class="field-grid single">
+      <div>
+        <label for="pfCurrentPassword">Current password</label>
+        <input type="password" id="pfCurrentPassword" autocomplete="current-password">
+      </div>
+    </div>
+    <div class="field-grid">
+      <div>
+        <label for="pfNewPassword">New password</label>
+        <input type="password" id="pfNewPassword" autocomplete="new-password">
+      </div>
+      <div>
+        <label for="pfConfirmPassword">Confirm new password</label>
+        <input type="password" id="pfConfirmPassword" autocomplete="new-password">
+      </div>
+    </div>
+    <div class="field-note">At least 6 characters.</div>
+    <div class="save-row">
+      <button class="save-btn" id="passwordSaveBtn">Change password</button>
+      <span class="save-status" id="passwordStatus"></span>
+    </div>
+  `;
+  document.getElementById('passwordSaveBtn').addEventListener('click', changePassword);
+}
+
+async function loadProfile() {
+  try {
+    const resp = await fetch('/api/staff-auth?action=me');
+    const result = await resp.json();
+    if (!resp.ok || !result.ok) {
+      document.getElementById('profileFormWrap').innerHTML = `<div class="loading-state">${(result && result.error) || 'Could not load your profile.'}</div>`;
+      return;
+    }
+    renderProfileForm(result.user);
+    if (!result.user.bootstrap) renderPasswordForm();
+  } catch (e) {
+    document.getElementById('profileFormWrap').innerHTML = '<div class="loading-state">Could not load your profile.</div>';
+  }
+}
+
+async function saveProfile() {
+  const btn = document.getElementById('profileSaveBtn');
+  const status = document.getElementById('profileStatus');
+  const displayName = document.getElementById('pfDisplayName').value.trim();
+  const email = document.getElementById('pfEmail').value.trim();
+  const phone = document.getElementById('pfPhone').value.trim();
+
+  btn.disabled = true;
+  status.textContent = 'Saving…';
+  status.className = 'save-status';
+
+  try {
+    const resp = await fetch('/api/staff-auth?action=update_profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display_name: displayName, email, phone }),
+    });
+    const result = await resp.json();
+    if (!resp.ok || !result.ok) {
+      status.textContent = (result && result.error) || 'Could not save your profile.';
+      status.className = 'save-status error';
+      return;
+    }
+    status.textContent = 'Saved.';
+    status.className = 'save-status success';
+  } catch (e) {
+    status.textContent = 'Could not save your profile.';
+    status.className = 'save-status error';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function changePassword() {
+  const btn = document.getElementById('passwordSaveBtn');
+  const status = document.getElementById('passwordStatus');
+  const currentPassword = document.getElementById('pfCurrentPassword').value;
+  const newPassword = document.getElementById('pfNewPassword').value;
+  const confirmPassword = document.getElementById('pfConfirmPassword').value;
+
+  if (newPassword !== confirmPassword) {
+    status.textContent = 'New password and confirmation do not match.';
+    status.className = 'save-status error';
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = 'Saving…';
+  status.className = 'save-status';
+
+  try {
+    const resp = await fetch('/api/staff-auth?action=change_password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    const result = await resp.json();
+    if (!resp.ok || !result.ok) {
+      status.textContent = (result && result.error) || 'Could not change your password.';
+      status.className = 'save-status error';
+      return;
+    }
+    status.textContent = 'Password changed.';
+    status.className = 'save-status success';
+    document.getElementById('pfCurrentPassword').value = '';
+    document.getElementById('pfNewPassword').value = '';
+    document.getElementById('pfConfirmPassword').value = '';
+  } catch (e) {
+    status.textContent = 'Could not change your password.';
+    status.className = 'save-status error';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await fetch('/api/staff-auth?action=logout', { method: 'POST' });
+  window.location.href = 'staff-login.html';
+});
+
+(async () => {
+  const ok = await checkAuth();
+  if (!ok) return;
+  document.getElementById('mainWrap').style.display = '';
+  await loadProfile();
+})();
+</script>
+
+</body>
+</html>

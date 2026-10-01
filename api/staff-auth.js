@@ -1,24 +1,227 @@
-// Combines staff-login, staff-logout, and auth-check into one function
-// to stay under Vercel's Hobby-plan serverless function count limit.
-// Routed by HTTP method, and for POST, by a `?action=` query param:
-//   GET                      -> auth-check (who's logged in, if anyone)
-//   POST ?action=login       -> staff-login (default if action omitted)
-//   POST ?action=logout      -> staff-logout
+// Combines staff-login, staff-logout, auth-check, and a staff member's
+// own profile (view/edit their own display name, email, phone, and
+// password) into one function to stay under Vercel's Hobby-plan
+// serverless function count limit. Routed by HTTP method, and by a
+// `?action=` query param:
+//   GET                              -> auth-check (who's logged in, if anyone)
+//   GET  ?action=me                  -> this staff member's own profile
+//   POST ?action=login               -> staff-login (default if action omitted)
+//   POST ?action=logout              -> staff-logout
+//   POST ?action=update_profile      -> edit own display_name/email/phone
+//   POST ?action=change_password     -> change own password (current password required)
+//
+// The last three are "edit MYSELF only" -- unlike api/staff-users.js
+// (admin managing other people's accounts), every write here is scoped
+// to the session's own userId, so a staff member can never touch
+// another account through this endpoint, and no admin check is needed
+// since everyone (staff or admin) manages their own profile the same way.
 
-const { setSessionCookie, clearSessionCookie, getSessionUser } = require('../lib/auth');
+const { setSessionCookie, clearSessionCookie, getSessionUser, requireAuth } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
-const { verifyPassword } = require('../lib/password');
+const { verifyPassword, hashPassword } = require('../lib/password');
+const { sanitizeEmail, sanitizePhone, isUniqueViolation } = require('../lib/staff-profile-validate');
 
 const DEMO_STAFF_PASSWORD = 'dcam-optical';
 
 async function handleAuthCheck(req, res) {
   const sessionUser = getSessionUser(req);
+  if (!sessionUser) {
+    res.status(200).json({ ok: true, authenticated: false, role: null, username: null, display_name: null });
+    return;
+  }
+
+  // The session cookie only carries username/role (as of login time --
+  // see lib/auth.js), not display_name, so a quick lookup fills it in
+  // for pages that greet the person by name (e.g. the Dashboard).
+  // Best-effort: if this lookup fails for any reason, still report
+  // "authenticated" with username as a fallback display name rather
+  // than failing the whole auth check over a cosmetic field.
+  let displayName = null;
+  if (sessionUser.userId !== 'bootstrap') {
+    try {
+      const resp = await supabaseRequest(
+        `staff_users?id=eq.${encodeURIComponent(sessionUser.userId)}&select=display_name`,
+        { method: 'GET' }
+      );
+      if (resp.ok) {
+        const [user] = await resp.json();
+        displayName = (user && user.display_name) || null;
+      }
+    } catch (e) { /* non-fatal -- falls back to username */ }
+  }
+
   res.status(200).json({
     ok: true,
-    authenticated: !!sessionUser,
-    role: sessionUser ? sessionUser.role : null,
-    username: sessionUser ? sessionUser.username : null,
+    authenticated: true,
+    role: sessionUser.role,
+    username: sessionUser.username,
+    display_name: displayName,
   });
+}
+
+// The bootstrap login (see handleLogin below) sets a session with
+// userId 'bootstrap' -- there's no real staff_users row behind it, so
+// profile/password actions have nothing to read or update. This should
+// be rare in practice (bootstrap mode only exists until the first real
+// account is created), but every handler below checks for it first and
+// returns a clear message rather than a confusing lookup failure.
+function isBootstrapSession(sessionUser) {
+  return sessionUser && sessionUser.userId === 'bootstrap';
+}
+
+async function handleMe(req, res) {
+  const sessionUser = requireAuth(req, res);
+  if (!sessionUser) return;
+  if (isBootstrapSession(sessionUser)) {
+    res.status(200).json({ ok: true, user: { username: sessionUser.username, role: sessionUser.role, display_name: null, email: null, phone: null, bootstrap: true } });
+    return;
+  }
+  try {
+    const resp = await supabaseRequest(
+      `staff_users?id=eq.${encodeURIComponent(sessionUser.userId)}&select=username,display_name,email,phone,role`,
+      { method: 'GET' }
+    );
+    if (!resp.ok) {
+      res.status(502).json({ ok: false, error: 'Could not load your profile.' });
+      return;
+    }
+    const [user] = await resp.json();
+    if (!user) {
+      res.status(404).json({ ok: false, error: 'Your account could not be found.' });
+      return;
+    }
+    res.status(200).json({ ok: true, user });
+  } catch (err) {
+    console.error('Unexpected error loading own profile:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
+async function handleUpdateProfile(req, res) {
+  const sessionUser = requireAuth(req, res);
+  if (!sessionUser) return;
+  if (isBootstrapSession(sessionUser)) {
+    res.status(400).json({ ok: false, error: 'Create a real staff account first (Settings > Staff accounts) -- the bootstrap login has no profile to edit.' });
+    return;
+  }
+
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
+  }
+  if (!body || typeof body !== 'object') {
+    res.status(400).json({ ok: false, error: 'Missing profile data' });
+    return;
+  }
+
+  const patch = {};
+  if (body.display_name !== undefined) {
+    patch.display_name = String(body.display_name).trim().slice(0, 100) || null;
+  }
+  if (body.email !== undefined) {
+    const email = sanitizeEmail(body.email);
+    if (!email.ok) {
+      res.status(400).json({ ok: false, error: 'Enter a valid email address, or leave it blank.' });
+      return;
+    }
+    patch.email = email.value;
+  }
+  if (body.phone !== undefined) {
+    const phone = sanitizePhone(body.phone);
+    if (!phone.ok) {
+      res.status(400).json({ ok: false, error: 'Enter a valid phone number, or leave it blank.' });
+      return;
+    }
+    patch.phone = phone.value;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    res.status(400).json({ ok: false, error: 'Provide at least one field to update.' });
+    return;
+  }
+  patch.updated_at = new Date().toISOString();
+
+  try {
+    const resp = await supabaseRequest(`staff_users?id=eq.${encodeURIComponent(sessionUser.userId)}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify(patch),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('Supabase own-profile update error:', resp.status, errText);
+      if (isUniqueViolation(errText)) {
+        const field = errText.includes('staff_users_email_idx') ? 'That email is' : 'That phone number is';
+        res.status(409).json({ ok: false, error: `${field} already used by another account.` });
+        return;
+      }
+      res.status(502).json({ ok: false, error: 'Could not save your profile.' });
+      return;
+    }
+    const [updated] = await resp.json();
+    const { password_hash, password_salt, ...safeUser } = updated || {};
+    res.status(200).json({ ok: true, user: safeUser });
+  } catch (err) {
+    console.error('Unexpected error updating own profile:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
+async function handleChangePassword(req, res) {
+  const sessionUser = requireAuth(req, res);
+  if (!sessionUser) return;
+  if (isBootstrapSession(sessionUser)) {
+    res.status(400).json({ ok: false, error: 'Create a real staff account first (Settings > Staff accounts) -- the bootstrap login has no password of its own to change.' });
+    return;
+  }
+
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
+  }
+  const currentPassword = (body && body.current_password) || '';
+  const newPassword = (body && body.new_password) || '';
+
+  if (!currentPassword) {
+    res.status(400).json({ ok: false, error: 'Enter your current password.' });
+    return;
+  }
+  if (newPassword.length < 6) {
+    res.status(400).json({ ok: false, error: 'New password must be at least 6 characters.' });
+    return;
+  }
+
+  try {
+    const userResp = await supabaseRequest(
+      `staff_users?id=eq.${encodeURIComponent(sessionUser.userId)}&select=id,password_hash,password_salt`,
+      { method: 'GET' }
+    );
+    if (!userResp.ok) {
+      res.status(502).json({ ok: false, error: 'Could not verify your current password.' });
+      return;
+    }
+    const [user] = await userResp.json();
+    if (!user || !verifyPassword(currentPassword, user.password_hash, user.password_salt)) {
+      res.status(401).json({ ok: false, error: 'Your current password is incorrect.' });
+      return;
+    }
+
+    const { hash, salt } = hashPassword(newPassword);
+    const resp = await supabaseRequest(`staff_users?id=eq.${encodeURIComponent(sessionUser.userId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ password_hash: hash, password_salt: salt, updated_at: new Date().toISOString() }),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('Supabase own-password change error:', resp.status, errText);
+      res.status(502).json({ ok: false, error: 'Could not change your password.' });
+      return;
+    }
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('Unexpected error changing own password:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
 }
 
 async function handleLogin(req, res) {
@@ -109,11 +312,17 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (req.method === 'GET') return handleAuthCheck(req, res);
+  if (req.method === 'GET') {
+    const action = (req.query && req.query.action) || 'check';
+    if (action === 'me') return handleMe(req, res);
+    return handleAuthCheck(req, res);
+  }
 
   if (req.method === 'POST') {
     const action = (req.query && req.query.action) || 'login';
     if (action === 'logout') return handleLogout(req, res);
+    if (action === 'update_profile') return handleUpdateProfile(req, res);
+    if (action === 'change_password') return handleChangePassword(req, res);
     return handleLogin(req, res);
   }
 

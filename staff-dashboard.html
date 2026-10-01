@@ -219,6 +219,7 @@
     <a href="staff-reports.html" class="btn-light">Reports</a>
     <a href="staff-settings.html" class="btn-light nav-admin-only">Settings</a>
     <a href="order-form.html" class="btn-light">New order</a>
+    <a href="staff-profile.html" class="btn-light">Profile</a>
     <button class="btn-ghost" id="logoutBtn">Log out</button>
   </div>
 </div>
@@ -345,7 +346,8 @@
       }
       currentRole = result.role;
       currentUsername = result.username || '';
-      document.getElementById('greeting').textContent = currentUsername ? `Welcome back, ${currentUsername}` : 'Welcome back';
+      const greetingName = result.display_name || currentUsername;
+      document.getElementById('greeting').textContent = greetingName ? `Welcome back, ${greetingName}` : 'Welcome back';
       if (currentRole === 'admin') {
         document.getElementById('moneyRowWrap').style.display = '';
       } else {
