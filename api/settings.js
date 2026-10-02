@@ -15,7 +15,7 @@ const { usageReport } = require('../lib/ai-usage');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'ai_access', 'ai_knowledge', 'site_mode'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode'];
 
 async function readSetting(key) {
   const resp = await supabaseRequest(`app_settings?key=eq.${encodeURIComponent(key)}&limit=1`, { method: 'GET' });

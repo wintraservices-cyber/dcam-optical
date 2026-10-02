@@ -1656,19 +1656,57 @@
     }
   }
 
+  // Paper sizes selectable in Settings > Print paper size (see
+  // loadPrintPrefs() above). "strip" is the original, exactly-as-tested
+  // pre-cut stock (8.5in x 3.67in, 0.08in margin, zoom 2.5) -- untouched.
+  //
+  // The other four are plain full sheets, each with a generous 0.4in
+  // margin (handling/filing room, unlike the die-cut strip which has
+  // none to spare). Rather than re-tuning zoom from scratch for each
+  // (risking a fresh round of "fits in headless but spills on paper"
+  // bugs -- see the .page-wrap zoom comment elsewhere in this file for
+  // that history), each size's zoom is the strip's zoom (2.5) scaled by
+  // its usable width relative to the strip's usable width (8.34in).
+  // Since the compact "tu-" layout fills 100% of the usable width and
+  // zoom scales logical width inversely, this keeps the LOGICAL layout
+  // (wrapping, row heights) byte-for-byte identical to the
+  // already-tested strip layout on every size -- only the physical
+  // (on-paper) size of the one printed copy changes. A4/Legal/Letter
+  // are all close to or narrower than the strip's width, and A5 is
+  // roughly 60% of it, so every one of these ratios is <=1 -- meaning
+  // every size prints the slip at the same or smaller physical scale
+  // than the strip, never larger or more cramped, and always with far
+  // more vertical room to spare (these pages are 8-14in tall vs. the
+  // strip's 3.67in) than the already-fitting strip layout needs.
+  const PAPER_SIZES = {
+    strip:  { page: '8.5in 3.67in', margin: '0.08in', zoom: 2.5 },
+    a4:     { page: '210mm 297mm',  margin: '0.4in',  zoom: 2.24 },
+    a5:     { page: '148mm 210mm',  margin: '0.4in',  zoom: 1.51 },
+    legal:  { page: '8.5in 14in',   margin: '0.4in',  zoom: 2.31 },
+    letter: { page: '8.5in 11in',   margin: '0.4in',  zoom: 2.31 },
+  };
+
   // @page can't be scoped to a class selector, so this mode's page size
   // is set via a <style> tag added to <head> only for the duration of
   // this one print, then removed -- the normal print's own @page rule
   // is untouched and takes effect again as soon as this tag is gone.
-  // Currently matches the normal print's 8.5x3.67in strip (see
-  // THREE_UP_COPY_COUNT above) rather than a full Letter page.
+  // Which size/zoom pair is used comes from printPaperSize (loaded from
+  // Settings), falling back to the original "strip" pair if an unknown
+  // value ever ends up saved.
   function printThreeUp() {
     buildThreeUpSlips();
+    const size = PAPER_SIZES[printPaperSize] || PAPER_SIZES.strip;
     const pageStyle = document.createElement('style');
     pageStyle.id = 'threeUpPageStyle';
-    pageStyle.textContent = '@page { size: 8.5in 3.67in; margin: 0.08in; }';
+    pageStyle.textContent = `@page { size: ${size.page}; margin: ${size.margin}; }`;
     document.head.appendChild(pageStyle);
     document.body.classList.add('three-up-print');
+    // Overrides the static "#threeUpContainer { zoom: 2.5; }" print
+    // rule (an inline style always wins over a stylesheet rule with no
+    // !important) -- cleared in cleanupThreeUp() so the next print
+    // always sets it fresh rather than trusting a stale inline value.
+    const container = document.getElementById('threeUpContainer');
+    if (container) container.style.zoom = size.zoom;
 
     const orderNoVal = (document.getElementById('orderNo').value || '').trim();
     const patientNameVal = (document.getElementById('ordName').value || '').trim();
@@ -1683,6 +1721,8 @@
     document.body.classList.remove('three-up-print');
     const pageStyle = document.getElementById('threeUpPageStyle');
     if (pageStyle) pageStyle.remove();
+    const container = document.getElementById('threeUpContainer');
+    if (container) container.style.zoom = '';
     document.title = originalDocTitle;
   }
   const printThreeUpBtn = document.getElementById('printThreeUpBtn');
@@ -1821,7 +1861,27 @@
       // Non-fatal -- headers just keep their placeholder text.
     }
   }
+
+  // Which paper the "Print" button formats the slip for (see
+  // printThreeUp() below) -- staff-wide, set in Settings > Print paper
+  // size. Defaults to the original pre-cut strip when nothing has been
+  // saved yet or the fetch fails, so this never changes behavior for a
+  // practice that hasn't visited that setting.
+  let printPaperSize = 'strip';
+  async function loadPrintPrefs() {
+    try {
+      const resp = await fetch('/api/settings?key=print_prefs');
+      if (!resp.ok) return;
+      const result = await resp.json();
+      if (result.ok && result.value && result.value.paper_size) {
+        printPaperSize = result.value.paper_size;
+      }
+    } catch (e) {
+      // Non-fatal -- falls back to the strip, same as before this setting existed.
+    }
+  }
   checkAuth();
+  loadPrintPrefs();
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/api/staff-auth?action=logout', { method: 'POST' });

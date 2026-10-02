@@ -479,6 +479,39 @@
       </div>
     </div>
 
+    <div class="card">
+      <h2>Print paper size</h2>
+      <div class="card-sub">Which paper the order form's "Print" button formats the order slip for. The slip itself (and its font size) stays the same on every size -- only the page it's printed on, and how much blank space surrounds it, changes.</div>
+      <div class="field-grid" style="grid-template-columns: 1fr;">
+        <div>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
+            <input type="radio" name="printPaperSize" value="strip" checked style="width:auto;">
+            Pre-cut strip (8.5" x 3.67") -- the current default
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
+            <input type="radio" name="printPaperSize" value="a4" style="width:auto;">
+            A4 -- plain printer paper
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
+            <input type="radio" name="printPaperSize" value="a5" style="width:auto;">
+            A5 -- plain printer paper, half-size
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
+            <input type="radio" name="printPaperSize" value="legal" style="width:auto;">
+            Legal (8.5" x 14") -- plain printer paper
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem;">
+            <input type="radio" name="printPaperSize" value="letter" style="width:auto;">
+            Letter (8.5" x 11") -- plain printer paper
+          </label>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="save-btn" id="savePrintPrefs">Save</button>
+        <span class="save-status" id="printPrefsStatus"></span>
+      </div>
+    </div>
+
   </div>
 
   <!-- Staff Accounts -->
@@ -982,6 +1015,38 @@
       const result = await resp.json();
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
       statusEl.textContent = 'Saved.';
+      statusEl.className = 'save-status success';
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---- Print paper size ----
+  function renderPrintPrefs(setting) {
+    const paperSize = (setting && setting.paper_size) || 'strip';
+    const radio = document.querySelector(`input[name="printPaperSize"][value="${paperSize}"]`);
+    if (radio) radio.checked = true;
+  }
+
+  document.getElementById('savePrintPrefs').addEventListener('click', async () => {
+    const btn = document.getElementById('savePrintPrefs');
+    const statusEl = document.getElementById('printPrefsStatus');
+    const paperSize = (document.querySelector('input[name="printPaperSize"]:checked') || {}).value || 'strip';
+    btn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    statusEl.className = 'save-status';
+    try {
+      const resp = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'print_prefs', value: { paper_size: paperSize } }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      statusEl.textContent = 'Saved. Changes apply next time the order form loads.';
       statusEl.className = 'save-status success';
     } catch (err) {
       statusEl.textContent = err.message;
@@ -1951,6 +2016,7 @@
       renderRxRangesForm(result.settings.rx_ranges);
       renderBusinessInfo(result.settings.business_info);
       renderPhoneValidation(result.settings.phone_validation);
+      renderPrintPrefs(result.settings.print_prefs);
       renderAiAccess(result.settings.ai_access);
       renderSiteMode(result.settings.site_mode);
       kbEntries = (result.settings.ai_knowledge && result.settings.ai_knowledge.entries) || [];
@@ -1961,6 +2027,7 @@
       renderRxRangesForm(null);
       renderBusinessInfo(null);
       renderPhoneValidation(null);
+      renderPrintPrefs(null);
       renderAiAccess(null);
       renderSiteMode(null);
       renderKnowledge();
