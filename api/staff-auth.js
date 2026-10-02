@@ -84,19 +84,42 @@ async function handleMe(req, res) {
     return;
   }
   try {
-    const resp = await supabaseRequest(
+    let resp = await supabaseRequest(
       `staff_users?id=eq.${encodeURIComponent(sessionUser.userId)}&select=username,display_name,email,phone,bio,avatar_data_url,role`,
       { method: 'GET' }
     );
     if (!resp.ok) {
-      res.status(502).json({ ok: false, error: 'Could not load your profile.' });
-      return;
+      const errText = await resp.text();
+      console.error('Supabase own-profile fetch error:', resp.status, errText);
+      // bio/avatar_data_url were added in a later migration than
+      // email/phone -- if that migration hasn't been run against this
+      // database yet, Postgres reports the columns as missing (42703)
+      // and the select above fails entirely. Rather than breaking the
+      // whole profile page (and, as a knock-on effect, the password
+      // form below it, which only renders after a successful profile
+      // load) until someone runs the migration, retry without those
+      // two columns so the rest of the page still works.
+      if (errText.includes('42703')) {
+        resp = await supabaseRequest(
+          `staff_users?id=eq.${encodeURIComponent(sessionUser.userId)}&select=username,display_name,email,phone,role`,
+          { method: 'GET' }
+        );
+      }
+      if (!resp.ok) {
+        res.status(502).json({ ok: false, error: 'Could not load your profile.' });
+        return;
+      }
     }
     const [user] = await resp.json();
     if (!user) {
       res.status(404).json({ ok: false, error: 'Your account could not be found.' });
       return;
     }
+    // Ensure these keys are always present in the response shape even
+    // when the fallback query above couldn't select them, so the
+    // front-end doesn't need to special-case a missing field.
+    if (user.bio === undefined) user.bio = null;
+    if (user.avatar_data_url === undefined) user.avatar_data_url = null;
     res.status(200).json({ ok: true, user });
   } catch (err) {
     console.error('Unexpected error loading own profile:', err);
@@ -182,6 +205,13 @@ async function handleUpdateProfile(req, res) {
       if (isUniqueViolation(errText)) {
         const field = errText.includes('staff_users_email_idx') ? 'That email is' : 'That phone number is';
         res.status(409).json({ ok: false, error: `${field} already used by another account.` });
+        return;
+      }
+      // bio/avatar_data_url are a later migration than email/phone -- if
+      // it hasn't been run against this database yet, the columns don't
+      // exist and Postgres reports 42703 ("column does not exist").
+      if (errText.includes('42703') && (patch.bio !== undefined || patch.avatar_data_url !== undefined)) {
+        res.status(502).json({ ok: false, error: 'Bio and picture aren\'t enabled on the database yet -- a database migration needs to be run in Supabase first (see supabase-schema.sql).' });
         return;
       }
       res.status(502).json({ ok: false, error: 'Could not save your profile.' });

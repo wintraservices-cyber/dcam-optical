@@ -276,7 +276,10 @@ module.exports = async (req, res) => {
       const assistantName = aiAccess && aiAccess.public && typeof aiAccess.public.name === 'string' ? aiAccess.public.name.trim() : '';
       if (assistantName) info.assistant_name = assistantName.slice(0, 60);
       res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Vercel-CDN-Cache-Control', 'max-age=60, stale-while-revalidate=300');
+      // Shortened from max-age=60 so a freshly-saved Assistant name (or
+      // any other public_info field) shows up on the public site within
+      // a few seconds of saving instead of up to a minute later.
+      res.setHeader('Vercel-CDN-Cache-Control', 'max-age=5, stale-while-revalidate=30');
       res.status(200).json({ ok: true, info });
     } catch (err) {
       console.error('public_info read error:', err.message);
