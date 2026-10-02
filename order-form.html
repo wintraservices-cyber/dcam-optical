@@ -877,6 +877,19 @@
   #threeUpSlip { display: none; }
   body.three-up-print #threeUpSlip { display: block; }
   @media print {
+    /* Browsers skip background-color/background fills when printing
+       unless "Background graphics" is explicitly turned on in the print
+       dialog -- easy to miss, and silently drops anything drawn with
+       `background` (the lens-material checkbox fill below, shaded
+       label cells, etc.) even though it looks correct on screen or in
+       a PDF export. Force it for the whole 3-up slip so checked boxes
+       and shading always survive to the physical page regardless of
+       that setting. */
+    #threeUpSlip, #threeUpSlip * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
     body.three-up-print .slip { display: none !important; }
     body.three-up-print .staff-bar, body.three-up-print .form-meta-note,
     body.three-up-print .order-type-toggle, body.three-up-print .history-panel,
@@ -931,8 +944,13 @@
       letter-spacing: 0.02em;
       color: #333;
     }
-    .tu-field span { display: block; min-height: 8px; }
+    /* Values only (the typed-in data), not the field labels above them --
+       user asked for entered values to print ~10px bigger. Everything in
+       this layout is built small and then scaled 2.5x by the #threeUpContainer
+       zoom above, so +4px here becomes +10px on the actual printed page. */
+    .tu-field span { display: block; min-height: 8px; font-size: 11.2px; }
     .tu-jobtype { font-weight: 700; margin: 2px 0; font-size: 6.5px; }
+    .tu-jobtype span[data-field] { font-size: 10.5px; }
     table.tu-grid {
       width: 100%;
       border-collapse: collapse;
@@ -945,6 +963,10 @@
       text-align: center;
     }
     table.tu-grid td.tu-label { font-weight: 700; background: #f2f2f2; }
+    /* Data cells (SPH/CYL/Axis/Prism/Base/Add/Seg Ht/PD) -- excludes the
+       R/L row-header cells (.tu-label, already handled above) and the
+       lens-material checkbox cell (.tu-lensmat-cell, sized separately). */
+    table.tu-grid td[data-field] { font-size: 10.5px; }
     /* The Type cell (rowspan=2, holding the Glass/Plastic/Others
        checkboxes below) needs about 3 lines of content -- taller than a
        single SPH/CYL/etc. row on its own. Without help, a rowspan cell's
@@ -987,6 +1009,15 @@
       background: #fff !important;
       flex: none !important;
       box-sizing: border-box !important;
+      /* Most browsers' print dialogs skip "background" fills by default
+         unless the person explicitly turns on "Background graphics" --
+         so a checked lens-material box (filled via `background`, not a
+         border or text) could silently print as empty even though it
+         shows solid black in every on-screen/PDF check. Force it on so
+         the checked state always survives to the physical page. */
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
     }
     .tu-box.checked { background: #000 !important; }
     .tu-full { margin-bottom: 2px; border-bottom: 0.75px solid #000; padding-bottom: 2px; }
@@ -1542,6 +1573,15 @@
       if (!el || el.selectedIndex < 0) return '';
       return el.options[el.selectedIndex].textContent || '';
     };
+    // The rxSubtype radio group lives inside the Rx section and is never
+    // cleared when staff switch to Non-Rx (it just hides, still defaulted
+    // to CMRX) -- so reading it unconditionally made every Non-Rx print
+    // show "Type: CMRX" instead of "Non-Rx". Same issue for the Rx-only
+    // power/lens fields: a Non-Rx order can carry stale values left over
+    // from before the type was switched, which printed as if they were
+    // real Rx data. Gate all of it on currentOrderType so a Non-Rx slip
+    // correctly shows "Non-Rx" and leaves the Rx grid blank.
+    const isRx = currentOrderType !== 'non_rx';
     return {
       orderNo: val('orderNo'),
       ordDate: fmtDate(val('ordDate')),
@@ -1549,18 +1589,18 @@
       trayNo: val('trayNo'),
       ordName: val('ordName'),
       ordTel: val('ordTel'),
-      rxSubtype: checkedVal('rxSubtype'),
-      rx_r_sph: val('rx_r_sph'), rx_r_cyl: val('rx_r_cyl'), rx_r_axis: val('rx_r_axis'), rx_r_prism: val('rx_r_prism'), rx_r_base: selectLabel('rx_r_base'),
-      rx_l_sph: val('rx_l_sph'), rx_l_cyl: val('rx_l_cyl'), rx_l_axis: val('rx_l_axis'), rx_l_prism: val('rx_l_prism'), rx_l_base: selectLabel('rx_l_base'),
-      add_r: val('add_r'), seg_ht_r: val('seg_ht_r'), pd_r: val('pd_r'),
-      add_l: val('add_l'), seg_ht_l: val('seg_ht_l'), pd_l: val('pd_l'),
-      lens_type: val('lens_type'),
+      rxSubtype: isRx ? checkedVal('rxSubtype') : 'Non-Rx',
+      rx_r_sph: isRx ? val('rx_r_sph') : '', rx_r_cyl: isRx ? val('rx_r_cyl') : '', rx_r_axis: isRx ? val('rx_r_axis') : '', rx_r_prism: isRx ? val('rx_r_prism') : '', rx_r_base: isRx ? selectLabel('rx_r_base') : '',
+      rx_l_sph: isRx ? val('rx_l_sph') : '', rx_l_cyl: isRx ? val('rx_l_cyl') : '', rx_l_axis: isRx ? val('rx_l_axis') : '', rx_l_prism: isRx ? val('rx_l_prism') : '', rx_l_base: isRx ? selectLabel('rx_l_base') : '',
+      add_r: isRx ? val('add_r') : '', seg_ht_r: isRx ? val('seg_ht_r') : '', pd_r: isRx ? val('pd_r') : '',
+      add_l: isRx ? val('add_l') : '', seg_ht_l: isRx ? val('seg_ht_l') : '', pd_l: isRx ? val('pd_l') : '',
+      lens_type: isRx ? val('lens_type') : '',
       ordFrame: val('ordFrame'),
       ordNotes: val('ordNotes'),
       amount: fmtMoney(val('amount')),
       deposit: fmtMoney(val('deposit')),
       balance: fmtMoney(val('balance')),
-      lensMaterial: checkedVal('lensMaterial'),
+      lensMaterial: isRx ? checkedVal('lensMaterial') : '',
       takenBy: val('takenBy'),
     };
   }
