@@ -71,6 +71,10 @@ function dateRangeFilter(from, to, field) {
 // quantity added together, reading as "how many units on this order"
 // rather than a list of individual items.
 function totalQty(o) {
+  // A balance-payment row (see fetchPaymentRows() below) isn't adding
+  // any new items to the order -- Qty only means something on the row
+  // that actually placed the order.
+  if (o.__entry === 'payment') return '';
   // Rx orders are always "one job" -- Qty is always 1, regardless of
   // whether item_qty was saved on the order form (older orders predate
   // that field and have no item_qty at all).
@@ -82,6 +86,80 @@ function totalQty(o) {
   return o.item_qty || '';
 }
 
+// Both reports originally showed one row per ORDER, dated by when the
+// order was created -- so a balance paid today against an order placed
+// days ago never produced any row dated today at all, even though real
+// money changed hands today. This pulls every balance payment actually
+// collected within the report's date range (dated by when it was
+// logged, via balance_payments.created_at, not the parent order's own
+// date) and turns each into its own report row shaped like an order
+// row, so it flows through the same `columns` definitions as a normal
+// order row below.
+//
+// Each payment row's Amount is just that payment (not the order's full
+// price -- the order's own row already counted that), Deposit is blank
+// (that term is specific to the order-intake payment), and Balance is
+// the order's balance immediately after this payment (balance_after,
+// recorded by api/balance-payments.js at the moment it was logged --
+// added 2026-10-02; a payment logged before that column existed shows
+// a blank Balance here rather than a guessed number). Payment Method is
+// this payment's own method, which can genuinely differ from the
+// order's original deposit method -- e.g. deposit paid cash, balance
+// paid GCash -- something the order-only view could never show. Taken
+// By is who collected THIS payment specifically, not whoever originally
+// took the order.
+//
+// Patient/Frame/Lens/Type/Phone are carried over from the parent order
+// (fetched via PostgREST's relationship embed in one round trip) purely
+// for cross-reference, regardless of whether that order's own date
+// falls inside this report's range or whether it's since been
+// soft-deleted (embed comes back empty/null in that case, handled
+// below).
+async function fetchPaymentRows(from, to) {
+  const path = `balance_payments?select=*,orders(order_no,patient_name,frame,lens_type,order_type,rx_subtype,tel_no,payment_status,status)&order=created_at.desc&limit=5000${dateRangeFilter(from, to, 'created_at')}`;
+  const resp = await supabaseRequest(path, { method: 'GET' });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error('Supabase balance_payments read error:', resp.status, errText);
+    return [];
+  }
+  const payments = await resp.json();
+  return payments.map(p => {
+    const order = p.orders || {};
+    return {
+      __entry: 'payment',
+      order_no: p.order_no || order.order_no || '',
+      patient_name: order.patient_name || '',
+      frame: order.frame || '',
+      lens_type: order.lens_type || '',
+      order_type: order.order_type || '',
+      rx_subtype: order.rx_subtype || '',
+      tel_no: order.tel_no || '',
+      payment_status: order.payment_status || '',
+      status: order.status || '',
+      order_date: (p.created_at || '').slice(0, 10),
+      created_at: p.created_at,
+      amount: p.amount,
+      deposit: '',
+      payment_method: p.payment_method,
+      balance: p.balance_after || '',
+      order_items: [],
+      item_qty: '',
+      taken_by: p.taken_by || '',
+    };
+  });
+}
+
+// Combines an order-rows array (already tagged __entry: 'order') with
+// the payment rows above into one list, sorted newest-first by the
+// timestamp each row actually represents -- an order's own created_at
+// for an order row, or when it was collected for a payment row -- so
+// the two interleave in the one true chronological order rather than
+// all orders first, then all payments.
+function mergeRowsByDate(orderRows, paymentRows) {
+  return [...orderRows, ...paymentRows].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+}
+
 async function ordersReport(req, res, from, to) {
   try {
     const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${dateRangeFilter(from, to, 'created_at')}`;
@@ -91,6 +169,9 @@ async function ordersReport(req, res, from, to) {
       return;
     }
     const orders = await resp.json();
+    const orderRows = orders.map(o => ({ ...o, __entry: 'order' }));
+    const paymentRows = await fetchPaymentRows(from, to);
+    const rows = mergeRowsByDate(orderRows, paymentRows);
 
     // Column order mirrors the client's own paper/Excel "Job Orders" sheet
     // (Job# -> Patient -> Frame -> Lens -> Type -> Total -> Deposit ->
@@ -105,8 +186,16 @@ async function ordersReport(req, res, from, to) {
     // sheet reordered this same pair on the Job Orders tab too. Qty
     // added the same day (matching the Sales report's own Qty column)
     // after this report was found to be missing it entirely.
+    //
+    // "Entry" added the same day a balance payment collected today
+    // against an order placed days ago was found to produce no row
+    // dated today at all -- the report only ever looked at
+    // orders.created_at. Each payment now gets its own row (see
+    // fetchPaymentRows()), dated and amounted by that payment itself,
+    // distinguished from the original order row by this column.
     const columns = [
       { label: 'Order Date', value: (o) => o.order_date || '' },
+      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
       { label: 'Order #', value: 'order_no' },
       { label: 'Patient', value: 'patient_name' },
       { label: 'Frame', value: 'frame' },
@@ -126,7 +215,7 @@ async function ordersReport(req, res, from, to) {
       { label: 'Taken By', value: 'taken_by' },
     ];
 
-    sendCsv(res, `orders-report-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(orders, columns));
+    sendCsv(res, `orders-report-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows, columns));
   } catch (err) {
     console.error('Unexpected error generating orders report:', err);
     res.status(500).json({ ok: false, error: 'Unexpected server error.' });
@@ -142,6 +231,9 @@ async function salesReport(req, res, from, to) {
       return;
     }
     const orders = await resp.json();
+    const orderRows = orders.map(o => ({ ...o, __entry: 'order' }));
+    const paymentRows = await fetchPaymentRows(from, to);
+    const rows = mergeRowsByDate(orderRows, paymentRows);
 
     // Column order mirrors the client's own "Sales" sheet (Job# -> Patient
     // -> Frame -> Lens -> Type -> Qty -> Total/Unit Price -> Payment today
@@ -154,16 +246,24 @@ async function salesReport(req, res, from, to) {
     // Payment Method and Balance were swapped 2026-09-30 to match their
     // "Oct 1 2026" sheet, which reordered those two columns from how
     // their "Sep 29 2026" sheet had them (Balance, then Payment Method).
+    //
+    // "Entry" and "Payment Today" on a Balance Payment row: see the
+    // "Entry" comment in ordersReport() above for why these rows exist.
+    // "Payment Today" normally shows the order's intake deposit -- on a
+    // payment row there's no separate "deposit" concept, so it shows
+    // that payment's own amount instead, which is exactly what "payment
+    // today" means for that row.
     const columns = [
       { label: 'Order Date', value: (o) => o.order_date || '' },
+      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
       { label: 'Order #', value: 'order_no' },
       { label: 'Patient', value: 'patient_name' },
       { label: 'Frame', value: 'frame' },
       { label: 'Lens', value: 'lens_type' },
       { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
       { label: 'Qty', value: totalQty },
-      { label: 'Total', value: 'amount' },
-      { label: 'Payment Today', value: 'deposit' },
+      { label: 'Total', value: (o) => (o.__entry === 'payment' ? '' : o.amount) },
+      { label: 'Payment Today', value: (o) => (o.__entry === 'payment' ? o.amount : o.deposit) },
       { label: 'Payment Method', value: 'payment_method' },
       { label: 'Balance', value: 'balance' },
       // -- not on the client's sheet, appended at the end --
@@ -172,15 +272,25 @@ async function salesReport(req, res, from, to) {
       { label: 'Taken By', value: 'taken_by' },
     ];
 
+    // Unchanged from before "Entry" rows existed -- these three stay
+    // order-level sums (total billed, total collected at intake, total
+    // still owed as of now) computed from the actual orders only, so
+    // they keep matching the client's own paper-sheet totals rather
+    // than double-counting a balance payment on top of the order's full
+    // amount. What those sums were missing -- cash collected from
+    // balance payments within this date range -- is its own new line
+    // below instead of folded into "Total Deposit".
     const totalAmount = orders.reduce((sum, o) => sum + (parseFloat(o.amount) || 0), 0);
     const totalDeposit = orders.reduce((sum, o) => sum + (parseFloat(o.deposit) || 0), 0);
     const totalBalance = orders.reduce((sum, o) => sum + (parseFloat(o.balance) || 0), 0);
+    const totalBalancePayments = paymentRows.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
-    let csvContent = toCsv(orders, columns);
+    let csvContent = toCsv(rows, columns);
     csvContent += '\r\n\r\n';
     csvContent += `Total Amount,${totalAmount.toFixed(2)}\r\n`;
     csvContent += `Total Deposit,${totalDeposit.toFixed(2)}\r\n`;
     csvContent += `Total Balance,${totalBalance.toFixed(2)}\r\n`;
+    csvContent += `Total Balance Payments Collected,${totalBalancePayments.toFixed(2)}\r\n`;
 
     sendCsv(res, `sales-report-${new Date().toISOString().slice(0, 10)}.csv`, csvContent);
   } catch (err) {

@@ -69,6 +69,16 @@ async function recordPayment(req, res, session) {
       return;
     }
 
+    // Computed up front (before logging) so the log row can carry the
+    // resulting balance alongside the payment itself -- this is what
+    // lets the Orders/Sales reports show an accurate "Balance" on this
+    // payment's own report row (dated today) without having to replay
+    // every payment an order ever had, which would also go wrong if the
+    // order's amount was later hand-edited.
+    const currentBalance = parseFloat(order.balance) || 0;
+    const newBalance = Math.max(0, currentBalance - parsedAmount);
+    const balanceAfter = newBalance ? newBalance.toFixed(2) : '0.00';
+
     // Log the payment event.
     const logResp = await supabaseRequest('balance_payments', {
       method: 'POST',
@@ -81,6 +91,7 @@ async function recordPayment(req, res, session) {
         split_cash: splitCash,
         split_gcash: splitGcash,
         taken_by: takenBy,
+        balance_after: balanceAfter,
       }),
     });
     if (!logResp.ok) {
@@ -91,15 +102,12 @@ async function recordPayment(req, res, session) {
     }
     const [logged] = await logResp.json();
 
-    // Update the order's own balance (existing balance minus this
-    // payment, floored at 0) and its payment_status: fully settled once
-    // the balance hits 0, otherwise "partial" once any payment has been
-    // logged against it (rather than leaving it stuck on "unpaid" even
-    // though money has come in).
-    const currentBalance = parseFloat(order.balance) || 0;
-    const newBalance = Math.max(0, currentBalance - parsedAmount);
+    // Update the order's own balance and payment_status: fully settled
+    // once the balance hits 0, otherwise "partial" once any payment has
+    // been logged against it (rather than leaving it stuck on "unpaid"
+    // even though money has come in).
     const orderPatch = {
-      balance: newBalance ? newBalance.toFixed(2) : '0.00',
+      balance: balanceAfter,
       payment_status: newBalance <= 0 ? 'paid' : 'partial',
       updated_at: new Date().toISOString(),
     };

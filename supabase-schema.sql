@@ -706,3 +706,18 @@ alter table cash_positions add column if not exists total_withdrawals_gcash nume
 -- small size cap before saving so this stays cheap to store and fetch.
 alter table staff_users add column if not exists bio text;
 alter table staff_users add column if not exists avatar_data_url text;
+
+-- ---------------------------------------------------------------------
+-- Balance payments: record the order's remaining balance as of right
+-- after each payment (2026-10-02)
+-- ---------------------------------------------------------------------
+-- Needed so the Orders/Sales reports can show an accurate "Balance"
+-- figure on a balance-payment's own row (dated when that payment was
+-- actually collected) without having to replay every payment for an
+-- order in order every time a report runs -- which would also silently
+-- go wrong if an order's amount was later hand-edited. Recording the
+-- real balance at the moment of each payment, once, is the simpler and
+-- more durable source of truth. Nullable/not backfilled for payments
+-- logged before this column existed -- those older rows simply show a
+-- blank Balance on their report row rather than a guessed number.
+alter table balance_payments add column if not exists balance_after text;
