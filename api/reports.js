@@ -71,10 +71,10 @@ function dateRangeFilter(from, to, field) {
 // quantity added together, reading as "how many units on this order"
 // rather than a list of individual items.
 function totalQty(o) {
-  // A balance-payment row (see fetchPaymentRows() below) isn't adding
-  // any new items to the order -- Qty only means something on the row
-  // that actually placed the order.
-  if (o.__entry === 'payment') return '';
+  // A balance-payment row (see fetchPaymentRows() below) is always 1
+  // transaction -- one payment collected, regardless of how many items
+  // or what quantity the underlying order itself carries.
+  if (o.__entry === 'payment') return '1';
   // Rx orders are always "one job" -- Qty is always 1, regardless of
   // whether item_qty was saved on the order form (older orders predate
   // that field and have no item_qty at all).
@@ -142,12 +142,43 @@ async function fetchPaymentRows(from, to) {
       amount: p.amount,
       deposit: '',
       payment_method: p.payment_method,
+      split_cash: p.split_cash || '',
+      split_gcash: p.split_gcash || '',
       balance: p.balance_after || '',
       order_items: [],
       item_qty: '',
       taken_by: p.taken_by || '',
     };
   });
+}
+
+// Same display labels used on the order form / staff-orders payment
+// method dropdowns, so a report reads the same way staff already do.
+function paymentMethodLabel(method) {
+  if (method === 'gcash_cc') return 'GCash/CC';
+  if (method === 'split') return 'Split';
+  return 'Cash';
+}
+
+// What the Orders report's "Items" column shows for a Balance Payment
+// row (an order row keeps its normal item list, untouched) -- there are
+// no items on a payment, but leaving the column blank throws away the
+// one thing a standalone payment row most needs to be useful at a
+// glance: how much, how it was paid, and the split breakdown if any,
+// all in the one column staff are already scanning for "what is this
+// row." Not a replacement for the dedicated Amount/Payment Method
+// columns -- those stay authoritative -- just a readable summary.
+function paymentRowSummary(p) {
+  const amount = parseFloat(p.amount) || 0;
+  const methodLabel = paymentMethodLabel(p.payment_method);
+  let detail = methodLabel;
+  if (p.payment_method === 'split') {
+    const parts = [];
+    if (p.split_cash) parts.push(`Cash ₱${p.split_cash}`);
+    if (p.split_gcash) parts.push(`GCash/CC ₱${p.split_gcash}`);
+    if (parts.length) detail = `Split: ${parts.join(' / ')}`;
+  }
+  return `Balance payment -- ₱${amount.toFixed(2)} (${detail})`;
 }
 
 // Combines an order-rows array (already tagged __entry: 'order') with
@@ -209,7 +240,7 @@ async function ordersReport(req, res, from, to) {
       // -- not on the client's sheet, appended at the end --
       { label: 'Created Date', value: (o) => (o.created_at || '').slice(0, 10) },
       { label: 'Phone', value: 'tel_no' },
-      { label: 'Items', value: (o) => (o.order_items || []).map(i => `${i.item_name} x${i.item_qty}`).join('; ') },
+      { label: 'Items', value: (o) => (o.__entry === 'payment' ? paymentRowSummary(o) : (o.order_items || []).map(i => `${i.item_name} x${i.item_qty}`).join('; ')) },
       { label: 'Payment Status', value: 'payment_status' },
       { label: 'Status', value: 'status' },
       { label: 'Taken By', value: 'taken_by' },
