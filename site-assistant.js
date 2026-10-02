@@ -232,6 +232,10 @@
     style.textContent = css;
     document.head.appendChild(style);
 
+    // Keep the pill button short -- "Ask " + a long custom name would wrap
+    // or overflow, so fall back to the generic "Ask us" past ~20 chars.
+    const fabLabel = name && name.length <= 20 ? 'Ask ' + name : 'Ask us';
+
     const fab = document.createElement('button');
     fab.type = 'button';
     fab.className = 'dca-fab';
@@ -241,7 +245,7 @@
     // chat-bubble -- ties the "Ask us" button to the optical brand at a glance.
     const chatIcon = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="14" r="4"/><circle cx="17" cy="14" r="4"/><path d="M11 14h2"/><path d="M3 13 L1 11.5"/><path d="M21 13 L23 11.5"/></svg>';
     const closeIcon = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>';
-    fab.innerHTML = chatIcon + '<span class="dca-fab-label">Ask us</span>';
+    fab.innerHTML = chatIcon + '<span class="dca-fab-label">' + fabLabel + '</span>';
 
     const panel = document.createElement('div');
     panel.className = 'dca-panel';
@@ -295,7 +299,7 @@
       panel.classList.toggle('open', open);
       fab.classList.toggle('open', open);
       fab.setAttribute('aria-expanded', String(open));
-      fab.innerHTML = open ? closeIcon : chatIcon + '<span class="dca-fab-label">Ask us</span>';
+      fab.innerHTML = open ? closeIcon : chatIcon + '<span class="dca-fab-label">' + fabLabel + '</span>';
       if (open) { body.scrollTop = body.scrollHeight; input.focus(); }
     }
     fab.addEventListener('click', () => setOpen(!panel.classList.contains('open')));
