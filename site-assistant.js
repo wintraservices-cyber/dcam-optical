@@ -19,7 +19,10 @@
     ['First exam — what to expect?', 'What happens at a first eye exam?'],
     ["What are your hours?", 'What are your hours and where are you located?'],
   ];
-  const GREETING = "Hi! I'm the DCAM Optical assistant. Ask me about hours, HMO coverage, eye exams or eyewear — or I can help you book a visit.";
+  const DEFAULT_NAME = 'DCAM Assistant';
+  function greetingFor(name) {
+    return "Hi! I'm " + name + ". Ask me about hours, HMO coverage, eye exams or eyewear — or I can help you book a visit.";
+  }
 
   const css = `
   .dca-fab{position:fixed;right:20px;bottom:20px;z-index:9998;height:56px;min-width:56px;padding:0 20px 0 16px;border-radius:100px;border:none;cursor:pointer;
@@ -223,7 +226,8 @@
   // --------------------------------------------------------------------
   // Floating bubble
   // --------------------------------------------------------------------
-  function buildBubble(orderStatusOn) {
+  function buildBubble(orderStatusOn, assistantName) {
+    const name = assistantName || DEFAULT_NAME;
     const style = document.createElement('style');
     style.textContent = css;
     document.head.appendChild(style);
@@ -231,7 +235,7 @@
     const fab = document.createElement('button');
     fab.type = 'button';
     fab.className = 'dca-fab';
-    fab.setAttribute('aria-label', 'Chat with DCAM Optical');
+    fab.setAttribute('aria-label', 'Chat with ' + name);
     fab.setAttribute('aria-expanded', 'false');
     // Minimalistic glasses icon (two lenses + bridge + temples) instead of a
     // chat-bubble -- ties the "Ask us" button to the optical brand at a glance.
@@ -242,11 +246,11 @@
     const panel = document.createElement('div');
     panel.className = 'dca-panel';
     panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-label', 'DCAM Optical assistant');
+    panel.setAttribute('aria-label', name + ' assistant');
     panel.innerHTML = `
       <div class="dca-head">
         <div class="dca-dot"></div>
-        <div class="dca-title">DCAM Optical<div class="dca-sub">Usually answers instantly</div></div>
+        <div class="dca-title">${name}<div class="dca-sub">Usually answers instantly</div></div>
         <button type="button" class="dca-close" aria-label="Close chat">×</button>
       </div>
       <div class="dca-body"></div>
@@ -260,7 +264,7 @@
     const body = panel.querySelector('.dca-body');
     const greet = document.createElement('div');
     greet.className = 'msg bot';
-    greet.textContent = GREETING;
+    greet.textContent = greetingFor(name);
     body.appendChild(greet);
 
     const chips = panel.querySelector('.dca-chips');
@@ -402,6 +406,7 @@
     let enabled = true;
     let testMode = false;
     let orderStatus = false;
+    let assistantName = null;
     try {
       const resp = await fetch('/api/chat', { method: 'GET', cache: 'no-store' });
       if (resp.ok) {
@@ -414,8 +419,23 @@
     } catch (e) { /* offline preview: stay on */ }
 
     if (!enabled) { hideChatEverywhere(); return; }
+
+    // Same name shown on the homepage's inline "Ask us anything" panel
+    // (set in Settings -> AI assistant -> Assistant name) -- fetched here
+    // too so the floating bubble (which has its own header/greeting,
+    // built independently of index.html) doesn't fall back to a generic
+    // default while the inline panel shows the real name.
+    try {
+      const resp = await fetch('/api/settings?view=public_info', { cache: 'no-store' });
+      if (resp.ok) {
+        const d = await resp.json();
+        const n = d && d.info && d.info.assistant_name;
+        if (n) assistantName = n;
+      }
+    } catch (e) { /* keep default name */ }
+
     attachInline();
-    buildBubble(orderStatus);
+    buildBubble(orderStatus, assistantName);
     if (testMode) markTestMode();
   }
 
