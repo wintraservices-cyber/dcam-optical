@@ -63,6 +63,25 @@ function dateRangeFilter(from, to, field) {
   return filter;
 }
 
+// Shared by both the Orders and Sales reports: one row per order (not per
+// payment event). Rx orders are always a single job, so Qty is always 1
+// regardless of what (if anything) is saved in item_qty -- this covers
+// older Rx orders from before the order-form Qty field existed too.
+// Non-Rx orders have no fixed Qty -- it's every order_items line item's
+// quantity added together, reading as "how many units on this order"
+// rather than a list of individual items.
+function totalQty(o) {
+  // Rx orders are always "one job" -- Qty is always 1, regardless of
+  // whether item_qty was saved on the order form (older orders predate
+  // that field and have no item_qty at all).
+  if (o.order_type !== 'non_rx') return '1';
+  const items = o.order_items || [];
+  if (items.length > 0) {
+    return items.reduce((sum, i) => sum + (parseInt(i.item_qty, 10) || 0), 0) || '';
+  }
+  return o.item_qty || '';
+}
+
 async function ordersReport(req, res, from, to) {
   try {
     const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${dateRangeFilter(from, to, 'created_at')}`;
@@ -83,7 +102,9 @@ async function ordersReport(req, res, from, to) {
     //
     // Payment Method and Balance swapped 2026-10-02 to match the Sales
     // report's own fix (2026-09-30), confirming the client's "Oct 1 2026"
-    // sheet reordered this same pair on the Job Orders tab too.
+    // sheet reordered this same pair on the Job Orders tab too. Qty
+    // added the same day (matching the Sales report's own Qty column)
+    // after this report was found to be missing it entirely.
     const columns = [
       { label: 'Order Date', value: (o) => o.order_date || '' },
       { label: 'Order #', value: 'order_no' },
@@ -91,6 +112,7 @@ async function ordersReport(req, res, from, to) {
       { label: 'Frame', value: 'frame' },
       { label: 'Lens Type', value: 'lens_type' },
       { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
+      { label: 'Qty', value: totalQty },
       { label: 'Amount', value: 'amount' },
       { label: 'Deposit', value: 'deposit' },
       { label: 'Payment Method', value: 'payment_method' },
@@ -120,11 +142,6 @@ async function salesReport(req, res, from, to) {
       return;
     }
     const orders = await resp.json();
-
-    // One row per order (not per payment event) -- qty is every line
-    // item's quantity added together, so it reads as "how many units on
-    // this order" rather than a list of individual items.
-    const totalQty = (o) => (o.order_items || []).reduce((sum, i) => sum + (parseInt(i.item_qty, 10) || 0), 0) || '';
 
     // Column order mirrors the client's own "Sales" sheet (Job# -> Patient
     // -> Frame -> Lens -> Type -> Qty -> Total/Unit Price -> Payment today
