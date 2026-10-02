@@ -460,9 +460,9 @@
         </div>
       </div>
       <div class="chat-panel">
-        <div class="chat-head"><div class="cdot"></div><span>DCAM Assistant</span><span class="tag">AI assistant</span></div>
+        <div class="chat-head"><div class="cdot"></div><span id="chatAssistantName">DCAM Assistant</span><span class="tag">AI assistant</span></div>
         <div class="chat-body" id="chatBody" aria-live="polite">
-          <div class="msg bot">Hi! I'm the DCAM Optical assistant. Ask me about hours, HMO coverage, what to expect at your first exam, or how to book.</div>
+          <div class="msg bot" id="chatGreeting">Hi! I'm the DCAM Optical assistant. Ask me about hours, HMO coverage, what to expect at your first exam, or how to book.</div>
         </div>
         <div class="chat-suggestions" id="chatChips">
           <button class="chip" type="button" data-q="Do you take HMO or insurance?">Do you take HMO?</button>
@@ -765,6 +765,16 @@
     if (b.facebook_url) {
       document.getElementById('fbBtn').href = b.facebook_url;
       document.getElementById('social').hidden = false;
+    }
+    if (b.assistant_name) {
+      document.getElementById('chatAssistantName').textContent = b.assistant_name;
+      var greetingEl = document.getElementById('chatGreeting');
+      // Only swap the greeting if it hasn't already been personalized by
+      // an earlier chat turn -- harmless either way since this only runs
+      // once on load, before any message has been sent.
+      if (greetingEl) {
+        greetingEl.textContent = "Hi! I'm " + b.assistant_name + ". Ask me about hours, HMO coverage, what to expect at your first exam, or how to book.";
+      }
     }
   }).catch(function () {});
 

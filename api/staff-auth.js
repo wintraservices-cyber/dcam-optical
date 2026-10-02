@@ -22,6 +22,13 @@ const { verifyPassword, hashPassword } = require('../lib/password');
 const { sanitizeEmail, sanitizePhone, isUniqueViolation } = require('../lib/staff-profile-validate');
 
 const DEMO_STAFF_PASSWORD = 'dcam-optical';
+const MAX_BIO_CHARS = 500;
+// Keeps avatar_data_url (and the Supabase row carrying it) small -- this
+// is a profile picture stored as a base64 data: URL directly in the
+// database (no Storage bucket set up for this project), not a full
+// image host, so a generous-but-bounded cap matters. ~180KB of base64
+// text decodes to roughly 130KB of actual image bytes.
+const MAX_AVATAR_CHARS = 180000;
 
 async function handleAuthCheck(req, res) {
   const sessionUser = getSessionUser(req);
@@ -73,12 +80,12 @@ async function handleMe(req, res) {
   const sessionUser = requireAuth(req, res);
   if (!sessionUser) return;
   if (isBootstrapSession(sessionUser)) {
-    res.status(200).json({ ok: true, user: { username: sessionUser.username, role: sessionUser.role, display_name: null, email: null, phone: null, bootstrap: true } });
+    res.status(200).json({ ok: true, user: { username: sessionUser.username, role: sessionUser.role, display_name: null, email: null, phone: null, bio: null, avatar_data_url: null, bootstrap: true } });
     return;
   }
   try {
     const resp = await supabaseRequest(
-      `staff_users?id=eq.${encodeURIComponent(sessionUser.userId)}&select=username,display_name,email,phone,role`,
+      `staff_users?id=eq.${encodeURIComponent(sessionUser.userId)}&select=username,display_name,email,phone,bio,avatar_data_url,role`,
       { method: 'GET' }
     );
     if (!resp.ok) {
@@ -133,6 +140,28 @@ async function handleUpdateProfile(req, res) {
       return;
     }
     patch.phone = phone.value;
+  }
+  if (body.bio !== undefined) {
+    const bio = String(body.bio).trim();
+    if (bio.length > MAX_BIO_CHARS) {
+      res.status(400).json({ ok: false, error: `Bio must be ${MAX_BIO_CHARS} characters or fewer.` });
+      return;
+    }
+    patch.bio = bio || null;
+  }
+  if (body.avatar_data_url !== undefined) {
+    const avatar = body.avatar_data_url === null ? '' : String(body.avatar_data_url).trim();
+    if (avatar) {
+      if (avatar.length > MAX_AVATAR_CHARS) {
+        res.status(400).json({ ok: false, error: 'That picture is too large -- please use a smaller image.' });
+        return;
+      }
+      if (!/^data:image\/(png|jpe?g|webp|gif);base64,/.test(avatar)) {
+        res.status(400).json({ ok: false, error: 'Please choose a PNG, JPG, WEBP, or GIF image.' });
+        return;
+      }
+    }
+    patch.avatar_data_url = avatar || null;
   }
 
   if (Object.keys(patch).length === 0) {

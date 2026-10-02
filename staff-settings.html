@@ -396,7 +396,7 @@
   <div class="panel active" id="panel-rx">
     <div class="card">
       <h2>Rx dropdown ranges</h2>
-      <div class="card-sub">Controls the SPH, CYL, AXIS, and ADD dropdown options on the order form. Changes apply immediately, no code deploy needed.</div>
+      <div class="card-sub">Controls the SPH, CYL, ADD, AXIS, and PRISM dropdown options on the order form. Changes apply immediately, no code deploy needed.</div>
       <div id="rxRangesForm"><div class="loading-state">Loading…</div></div>
       <div class="save-row">
         <button class="save-btn" id="saveRxRanges">Save Rx ranges</button>
@@ -596,6 +596,13 @@
     <div class="card">
       <h2>Website assistant</h2>
       <div class="card-sub">The "Ask us anything" chat on the public website. Always uses the details from the Business info tab.</div>
+      <div class="field-grid" style="grid-template-columns: 1fr; margin-bottom: 6px;">
+        <div>
+          <label for="aiPublicName">Assistant name</label>
+          <input type="text" id="aiPublicName" maxlength="60" placeholder="e.g. DCAM Assistant">
+        </div>
+      </div>
+      <div class="card-sub" style="margin-top:-8px;">Shown in the chat header and the assistant's opening message on the public website.</div>
       <div class="ai-master">
         <div>
           <div class="ai-label">Website chat on</div>
@@ -834,6 +841,7 @@
     cyl: { min: -8, max: 0, step: 0.25 },
     add: { min: 0.75, max: 3.5, step: 0.25 },
     axis: { min: 1, max: 180, step: 1 },
+    prism: { min: 1, max: 12, step: 1 },
   };
 
   function renderRxRangesForm(ranges) {
@@ -844,6 +852,7 @@
       ['cyl', 'CYL (Cylinder)'],
       ['add', 'ADD'],
       ['axis', 'AXIS'],
+      ['prism', 'PRISM'],
     ];
     container.innerHTML = rows.map(function(pair) {
       const key = pair[0], label = pair[1];
@@ -1192,7 +1201,7 @@
     { key: 'howto',    label: 'How-to help',          help: 'Explains how to use the staff system. No data is looked up.' },
   ];
   const AI_DEFAULTS = {
-    public: { enabled: true, stock: true },
+    public: { enabled: true, stock: true, name: 'DCAM Assistant' },
     staff: { enabled: true, areas: {
       orders: { admin: true, staff: true }, balances: { admin: true, staff: true },
       stock: { admin: true, staff: true }, sales: { admin: true, staff: false },
@@ -1210,6 +1219,7 @@
     document.getElementById('aiLogUnanswered').checked = v.log_unanswered === true;
     document.getElementById('aiPublicEnabled').checked = pub.enabled !== false;
     document.getElementById('aiPublicStock').checked = pub.stock !== false;
+    document.getElementById('aiPublicName').value = pub.name || AI_DEFAULTS.public.name;
     document.getElementById('aiOrderStatus').checked = pub.order_status === true;
     document.getElementById('aiOrderBalance').checked = pub.order_balance === true;
     document.getElementById('aiStaffEnabled').checked = staff.enabled !== false;
@@ -1281,6 +1291,7 @@
           stock: document.getElementById('aiPublicStock').checked,
           order_status: document.getElementById('aiOrderStatus').checked,
           order_balance: document.getElementById('aiOrderBalance').checked,
+          name: document.getElementById('aiPublicName').value.trim().slice(0, 60) || AI_DEFAULTS.public.name,
         },
         staff: { enabled: document.getElementById('aiStaffEnabled').checked, areas },
       };

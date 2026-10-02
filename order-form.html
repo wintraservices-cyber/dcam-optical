@@ -1145,7 +1145,7 @@
             <td><input type="text" id="rx_r_sph" class="rx-field rx-sph" list="sphList" inputmode="decimal" autocomplete="off" placeholder="0.00"></td>
             <td><input type="text" id="rx_r_cyl" class="rx-field rx-cyl" data-eye="r" list="cylList" inputmode="decimal" autocomplete="off" placeholder="0.00"></td>
             <td><input type="text" id="rx_r_axis" class="rx-field rx-axis" data-eye="r" list="axisList" inputmode="numeric" autocomplete="off" placeholder="" disabled></td>
-            <td><input type="text" id="rx_r_prism" class="rx-field rx-prism" data-eye="r" inputmode="decimal" placeholder="0.00" title="Prism power in prism diopters"></td>
+            <td><input type="text" id="rx_r_prism" class="rx-field rx-prism" data-eye="r" list="prismList" inputmode="numeric" autocomplete="off" placeholder="" title="Prism power in prism diopters"></td>
             <td>
               <select id="rx_r_base" class="rx-field rx-base" data-eye="r" disabled>
                 <option value=""></option>
@@ -1170,7 +1170,7 @@
             <td><input type="text" id="rx_l_sph" class="rx-field rx-sph" list="sphList" inputmode="decimal" autocomplete="off" placeholder="0.00"></td>
             <td><input type="text" id="rx_l_cyl" class="rx-field rx-cyl" data-eye="l" list="cylList" inputmode="decimal" autocomplete="off" placeholder="0.00"></td>
             <td><input type="text" id="rx_l_axis" class="rx-field rx-axis" data-eye="l" list="axisList" inputmode="numeric" autocomplete="off" placeholder="" disabled></td>
-            <td><input type="text" id="rx_l_prism" class="rx-field rx-prism" data-eye="l" inputmode="decimal" placeholder="0.00" title="Prism power in prism diopters"></td>
+            <td><input type="text" id="rx_l_prism" class="rx-field rx-prism" data-eye="l" list="prismList" inputmode="numeric" autocomplete="off" placeholder="" title="Prism power in prism diopters"></td>
             <td>
               <select id="rx_l_base" class="rx-field rx-base" data-eye="l" disabled>
                 <option value=""></option>
@@ -1212,6 +1212,7 @@
               <datalist id="cylList"></datalist>
               <datalist id="axisList"></datalist>
               <datalist id="addList"></datalist>
+              <datalist id="prismList"></datalist>
             </td>
             <td id="pdCellR"><input type="text" id="pd_r" class="rx-field" inputmode="decimal" placeholder="31.5" title="Pupillary distance in mm"></td>
           </tr>
@@ -2288,11 +2289,12 @@
     cyl: { min: -8, max: 0, step: 0.25 },
     add: { min: 0.75, max: 3.5, step: 0.25 },
     axis: { min: 1, max: 180, step: 1 },
+    prism: { min: 1, max: 12, step: 1 },
   };
 
   // Populated by populateRxDropdowns() below; used to validate whatever
   // the staff member typed against the actual allowed increments.
-  let rxValidValues = { sph: new Set(), cyl: new Set(), axis: new Set(), add: new Set() };
+  let rxValidValues = { sph: new Set(), cyl: new Set(), axis: new Set(), add: new Set(), prism: new Set() };
   let rxFormatFns = {};
 
   function populateRxDropdowns(ranges) {
@@ -2302,16 +2304,19 @@
     const cylValues = rxRange(r.cyl.max, r.cyl.min, -Math.abs(r.cyl.step)); // cyl runs 0 down to negative
     const addValues = rxRange(r.add.min, r.add.max, r.add.step);
     const axisValues = rxRange(r.axis.min, r.axis.max, r.axis.step);
+    const prismValues = rxRange(r.prism.min, r.prism.max, r.prism.step);
 
     const sphFormat = (v) => (v > 0 ? `+${v.toFixed(2)}` : v === 0 ? '0.00' : v.toFixed(2));
     const cylFormat = (v) => v.toFixed(2);
     const addFormat = (v) => `+${v.toFixed(2)}`;
     const axisFormat = (v) => `${v}`;
+    const prismFormat = (v) => `${v}`;
 
     document.getElementById('sphList').innerHTML = buildRxDatalist(sphValues, sphFormat);
     document.getElementById('cylList').innerHTML = buildRxDatalist(cylValues, cylFormat);
     document.getElementById('axisList').innerHTML = buildRxDatalist(axisValues, axisFormat);
     document.getElementById('addList').innerHTML = buildRxDatalist(addValues, addFormat);
+    document.getElementById('prismList').innerHTML = buildRxDatalist(prismValues, prismFormat);
 
     // Stored as raw numbers for validation (not the formatted display
     // strings) so a value works whether it was typed with a "+" sign,
@@ -2322,8 +2327,9 @@
       cyl: new Set(cylValues),
       axis: new Set(axisValues),
       add: new Set(addValues),
+      prism: new Set(prismValues),
     };
-    rxFormatFns = { sph: sphFormat, cyl: cylFormat, axis: axisFormat, add: addFormat };
+    rxFormatFns = { sph: sphFormat, cyl: cylFormat, axis: axisFormat, add: addFormat, prism: prismFormat };
   }
 
   // Once a typed value is confirmed valid, snap it to the canonical
@@ -2387,9 +2393,10 @@
   });
   document.querySelectorAll('.rx-prism').forEach(el => {
     el.addEventListener('input', () => {
-      markValidity(el, DECIMAL_RE.test(el.value.trim()));
+      markRxValidity(el, 'prism');
       toggleAxisBase(el.getAttribute('data-eye'));
     });
+    el.addEventListener('change', () => snapRxValue(el, 'prism'));
   });
 
   // Axis and Base only make sense once Cylinder or Prism has a value —

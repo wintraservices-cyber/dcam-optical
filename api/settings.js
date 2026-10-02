@@ -263,13 +263,18 @@ module.exports = async (req, res) => {
     // Facebook link from Settings > Website. Only these fields go out.
     const PUBLIC_FIELDS = ['name', 'branch', 'tel', 'mobile', 'email', 'hours', 'address'];
     try {
-      const [biz, site] = await Promise.all([readSetting('business_info'), readSetting('site_mode')]);
+      const [biz, site, aiAccess] = await Promise.all([readSetting('business_info'), readSetting('site_mode'), readSetting('ai_access')]);
       const info = {};
       PUBLIC_FIELDS.forEach(f => {
         const v = biz && typeof biz[f] === 'string' ? biz[f].trim() : '';
         if (v) info[f] = v.slice(0, 400);
       });
       if (site && site.facebook_url) info.facebook_url = site.facebook_url;
+      // Custom display name for the public chat widget (Settings > AI
+      // assistant > Website assistant). Falls back to the default label
+      // client-side if this is blank/unset.
+      const assistantName = aiAccess && aiAccess.public && typeof aiAccess.public.name === 'string' ? aiAccess.public.name.trim() : '';
+      if (assistantName) info.assistant_name = assistantName.slice(0, 60);
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Vercel-CDN-Cache-Control', 'max-age=60, stale-while-revalidate=300');
       res.status(200).json({ ok: true, info });

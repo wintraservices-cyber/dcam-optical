@@ -693,3 +693,16 @@ alter table withdrawals add constraint withdrawals_source_check check (source in
 -- snapshot row. Defaults to 0 so past closed days (which had no Gcash
 -- withdrawals possible yet) read as zero rather than null.
 alter table cash_positions add column if not exists total_withdrawals_gcash numeric not null default 0;
+
+-- ---------------------------------------------------------------------
+-- Staff self-service profile: bio + avatar (2026-10-02)
+-- ---------------------------------------------------------------------
+-- bio is a short free-text blurb a staff member writes about themselves
+-- (optional, capped client/server-side). avatar_data_url stores a small
+-- profile picture as a data: URL (base64-encoded image) directly in the
+-- row -- there's no Supabase Storage bucket set up for this project, and
+-- adding one (plus signed-upload plumbing) would be a lot of new
+-- infrastructure for a small, optional profile photo. The app enforces a
+-- small size cap before saving so this stays cheap to store and fetch.
+alter table staff_users add column if not exists bio text;
+alter table staff_users add column if not exists avatar_data_url text;

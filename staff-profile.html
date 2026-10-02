@@ -126,6 +126,58 @@
     cursor: not-allowed;
   }
   .field-note { font-size: 0.76rem; color: var(--charcoal-soft); margin-top: -8px; margin-bottom: 14px; }
+  .field-grid textarea {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.9rem;
+    color: var(--charcoal);
+    resize: vertical;
+    min-height: 80px;
+  }
+  .field-grid textarea:focus { outline: none; border-color: var(--blue); }
+  .bio-count { font-size: 0.74rem; color: var(--charcoal-soft); text-align: right; margin-top: -10px; margin-bottom: 14px; }
+
+  .avatar-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+  .avatar-preview {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--ivory-dim);
+    border: 1.5px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.4rem;
+    color: var(--purple-deep);
+    flex: none;
+  }
+  .avatar-actions { display: flex; flex-direction: column; gap: 6px; }
+  .avatar-btn {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 7px 14px;
+    border-radius: 100px;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    color: var(--charcoal-soft);
+    cursor: pointer;
+    display: inline-block;
+    width: fit-content;
+  }
+  .avatar-btn:hover { border-color: var(--purple); color: var(--purple-deep); }
+  .avatar-btn.remove { color: var(--red); }
 
   .save-row {
     display: flex;
@@ -227,6 +279,14 @@ function renderProfileForm(user) {
   }
   document.getElementById('pageSub').textContent = `Signed in as ${user.username}.`;
   wrap.innerHTML = `
+    <div class="avatar-row">
+      <div class="avatar-preview" id="pfAvatarPreview"></div>
+      <div class="avatar-actions">
+        <label class="avatar-btn" for="pfAvatarInput">Change picture</label>
+        <input type="file" id="pfAvatarInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+        <button type="button" class="avatar-btn remove" id="pfAvatarRemove" style="display:none;">Remove picture</button>
+      </div>
+    </div>
     <div class="field-grid single">
       <div>
         <label for="pfUsername">Username</label>
@@ -249,6 +309,13 @@ function renderProfileForm(user) {
         <input type="text" id="pfPhone" placeholder="0917-000-0000">
       </div>
     </div>
+    <div class="field-grid single">
+      <div>
+        <label for="pfBio">Bio</label>
+        <textarea id="pfBio" maxlength="500" placeholder="A short line about yourself (optional)"></textarea>
+      </div>
+    </div>
+    <div class="bio-count" id="pfBioCount">0 / 500</div>
     <div class="save-row">
       <button class="save-btn" id="profileSaveBtn">Save changes</button>
       <span class="save-status" id="profileStatus"></span>
@@ -258,8 +325,82 @@ function renderProfileForm(user) {
   document.getElementById('pfDisplayName').value = user.display_name || '';
   document.getElementById('pfEmail').value = user.email || '';
   document.getElementById('pfPhone').value = user.phone || '';
+  document.getElementById('pfBio').value = user.bio || '';
+
+  pendingAvatarDataUrl = undefined; // no pending change yet
+  renderAvatarPreview(user.avatar_data_url || null, user.display_name || user.username);
+
+  const bioEl = document.getElementById('pfBio');
+  const bioCount = document.getElementById('pfBioCount');
+  bioCount.textContent = `${bioEl.value.length} / 500`;
+  bioEl.addEventListener('input', () => { bioCount.textContent = `${bioEl.value.length} / 500`; });
+
+  document.getElementById('pfAvatarInput').addEventListener('change', onAvatarFileChosen);
+  document.getElementById('pfAvatarRemove').addEventListener('click', () => {
+    pendingAvatarDataUrl = null; // explicit removal
+    renderAvatarPreview(null, document.getElementById('pfDisplayName').value || user.username);
+  });
 
   document.getElementById('profileSaveBtn').addEventListener('click', saveProfile);
+}
+
+let pendingAvatarDataUrl; // undefined = unchanged, null = remove, string = new image
+
+function initials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+function renderAvatarPreview(dataUrl, nameForInitials) {
+  const el = document.getElementById('pfAvatarPreview');
+  const removeBtn = document.getElementById('pfAvatarRemove');
+  if (dataUrl) {
+    el.style.backgroundImage = `url("${dataUrl}")`;
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+    el.textContent = '';
+    removeBtn.style.display = '';
+  } else {
+    el.style.backgroundImage = 'none';
+    el.textContent = initials(nameForInitials);
+    removeBtn.style.display = 'none';
+  }
+}
+
+// Downscale and compress client-side so the result stays well under the
+// server's ~180KB base64 cap -- a photo straight off a phone camera can
+// be several MB, far too large to store directly in a database row.
+function onAvatarFileChosen(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('profileStatus');
+  const img = new Image();
+  const reader = new FileReader();
+  reader.onload = () => {
+    img.onload = () => {
+      const maxDim = 256;
+      let { width, height } = img;
+      if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+      else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      if (dataUrl.length > 180000) {
+        status.textContent = 'That picture is too large even after compressing -- try a smaller image.';
+        status.className = 'save-status error';
+        return;
+      }
+      pendingAvatarDataUrl = dataUrl;
+      renderAvatarPreview(dataUrl, document.getElementById('pfDisplayName').value);
+      status.textContent = '';
+      status.className = 'save-status';
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 function renderPasswordForm() {
@@ -311,16 +452,19 @@ async function saveProfile() {
   const displayName = document.getElementById('pfDisplayName').value.trim();
   const email = document.getElementById('pfEmail').value.trim();
   const phone = document.getElementById('pfPhone').value.trim();
+  const bio = document.getElementById('pfBio').value.trim();
 
   btn.disabled = true;
   status.textContent = 'Saving…';
   status.className = 'save-status';
 
   try {
+    const payload = { display_name: displayName, email, phone, bio };
+    if (pendingAvatarDataUrl !== undefined) payload.avatar_data_url = pendingAvatarDataUrl;
     const resp = await fetch('/api/staff-auth?action=update_profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ display_name: displayName, email, phone }),
+      body: JSON.stringify(payload),
     });
     const result = await resp.json();
     if (!resp.ok || !result.ok) {
@@ -328,6 +472,8 @@ async function saveProfile() {
       status.className = 'save-status error';
       return;
     }
+    pendingAvatarDataUrl = undefined;
+    renderAvatarPreview(result.user.avatar_data_url || null, result.user.display_name || result.user.username);
     status.textContent = 'Saved.';
     status.className = 'save-status success';
   } catch (e) {

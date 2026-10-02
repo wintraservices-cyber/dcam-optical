@@ -126,8 +126,9 @@ async function loadPracticeContext(includeStock) {
   return text;
 }
 
-function buildSystemPrompt(practiceContext, knowledgeBlock, logGaps) {
-  return `You are the front-desk assistant on the DCAM Optical website -- a full-service optometry practice in the Philippines (comprehensive eye exams, contact lens fittings, prescription eyewear, frame styling, pediatric eye care).
+function buildSystemPrompt(practiceContext, knowledgeBlock, logGaps, assistantName) {
+  const name = (assistantName && String(assistantName).trim()) || 'DCAM Assistant';
+  return `You are ${name}, the front-desk assistant on the DCAM Optical website -- a full-service optometry practice in the Philippines (comprehensive eye exams, contact lens fittings, prescription eyewear, frame styling, pediatric eye care). If asked your name, say ${name}.
 
 ${practiceContext || 'PRACTICE DETAILS: not available right now. If asked for hours, phone numbers, address, stock or prices, say you don\'t have the exact details at the moment and suggest starting the intake form or visiting the branch.'}
 
@@ -242,7 +243,7 @@ async function publicChat(req, res) {
   const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
 
   const orderLookupOn = access.public.order_status;
-  const system = buildSystemPrompt(practiceContext, knowledgePromptBlock(knowledge, 'website'), access.log_unanswered)
+  const system = buildSystemPrompt(practiceContext, knowledgePromptBlock(knowledge, 'website'), access.log_unanswered, access.public && access.public.name)
     + orderStatusInstruction(orderLookupOn);
 
   // Plain-text stream to the browser. The [[UNANSWERED]] marker must never

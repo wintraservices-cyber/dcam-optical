@@ -158,7 +158,7 @@ async function createExpense(req, res, session) {
     if (!resp.ok) {
       const errText = await resp.text();
       console.error('Supabase expenses insert error:', resp.status, errText);
-      res.status(502).json({ ok: false, error: 'Could not save the expense.' });
+      res.status(502).json({ ok: false, error: sourceCheckConstraintMessage(errText) || 'Could not save the expense.' });
       return;
     }
     const [saved] = await resp.json();
@@ -222,7 +222,7 @@ async function updateExpense(req, res) {
     if (!resp.ok) {
       const errText = await resp.text();
       console.error('Supabase expenses update error:', resp.status, errText);
-      res.status(502).json({ ok: false, error: 'Could not save changes to this expense.' });
+      res.status(502).json({ ok: false, error: sourceCheckConstraintMessage(errText) || 'Could not save changes to this expense.' });
       return;
     }
     const [saved] = await resp.json();
@@ -358,7 +358,7 @@ async function createWithdrawal(req, res, session) {
     if (!resp.ok) {
       const errText = await resp.text();
       console.error('Supabase withdrawals insert error:', resp.status, errText);
-      res.status(502).json({ ok: false, error: 'Could not save the withdrawal.' });
+      res.status(502).json({ ok: false, error: sourceCheckConstraintMessage(errText) || 'Could not save the withdrawal.' });
       return;
     }
     const [saved] = await resp.json();
@@ -367,6 +367,30 @@ async function createWithdrawal(req, res, session) {
     console.error('Unexpected error creating withdrawal:', err);
     res.status(500).json({ ok: false, error: 'Unexpected server error.' });
   }
+}
+
+// Gcash support (expenses.source / withdrawals.source) was added via
+// migrations in supabase-schema.sql that may not have been run against
+// the live Supabase project yet. If so, saving a Gcash expense or
+// withdrawal fails at the database level in one of two ways, and
+// otherwise surfaces to the user as a generic, unhelpful save failure:
+//   - withdrawals.source already existed with a stricter CHECK
+//     constraint (cash/check only) before Gcash was added -- a 'gcash'
+//     value now violates it (Postgres code 23514).
+//   - expenses.source is a brand-new column -- if that migration never
+//     ran, the column doesn't exist at all (Postgres code 42703,
+//     "column does not exist").
+// Detect both cases and say so plainly, naming the fix, instead of a
+// generic "could not save" message.
+function sourceCheckConstraintMessage(errText) {
+  if (typeof errText !== 'string') return null;
+  if (errText.includes('23514') && errText.includes('source_check')) {
+    return 'Gcash isn\'t enabled on the database yet -- a CHECK constraint needs to be updated in Supabase to allow it (see supabase-schema.sql). Cash and Check still work normally.';
+  }
+  if (errText.includes('42703') && errText.includes('source')) {
+    return 'Gcash isn\'t enabled on the database yet -- a database migration from supabase-schema.sql needs to be run in Supabase first. Cash and Check still work normally.';
+  }
+  return null;
 }
 
 async function updateWithdrawal(req, res) {
@@ -408,7 +432,7 @@ async function updateWithdrawal(req, res) {
     if (!resp.ok) {
       const errText = await resp.text();
       console.error('Supabase withdrawals update error:', resp.status, errText);
-      res.status(502).json({ ok: false, error: 'Could not save changes to this withdrawal.' });
+      res.status(502).json({ ok: false, error: sourceCheckConstraintMessage(errText) || 'Could not save changes to this withdrawal.' });
       return;
     }
     const [saved] = await resp.json();
