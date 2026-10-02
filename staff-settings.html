@@ -479,39 +479,6 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>Print paper size</h2>
-      <div class="card-sub">Which paper the order form's "Print" button formats the order slip for. The slip itself (and its font size) stays the same on every size -- only the page it's printed on, and how much blank space surrounds it, changes.</div>
-      <div class="field-grid" style="grid-template-columns: 1fr;">
-        <div>
-          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
-            <input type="radio" name="printPaperSize" value="strip" checked style="width:auto;">
-            Pre-cut strip (8.5" x 3.67") -- the current default
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
-            <input type="radio" name="printPaperSize" value="a4" style="width:auto;">
-            A4 -- plain printer paper
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
-            <input type="radio" name="printPaperSize" value="a5" style="width:auto;">
-            A5 -- plain printer paper, half-size
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
-            <input type="radio" name="printPaperSize" value="legal" style="width:auto;">
-            Legal (8.5" x 14") -- plain printer paper
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem;">
-            <input type="radio" name="printPaperSize" value="letter" style="width:auto;">
-            Letter (8.5" x 11") -- plain printer paper
-          </label>
-        </div>
-      </div>
-      <div class="save-row">
-        <button class="save-btn" id="savePrintPrefs">Save</button>
-        <span class="save-status" id="printPrefsStatus"></span>
-      </div>
-    </div>
-
   </div>
 
   <!-- Staff Accounts -->
@@ -602,6 +569,39 @@
       <div class="save-row">
         <button class="save-btn" id="saveSiteMode">Save teaser page</button>
         <span class="save-status" id="siteModeStatus"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Print paper size</h2>
+      <div class="card-sub">Which paper the order form's "Print" button formats the order slip for. The slip itself (and its font size) stays the same on every size -- only the page it's printed on, and how much blank space surrounds it, changes.</div>
+      <div class="field-grid" style="grid-template-columns: 1fr;">
+        <div>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
+            <input type="radio" name="printPaperSize" value="strip" checked style="width:auto;">
+            Pre-cut strip (8.5" x 3.67") -- the current default
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
+            <input type="radio" name="printPaperSize" value="a4" style="width:auto;">
+            A4 -- plain printer paper
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
+            <input type="radio" name="printPaperSize" value="a5" style="width:auto;">
+            A5 -- plain printer paper, half-size
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
+            <input type="radio" name="printPaperSize" value="legal" style="width:auto;">
+            Legal (8.5" x 14") -- plain printer paper
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem;">
+            <input type="radio" name="printPaperSize" value="letter" style="width:auto;">
+            Letter (8.5" x 11") -- plain printer paper
+          </label>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="save-btn" id="savePrintPrefs">Save</button>
+        <span class="save-status" id="printPrefsStatus"></span>
       </div>
     </div>
   </div>
@@ -1073,6 +1073,18 @@
     }
   }
 
+  // Same "Asia/Manila, short date + time" style already used for the
+  // Trash tab's deleted-at timestamps, so times read consistently
+  // across this page rather than in the browser's local timezone.
+  function fmtLastLogin(ts) {
+    if (!ts) return 'Never';
+    try {
+      return new Date(ts).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
+    } catch (e) {
+      return ts;
+    }
+  }
+
   function renderAccounts() {
     const container = document.getElementById('accountsList');
     if (accounts.length === 0) {
@@ -1081,7 +1093,7 @@
     }
     container.innerHTML = `
       <table>
-        <thead><tr><th>Username</th><th>Display name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Username</th><th>Display name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th>Last Login</th><th></th></tr></thead>
         <tbody>
           ${accounts.map(u => `
             <tr class="${u.active === false ? 'inactive-row' : ''}" data-row-id="${u.id}">
@@ -1091,6 +1103,7 @@
               <td>${escapeHtml(u.phone) || '—'}</td>
               <td><span class="role-pill ${u.role}">${escapeHtml(u.role)}</span></td>
               <td>${u.active === false ? 'Deactivated' : 'Active'}</td>
+              <td>${escapeHtml(fmtLastLogin(u.last_login_at))}</td>
               <td>
                 <div class="row-actions">
                   <button class="icon-btn edit" data-id="${u.id}" data-action="edit">Edit</button>
@@ -1100,7 +1113,7 @@
               </td>
             </tr>
             <tr class="edit-row" id="editRow-${u.id}" style="display:none;">
-              <td colspan="7">
+              <td colspan="8">
                 <div class="new-account-grid" style="margin:0 0 10px;">
                   <div>
                     <label>Username</label>

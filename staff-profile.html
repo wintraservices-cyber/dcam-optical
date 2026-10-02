@@ -179,6 +179,35 @@
   .avatar-btn:hover { border-color: var(--purple); color: var(--purple-deep); }
   .avatar-btn.remove { color: var(--red); }
 
+  .avatar-presets-label {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--charcoal-soft);
+    margin: 2px 0 10px;
+  }
+  .avatar-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .avatar-preset-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    padding: 0;
+    cursor: pointer;
+    background-size: cover;
+    background-position: center;
+    flex: none;
+  }
+  .avatar-preset-btn:hover { border-color: var(--line); }
+  .avatar-preset-btn.selected { border-color: var(--purple-deep); }
+
   .save-row {
     display: flex;
     align-items: center;
@@ -287,6 +316,8 @@ function renderProfileForm(user) {
         <button type="button" class="avatar-btn remove" id="pfAvatarRemove" style="display:none;">Remove picture</button>
       </div>
     </div>
+    <div class="avatar-presets-label">Or pick an avatar</div>
+    <div class="avatar-presets" id="pfAvatarPresets"></div>
     <div class="field-grid single">
       <div>
         <label for="pfUsername">Username</label>
@@ -341,10 +372,64 @@ function renderProfileForm(user) {
     renderAvatarPreview(null, document.getElementById('pfDisplayName').value || user.username);
   });
 
+  renderAvatarPresets(user.avatar_data_url || null);
+
   document.getElementById('profileSaveBtn').addEventListener('click', saveProfile);
 }
 
 let pendingAvatarDataUrl; // undefined = unchanged, null = remove, string = new image
+
+// Ready-made avatars for anyone who'd rather not upload a real photo --
+// one simple glasses glyph (fitting for an optical practice), repeated
+// in a handful of color pairs drawn from the site's own palette rather
+// than needing a real stock-photo set or hosted image files. Each is a
+// small inline SVG encoded directly as a data: URI, so it's stored and
+// handled exactly like an uploaded picture (same avatar_data_url field,
+// same save flow) -- nothing on the backend needs to know the
+// difference between the two.
+const AVATAR_PRESET_COLORS = [
+  { bg: '#B05A9E', fg: '#F7F1E8' }, // purple
+  { bg: '#5BAFC0', fg: '#F7F1E8' }, // blue
+  { bg: '#383334', fg: '#F7F1E8' }, // charcoal
+  { bg: '#F7F1E8', fg: '#8F4680' }, // ivory / purple-deep
+  { bg: '#3E8E5A', fg: '#F7F1E8' }, // green
+  { bg: '#B8792A', fg: '#F7F1E8' }, // amber
+  { bg: '#B0405A', fg: '#F7F1E8' }, // red
+  { bg: '#EFE6D8', fg: '#383334' }, // ivory-dim / charcoal
+];
+
+function buildPresetAvatar(bg, fg) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">` +
+    `<rect width="128" height="128" rx="64" fill="${bg}"/>` +
+    `<g fill="none" stroke="${fg}" stroke-width="6" stroke-linecap="round">` +
+    `<circle cx="40" cy="66" r="20"/><circle cx="88" cy="66" r="20"/>` +
+    `<line x1="60" y1="62" x2="68" y2="62"/>` +
+    `<line x1="20" y1="60" x2="10" y2="52"/>` +
+    `<line x1="108" y1="60" x2="118" y2="52"/>` +
+    `</g></svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+function renderAvatarPresets(currentDataUrl) {
+  const container = document.getElementById('pfAvatarPresets');
+  container.innerHTML = AVATAR_PRESET_COLORS.map((c, i) => {
+    const url = buildPresetAvatar(c.bg, c.fg);
+    const selected = currentDataUrl === url;
+    return `<button type="button" class="avatar-preset-btn${selected ? ' selected' : ''}" data-preset-index="${i}" style="background-image:url('${url}')" aria-label="Avatar option ${i + 1}" title="Use this avatar"></button>`;
+  }).join('');
+
+  container.querySelectorAll('.avatar-preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-preset-index'), 10);
+      const c = AVATAR_PRESET_COLORS[idx];
+      const url = buildPresetAvatar(c.bg, c.fg);
+      pendingAvatarDataUrl = url;
+      renderAvatarPreview(url, document.getElementById('pfDisplayName').value);
+      container.querySelectorAll('.avatar-preset-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    });
+  });
+}
 
 function initials(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
