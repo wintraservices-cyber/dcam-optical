@@ -75,11 +75,15 @@ async function ordersReport(req, res, from, to) {
 
     // Column order mirrors the client's own paper/Excel "Job Orders" sheet
     // (Job# -> Patient -> Frame -> Lens -> Type -> Total -> Deposit ->
-    // Balance -> Payment Method) so a report can be compared side by side
+    // Payment Method -> Balance) so a report can be compared side by side
     // with their existing sheet without re-sorting columns by hand.
     // Date leads since their sheet has no date column at all (each tab is
     // one day). Everything their sheet doesn't have is appended at the
     // end, in the same order it was in before, rather than interleaved.
+    //
+    // Payment Method and Balance swapped 2026-10-02 to match the Sales
+    // report's own fix (2026-09-30), confirming the client's "Oct 1 2026"
+    // sheet reordered this same pair on the Job Orders tab too.
     const columns = [
       { label: 'Order Date', value: (o) => o.order_date || '' },
       { label: 'Order #', value: 'order_no' },
@@ -89,8 +93,8 @@ async function ordersReport(req, res, from, to) {
       { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
       { label: 'Amount', value: 'amount' },
       { label: 'Deposit', value: 'deposit' },
-      { label: 'Balance', value: 'balance' },
       { label: 'Payment Method', value: 'payment_method' },
+      { label: 'Balance', value: 'balance' },
       // -- not on the client's sheet, appended at the end --
       { label: 'Created Date', value: (o) => (o.created_at || '').slice(0, 10) },
       { label: 'Phone', value: 'tel_no' },

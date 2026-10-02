@@ -1157,6 +1157,10 @@
           <label class="subtype-chip"><input type="radio" name="rxSubtype" value="F/O"><span>F/O <em>(Frame Only)</em></span></label>
           <label class="subtype-chip"><input type="radio" name="rxSubtype" value="CL"><span>CL <em>(Contacts)</em></span></label>
         </div>
+        <div class="field-inline" style="max-width:90px; margin-left:auto;">
+          <label for="rxQty">Qty</label>
+          <input type="text" id="rxQty" inputmode="numeric" autocomplete="off" value="1" placeholder="1">
+        </div>
       </div>
       <table class="grid">
         <thead>
@@ -1731,6 +1735,7 @@
     document.querySelector('input[name="pdMode"][value="split"]').checked = true;
     applyPdMode('split');
     document.querySelector('input[name="rxSubtype"][value="CMRX"]').checked = true;
+    document.getElementById('rxQty').value = '1';
     document.querySelector('input[name="paymentStatus"][value="unpaid"]').checked = true;
     document.querySelector('input[name="paymentMethod"][value="cash"]').checked = true;
     document.getElementById('splitCash').value = '';
@@ -1998,6 +2003,9 @@
       setVal('seg_ht_r', order.seg_ht_r); setVal('seg_ht_l', order.seg_ht_l);
       setVal('lens_type', order.lens_type);
       setVal('pd_r', order.pd_r); setVal('pd_l', order.pd_l);
+      // Older Rx orders saved before this field existed have no
+      // item_qty at all -- default to "1" rather than leaving it blank.
+      setVal('rxQty', order.item_qty || '1');
 
       const lensMaterialEl = document.querySelector(`input[name="lensMaterial"][value="${order.lens_material || ''}"]`);
       if (lensMaterialEl) lensMaterialEl.checked = true;
@@ -2756,6 +2764,13 @@
         lens_type: val('lens_type'),
         pd_mode: (document.querySelector('input[name="pdMode"]:checked') || {}).value || 'split',
         pd_r: val('pd_r'), pd_l: val('pd_l'),
+        // Reuses the same item_qty column Non-Rx items store their
+        // quantity in -- a Rx order is a single job (one pair of
+        // glasses/lenses) rather than a line-item list, so one shared
+        // Qty field at the order level is enough; defaults to "1" via
+        // the input's own value/placeholder rather than here, so an
+        // explicitly typed "0" or blank still round-trips correctly.
+        item_qty: val('rxQty') || '1',
       };
     }
 
