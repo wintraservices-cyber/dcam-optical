@@ -430,23 +430,53 @@
       const result = await resp.json();
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load orders.');
 
-      renderOrders(result.orders || []);
+      renderOrders(result.orders || [], { from, to });
     } catch (err) {
       content.innerHTML = `<div class="error-state">${escapeHtml(err.message)}</div>`;
     }
   }
 
-  function renderOrders(orders) {
+  // True if `dateStr` (YYYY-MM-DD) falls inside the given [from, to]
+  // range -- either bound may be absent (an open end), matching how
+  // the API itself treats a missing from/to.
+  function inRange(dateStr, from, to) {
+    if (!dateStr) return false;
+    if (from && dateStr < from) return false;
+    if (to && dateStr > to) return false;
+    return true;
+  }
+
+  function renderOrders(orders, activeRange) {
+    const { from, to } = activeRange || {};
     if (!orders.length) {
       content.innerHTML = '<div class="empty-state">No orders found.</div>';
       return;
     }
 
-    const rows = orders.map(o => `
+    const rows = orders.map(o => {
+      // If this order's own date doesn't fall inside the active filter
+      // range, but it's showing up anyway, it's here because of a
+      // balance payment collected within that range (see api/orders.js
+      // listOrders()) -- flag the specific payment date(s) responsible,
+      // so staff filtering to "Today" don't wonder why a days-old order
+      // appeared.
+      const payments = Array.isArray(o.balance_payments) ? o.balance_payments : [];
+      let paymentBadge = '';
+      if ((from || to) && !inRange(o.order_date, from, to)) {
+        const matchingDates = [...new Set(
+          payments
+            .map(p => (p.created_at || '').slice(0, 10))
+            .filter(d => inRange(d, from, to))
+        )].sort();
+        if (matchingDates.length) {
+          paymentBadge = `<div class="payment-date-badge" style="font-size:0.78rem; color:var(--purple); margin-top:2px;">Payment: ${matchingDates.map(escapeHtml).join(', ')}</div>`;
+        }
+      }
+      return `
       <tr>
         <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a> <a href="order-form.html?id=${o.id}&threeup=1" class="print-order-btn" title="Print order #${escapeHtml(o.order_no)}" aria-label="Print order #${escapeHtml(o.order_no)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg></a> <button type="button" class="delete-order-btn" title="Delete order #${escapeHtml(o.order_no)}" aria-label="Delete order #${escapeHtml(o.order_no)}" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">&times;</button></td>
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
-        <td data-label="Date">${escapeHtml(o.order_date) || '—'}</td>
+        <td data-label="Date">${escapeHtml(o.order_date) || '—'}${paymentBadge}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>
         <td data-label="Item / Frame">${o.order_type === 'non_rx' ? itemsSummary(o) : (escapeHtml(o.frame) || '—')}</td>
         <td data-label="Balance">
@@ -486,7 +516,8 @@
           </select>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
 
     content.innerHTML = `
       <table>

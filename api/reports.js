@@ -116,7 +116,7 @@ function totalQty(o) {
 // soft-deleted (embed comes back empty/null in that case, handled
 // below).
 async function fetchPaymentRows(from, to) {
-  const path = `balance_payments?select=*,orders(order_no,patient_name,frame,lens_type,order_type,rx_subtype,tel_no,payment_status,status)&order=created_at.desc&limit=5000${dateRangeFilter(from, to, 'created_at')}`;
+  const path = `balance_payments?select=*,orders(order_no,order_date,patient_name,frame,lens_type,order_type,rx_subtype,tel_no,payment_status,status)&order=created_at.desc&limit=5000${dateRangeFilter(from, to, 'created_at')}`;
   const resp = await supabaseRequest(path, { method: 'GET' });
   if (!resp.ok) {
     const errText = await resp.text();
@@ -137,7 +137,13 @@ async function fetchPaymentRows(from, to) {
       tel_no: order.tel_no || '',
       payment_status: order.payment_status || '',
       status: order.status || '',
-      order_date: (p.created_at || '').slice(0, 10),
+      // Order Date always stays the order's OWN date -- when it was
+      // actually placed -- never the date of a later payment against
+      // it; that distinction is what Transaction Date (below) is for.
+      order_date: order.order_date || '',
+      // When this row's own event actually happened: for a payment row,
+      // that's when the payment was collected (not the order's date).
+      transaction_date: (p.created_at || '').slice(0, 10),
       created_at: p.created_at,
       amount: p.amount,
       deposit: '',
@@ -200,7 +206,7 @@ async function ordersReport(req, res, from, to) {
       return;
     }
     const orders = await resp.json();
-    const orderRows = orders.map(o => ({ ...o, __entry: 'order' }));
+    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: o.order_date || '' }));
     const paymentRows = await fetchPaymentRows(from, to);
     const rows = mergeRowsByDate(orderRows, paymentRows);
 
@@ -218,15 +224,19 @@ async function ordersReport(req, res, from, to) {
     // added the same day (matching the Sales report's own Qty column)
     // after this report was found to be missing it entirely.
     //
-    // "Entry" added the same day a balance payment collected today
-    // against an order placed days ago was found to produce no row
-    // dated today at all -- the report only ever looked at
-    // orders.created_at. Each payment now gets its own row (see
-    // fetchPaymentRows()), dated and amounted by that payment itself,
-    // distinguished from the original order row by this column.
+    // "Transaction Date" and "Entry" added the same day a balance
+    // payment collected today against an order placed days ago was
+    // found to produce no row dated today at all -- the report only
+    // ever looked at orders.created_at. Each payment now gets its own
+    // row (see fetchPaymentRows()). "Order Date" always stays that
+    // order's own placement date, even on a payment row, so it never
+    // changes meaning -- "Transaction Date" is the date THIS row's own
+    // event happened (the payment's own date, on a payment row), and
+    // "Entry" says which kind of row it is. Both put at the end, after
+    // everything that matches the client's own sheet, rather than
+    // breaking up that matched column order.
     const columns = [
       { label: 'Order Date', value: (o) => o.order_date || '' },
-      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
       { label: 'Order #', value: 'order_no' },
       { label: 'Patient', value: 'patient_name' },
       { label: 'Frame', value: 'frame' },
@@ -244,6 +254,8 @@ async function ordersReport(req, res, from, to) {
       { label: 'Payment Status', value: 'payment_status' },
       { label: 'Status', value: 'status' },
       { label: 'Taken By', value: 'taken_by' },
+      { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
+      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
     ];
 
     sendCsv(res, `orders-report-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows, columns));
@@ -262,7 +274,7 @@ async function salesReport(req, res, from, to) {
       return;
     }
     const orders = await resp.json();
-    const orderRows = orders.map(o => ({ ...o, __entry: 'order' }));
+    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: o.order_date || '' }));
     const paymentRows = await fetchPaymentRows(from, to);
     const rows = mergeRowsByDate(orderRows, paymentRows);
 
@@ -278,15 +290,17 @@ async function salesReport(req, res, from, to) {
     // "Oct 1 2026" sheet, which reordered those two columns from how
     // their "Sep 29 2026" sheet had them (Balance, then Payment Method).
     //
-    // "Entry" and "Payment Today" on a Balance Payment row: see the
-    // "Entry" comment in ordersReport() above for why these rows exist.
-    // "Payment Today" normally shows the order's intake deposit -- on a
-    // payment row there's no separate "deposit" concept, so it shows
-    // that payment's own amount instead, which is exactly what "payment
+    // "Transaction Date", "Entry" and "Payment Today" on a Balance
+    // Payment row: see the "Transaction Date"/"Entry" comment in
+    // ordersReport() above for why these rows exist and why Order Date
+    // stays the order's own date while Transaction Date (at the end,
+    // alongside Entry) carries the payment's own date instead. "Payment
+    // Today" normally shows the order's intake deposit -- on a payment
+    // row there's no separate "deposit" concept, so it shows that
+    // payment's own amount instead, which is exactly what "payment
     // today" means for that row.
     const columns = [
       { label: 'Order Date', value: (o) => o.order_date || '' },
-      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
       { label: 'Order #', value: 'order_no' },
       { label: 'Patient', value: 'patient_name' },
       { label: 'Frame', value: 'frame' },
@@ -301,6 +315,8 @@ async function salesReport(req, res, from, to) {
       { label: 'Payment Status', value: 'payment_status' },
       { label: 'Status', value: 'status' },
       { label: 'Taken By', value: 'taken_by' },
+      { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
+      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
     ];
 
     // Unchanged from before "Entry" rows existed -- these three stay

@@ -399,7 +399,11 @@ async function listOrders(req, res) {
   // order_items(*) embeds each order's line items in the same query,
   // using PostgREST's resource-embedding (a join via the order_items.order_id
   // foreign key) -- avoids a separate round-trip per order.
-  let path = `orders?select=*,order_items(*)&order=created_at.desc&limit=100${NOT_DELETED}`;
+  // balance_payments(*) embeds that order's full payment history too --
+  // small lists, and it's what lets the UI show *why* an order outside
+  // the selected date range is appearing (see the date-range filter
+  // below): a payment logged within the range, not the order's own date.
+  let path = `orders?select=*,order_items(*),balance_payments(created_at,amount,payment_method)&order=created_at.desc&limit=100${NOT_DELETED}`;
 
   // Fetching a single order by id -- used to load an existing order
   // into the order form for editing. Takes priority over q/status
@@ -447,11 +451,45 @@ async function listOrders(req, res) {
   // Filter by the order's own (nominal) date -- not created_at -- so a
   // backdated order shows up under the day staff actually meant, same
   // fix as the orders report. Both bounds are inclusive and optional.
-  if (from && typeof from === 'string' && ORDER_DATE_RE.test(from)) {
-    path += `&order_date=gte.${encodeURIComponent(from)}`;
-  }
-  if (to && typeof to === 'string' && ORDER_DATE_RE.test(to)) {
-    path += `&order_date=lte.${encodeURIComponent(to)}`;
+  //
+  // On top of that: a date range also pulls in any order that ISN'T in
+  // that range by its own date, but had a balance payment collected
+  // within it -- otherwise a balance paid today against an order placed
+  // days ago never showed up under "Today" here at all, even though
+  // it's exactly the kind of thing staff filtering to "today" want to
+  // see (the order's own order_date column is untouched either way --
+  // this only widens which orders the list considers, same fix made to
+  // the Orders/Sales reports on 2026-10-02).
+  const validFrom = from && typeof from === 'string' && ORDER_DATE_RE.test(from) ? from : null;
+  const validTo = to && typeof to === 'string' && ORDER_DATE_RE.test(to) ? to : null;
+
+  if (validFrom || validTo) {
+    const dateConds = [];
+    if (validFrom) dateConds.push(`order_date.gte.${encodeURIComponent(validFrom)}`);
+    if (validTo) dateConds.push(`order_date.lte.${encodeURIComponent(validTo)}`);
+
+    let paidInRangeIds = [];
+    try {
+      let payPath = 'balance_payments?select=order_id&limit=5000';
+      if (validFrom) payPath += `&created_at=gte.${encodeURIComponent(validFrom)}T00:00:00`;
+      if (validTo) payPath += `&created_at=lte.${encodeURIComponent(validTo)}T23:59:59`;
+      const payResp = await supabaseRequest(payPath, { method: 'GET' });
+      if (payResp.ok) {
+        const payRows = await payResp.json();
+        paidInRangeIds = [...new Set(payRows.map(r => r.order_id).filter(Boolean))];
+      } else {
+        console.error('Could not check for in-range balance payments:', payResp.status, await payResp.text());
+      }
+    } catch (payErr) {
+      console.error('Could not check for in-range balance payments:', payErr);
+    }
+
+    if (paidInRangeIds.length > 0) {
+      const idList = paidInRangeIds.map(oid => encodeURIComponent(oid)).join(',');
+      path += `&or=(and(${dateConds.join(',')}),id.in.(${idList}))`;
+    } else {
+      dateConds.forEach(cond => { path += `&${cond}`; });
+    }
   }
 
   try {
