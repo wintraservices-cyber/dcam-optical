@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>DCAM Optical Updates</title>
+<style>
+  /*
+    Layout concept: capability snapshot first, history last. The page
+    opens with three system cards (Website, Staff Portal, AI Services)
+    that read like a product spec sheet -- what each one does, right now
+    -- then the tech stack, then Phase 2 plans, and only then the dated
+    build timeline at the very bottom for anyone who wants the history.
+  */
+  :root {
+    --bg: #FBF8F2;
+    --surface: #FFFFFF;
+    --ink: #2B2724;
+    --ink-soft: #6B6259;
+    --line: #E7DFD2;
+    --accent: #8F4680;
+    --accent-soft: #B05A9E;
+    --accent-bg: #F7EEF4;
+    --sky: #5BAFC0;
+    --sky-bg: #EAF5F7;
+    --good-bg: #EAF4EC;
+    --good-fg: #2E6B3E;
+    --pending-bg: #FBF1E4;
+    --pending-fg: #8A5A1E;
+    --wait-bg: #F1ECE6;
+    --wait-fg: #6B6259;
+    --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-body: 'Sora', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1C1917;
+      --surface: #24201D;
+      --ink: #F3EEE6;
+      --ink-soft: #AFA496;
+      --line: #3A332C;
+      --accent: #D9A0CB;
+      --accent-soft: #C77FB5;
+      --accent-bg: #332430;
+      --sky: #7EC6D4;
+      --sky-bg: #1D2E31;
+      --good-bg: #1E3024;
+      --good-fg: #86D39A;
+      --pending-bg: #332A1C;
+      --pending-fg: #E0B673;
+      --wait-bg: #2C2823;
+      --wait-fg: #AFA496;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1C1917;
+    --surface: #24201D;
+    --ink: #F3EEE6;
+    --ink-soft: #AFA496;
+    --line: #3A332C;
+    --accent: #D9A0CB;
+    --accent-soft: #C77FB5;
+    --accent-bg: #332430;
+    --sky: #7EC6D4;
+    --sky-bg: #1D2E31;
+    --good-bg: #1E3024;
+    --good-fg: #86D39A;
+    --pending-bg: #332A1C;
+    --pending-fg: #E0B673;
+    --wait-bg: #2C2823;
+    --wait-fg: #AFA496;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    margin: 0;
+    padding: 0 16px;
+    padding-block: 48px 64px;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+
+  .masthead { margin-bottom: 36px; }
+  .masthead .eyebrow {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  .masthead h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(1.7rem, 5vw, 2.3rem);
+    line-height: 1.15;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+  .masthead p {
+    color: var(--ink-soft);
+    font-size: 0.98rem;
+    line-height: 1.6;
+    margin: 0;
+    max-width: 62ch;
+  }
+  .status-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.78rem;
+    padding: 7px 12px;
+    border-radius: 100px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+  .status-chip .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .dot.live { background: var(--good-fg); }
+  .dot.wait { background: var(--pending-fg); }
+
+  /* Phase tracker */
+  .phases-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px;
+    margin-bottom: 32px;
+  }
+  .phases-card h2 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.05rem;
+    margin: 0 0 2px;
+  }
+  .phases-card > p { color: var(--ink-soft); font-size: 0.85rem; margin: 0 0 20px; }
+  .phase-track { display: flex; gap: 6px; margin-bottom: 18px; }
+  .phase-track .seg { flex: 1; height: 6px; border-radius: 4px; background: var(--line); }
+  .phase-track .seg.done { background: var(--good-fg); }
+  .phase-track .seg.partial { background: linear-gradient(90deg, var(--good-fg) 50%, var(--line) 50%); }
+  .phase-track .seg.active { background: var(--accent-soft); }
+  .phase-list { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .phase-item { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; color: var(--ink-soft); }
+  .phase-item .pdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .phase-item .pdot.done { background: var(--good-fg); }
+  .phase-item .pdot.active { background: var(--accent-soft); }
+  .phase-item .pdot.todo { background: var(--line); }
+  .phase-item b { color: var(--ink); font-weight: 650; }
+
+  /* Milestone highlights */
+  .milestones-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px;
+    margin-bottom: 32px;
+  }
+  .milestones-card h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; margin: 0 0 18px; }
+  .milestone-rail {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 680px) {
+    .milestone-rail { grid-template-columns: repeat(2, 1fr); }
+  }
+  .milestone {
+    position: relative;
+    padding-top: 16px;
+  }
+  .milestone::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 3px;
+    border-radius: 3px;
+    background: var(--line);
+  }
+  .milestone.done::before { background: var(--good-fg); }
+  .milestone.waiting::before { background: var(--pending-fg); }
+  .milestone-dot {
+    position: absolute;
+    top: -4px; left: 0;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--line);
+    border: 2px solid var(--surface);
+  }
+  .milestone.done .milestone-dot { background: var(--good-fg); }
+  .milestone.waiting .milestone-dot { background: var(--pending-fg); }
+  .milestone-date {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 4px;
+  }
+  .milestone-label {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.92rem;
+    margin: 0 0 3px;
+  }
+  .milestone-note { font-size: 0.78rem; color: var(--ink-soft); line-height: 1.4; }
+
+  .section-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 44px 0 14px;
+  }
+  .section-label:first-of-type { margin-top: 0; }
+
+  /* Capability cards: Website / Staff Portal / AI Services */
+  .cap-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .cap-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .cap-icon {
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    background: var(--accent-bg);
+    display: flex; align-items: center; justify-content: center;
+    flex: none;
+  }
+  .cap-icon svg { width: 20px; height: 20px; stroke: var(--accent); }
+  .cap-title { display: flex; flex-direction: column; gap: 2px; }
+  .cap-title h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; margin: 0; }
+  .cap-title .cap-sub { color: var(--ink-soft); font-size: 0.85rem; }
+  .cap-status {
+    margin-left: auto;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+  .cap-status.live { background: var(--good-bg); color: var(--good-fg); }
+  .cap-status.waiting { background: var(--wait-bg); color: var(--wait-fg); }
+
+  .cap-group-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--sky);
+    margin: 18px 0 10px;
+  }
+  .cap-group-label:first-of-type { margin-top: 0; }
+
+  .cap-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 12px;
+  }
+  @media (max-width: 560px) {
+    .cap-grid { grid-template-columns: 1fr; }
+  }
+  .cap-grid li {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--accent-bg);
+    border-radius: 10px;
+    padding: 9px 11px;
+  }
+  .cap-grid li svg { width: 14px; height: 14px; stroke: var(--accent); flex: none; margin-top: 2px; }
+
+  .rbac-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  @media (max-width: 560px) {
+    .rbac-row { grid-template-columns: 1fr; }
+  }
+  .rbac-tile {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 13px 14px;
+  }
+  .rbac-tile .rbac-role {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.92rem;
+    margin-bottom: 5px;
+  }
+  .rbac-tile .rbac-role .rdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .rbac-tile.admin .rdot { background: var(--accent); }
+  .rbac-tile.staff .rdot { background: var(--sky); }
+  .rbac-tile p { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.5; margin: 0; }
+
+  .module-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 4px 0 2px;
+  }
+  .module-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 7px 13px;
+    border-radius: 100px;
+    background: var(--sky-bg);
+    color: var(--sky);
+  }
+  .module-note {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin: 12px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .module-note b { color: var(--ink); font-weight: 650; }
+
+  /* Tech stack */
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 560px) {
+    .stack-grid { grid-template-columns: 1fr; }
+  }
+  .stack-tile {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 15px 16px;
+    min-width: 0;
+  }
+  .stack-tile .stack-role {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sky);
+    margin: 0 0 6px;
+  }
+  .stack-tile .stack-name {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.02rem;
+    margin: 0 0 6px;
+  }
+  .stack-tile p { font-size: 0.85rem; color: var(--ink-soft); line-height: 1.5; margin: 0; }
+  .stack-tile .stack-detail {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .stack-flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .stack-flow .node { background: var(--accent-bg); color: var(--accent); padding: 5px 11px; border-radius: 100px; }
+  .stack-flow .arrow { color: var(--line); font-weight: 400; }
+
+  /* Phase 2 */
+  .phase2-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 560px) {
+    .phase2-grid { grid-template-columns: 1fr; }
+  }
+  .phase2-grid li {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 13px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .phase2-grid li svg { width: 16px; height: 16px; stroke: var(--accent-soft); flex: none; margin-top: 2px; }
+  .phase2-grid .p2-title { font-weight: 650; font-size: 0.9rem; display: block; margin-bottom: 2px; }
+  .phase2-grid .p2-note { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.45; }
+
+  .pending-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 22px 6px;
+    margin-bottom: 36px;
+  }
+  .pending-card h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; margin: 0 0 4px; }
+  .pending-card > p { color: var(--ink-soft); font-size: 0.88rem; margin: 0 0 18px; }
+  .pending-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+  .pending-row:first-of-type { border-top: none; }
+  .pending-tag {
+    flex: none;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 7px;
+    margin-top: 1px;
+  }
+  .pending-tag.action { background: var(--pending-bg); color: var(--pending-fg); }
+  .pending-tag.confirm { background: var(--accent-bg); color: var(--accent); }
+
+  /* Timeline (moved to bottom) */
+  .timeline-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .timeline-card > h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; margin: 0 0 2px; }
+  .timeline-card > p.lede { color: var(--ink-soft); font-size: 0.85rem; margin: 0 0 22px; }
+  .tl-group { margin-bottom: 26px; }
+  .tl-group:last-child { margin-bottom: 0; }
+  .tl-group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding-left: 14px;
+    border-left: 3px solid var(--accent-soft);
+  }
+  .tl-group-date { font-family: var(--font-display); font-weight: 800; font-size: 1rem; }
+  .tl-group-note { color: var(--ink-soft); font-size: 0.82rem; }
+  .tl-theme { margin: 0 0 18px 17px; }
+  .tl-theme:last-child { margin-bottom: 0; }
+  .tl-theme h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sky);
+    margin: 0 0 8px;
+  }
+  .tl-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .tl-items li {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    line-height: 1.5;
+    font-size: 0.9rem;
+  }
+  .tl-items li::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    margin-top: 0.6em;
+    flex: none;
+  }
+  .tl-items li.fix::before { background: var(--sky); }
+  .tl-items li b { font-weight: 650; }
+  .tl-day-tag {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.62rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 2px 6px;
+    margin-right: 2px;
+    transform: translateY(-1px);
+  }
+
+  /* End-to-end flow */
+  .flow-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .flow-card > h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; margin: 0 0 2px; }
+  .flow-card > p.lede { color: var(--ink-soft); font-size: 0.85rem; margin: 0 0 24px; }
+  .flow-lanes { display: flex; flex-direction: column; gap: 0; }
+  .flow-lane { display: flex; gap: 16px; }
+  .flow-lane-label {
+    flex: none;
+    width: 86px;
+    padding-top: 2px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .flow-lane.patient .flow-lane-label { color: var(--accent); }
+  .flow-lane.staff .flow-lane-label { color: var(--sky); }
+  .flow-steps {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0;
+    padding-bottom: 22px;
+  }
+  .flow-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--accent-bg);
+    border-radius: 10px;
+    padding: 10px 13px;
+    font-size: 0.85rem;
+    line-height: 1.35;
+    max-width: 180px;
+  }
+  .flow-lane.staff .flow-step { background: var(--sky-bg); }
+  .flow-step svg { width: 16px; height: 16px; stroke: var(--accent); flex: none; }
+  .flow-lane.staff .flow-step svg { stroke: var(--sky); }
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    flex: none;
+    color: var(--line);
+  }
+  .flow-arrow svg { width: 18px; height: 18px; }
+  .flow-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 2px 0 2px 102px;
+    color: var(--ink-soft);
+    font-size: 0.78rem;
+  }
+  .flow-divider svg { width: 16px; height: 16px; stroke: var(--ink-soft); flex: none; }
+  .flow-note {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin: 18px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .flow-note b { color: var(--ink); font-weight: 650; }
+  @media (max-width: 640px) {
+    .flow-lane { flex-direction: column; gap: 6px; }
+    .flow-lane-label { width: auto; }
+    .flow-steps { flex-direction: column; padding-bottom: 14px; }
+    .flow-step { max-width: none; }
+    .flow-arrow { width: auto; justify-content: flex-start; padding: 2px 0 2px 10px; transform: rotate(90deg); }
+    .flow-divider { margin-left: 0; }
+  }
+
+  footer {
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.82rem;
+    margin-top: 48px;
+    line-height: 1.6;
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+
+<div class="wrap">
+
+  <div class="masthead">
+    <p class="eyebrow">DCAM Optical &middot; Project Snapshot</p>
+    <h1>Where things stand</h1>
+    <p>A snapshot of what's built across the Website, Staff Portal, and AI Services, plus the tech stack and what's planned next. The full build history is at the bottom of this page.</p>
+    <div class="status-bar">
+      <span class="status-chip"><span class="dot wait"></span>Site in Maintenance mode (not yet public)</span>
+      <span class="status-chip"><span class="dot live"></span>Staff portal live and in daily use</span>
+    </div>
+  </div>
+
+  <div class="phases-card">
+    <h2>Project phases</h2>
+    <p>Kickoff Sep 15, 2026 &mdash; current phase: Core Build / QA / UAT</p>
+    <div class="phase-track">
+      <div class="seg done"></div>
+      <div class="seg done"></div>
+      <div class="seg active"></div>
+      <div class="seg partial"></div>
+      <div class="seg active"></div>
+      <div class="seg"></div>
+    </div>
+    <div class="phase-list">
+      <span class="phase-item"><span class="pdot done"></span><b>Discovery</b>&nbsp;&mdash; done</span>
+      <span class="phase-item"><span class="pdot done"></span><b>Design</b>&nbsp;&mdash; done</span>
+      <span class="phase-item"><span class="pdot active"></span><b>Core Build</b>&nbsp;&mdash; in progress</span>
+      <span class="phase-item"><span class="pdot active"></span><b>Integration</b>&nbsp;&mdash; partial</span>
+      <span class="phase-item"><span class="pdot active"></span><b>QA / UAT</b>&nbsp;&mdash; ongoing</span>
+      <span class="phase-item"><span class="pdot todo"></span><b>Launch</b>&nbsp;&mdash; not started</span>
+    </div>
+  </div>
+
+  <div class="milestones-card">
+    <h2>Milestones</h2>
+    <div class="milestone-rail">
+      <div class="milestone done">
+        <div class="milestone-dot"></div>
+        <p class="milestone-date">Sep 15</p>
+        <p class="milestone-label">Project kickoff</p>
+        <p class="milestone-note">SOW sent, build started</p>
+      </div>
+      <div class="milestone done">
+        <div class="milestone-dot"></div>
+        <p class="milestone-date">Sep 28&ndash;29</p>
+        <p class="milestone-label">Domain purchased &amp; deployed</p>
+        <p class="milestone-note">dcamoptical.com live, connected to Vercel</p>
+      </div>
+      <div class="milestone done">
+        <div class="milestone-dot"></div>
+        <p class="milestone-date">Oct 2</p>
+        <p class="milestone-label">AI Services built</p>
+        <p class="milestone-note">Chat assistant &amp; naming confirmed working</p>
+      </div>
+      <div class="milestone waiting">
+        <div class="milestone-dot"></div>
+        <p class="milestone-date">Pending</p>
+        <p class="milestone-label">Go live</p>
+        <p class="milestone-note">Maintenance mode off, public launch</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CAPABILITY SNAPSHOT ============ -->
+  <p class="section-label">1. The three systems</p>
+
+  <!-- WEBSITE -->
+  <div class="cap-card">
+    <div class="cap-head">
+      <div class="cap-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 4 6 4 9s-1.5 6.4-4 9c-2.5-2.6-4-6-4-9s1.5-6.4 4-9z"/></svg>
+      </div>
+      <div class="cap-title">
+        <h2>Website</h2>
+        <span class="cap-sub">13 sections &mdash; the public-facing site patients will see</span>
+      </div>
+      <span class="cap-status waiting">In maintenance mode</span>
+    </div>
+    <ul class="cap-grid">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Homepage hero (cinematic glasses design)</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>About / brand story section</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Services overview</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Online appointment scheduling</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Prescription (Rx) job-order intake form</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Non-prescription job-order intake form</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Patient intake form, linked to prior order history</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Job-order tracking for patients</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Doctor's profile</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Eyewear-matching quiz</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Patient-facing AI chat widget</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Visible FAQ section (written for AI search tools too)</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Coming Soon / Maintenance mode page</li>
+    </ul>
+  </div>
+
+  <!-- STAFF PORTAL -->
+  <div class="cap-card">
+    <div class="cap-head">
+      <div class="cap-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg>
+      </div>
+      <div class="cap-title">
+        <h2>Staff Portal</h2>
+        <span class="cap-sub">Role-based access, 7 core areas</span>
+      </div>
+      <span class="cap-status live">Live, in daily use</span>
+    </div>
+
+    <p class="cap-group-label">Access levels (2 roles)</p>
+    <div class="rbac-row">
+      <div class="rbac-tile admin">
+        <div class="rbac-role"><span class="rdot"></span>Admin</div>
+        <p>Full access &mdash; staff accounts, settings, reports, cash reconciliation, and every area below.</p>
+      </div>
+      <div class="rbac-tile staff">
+        <div class="rbac-role"><span class="rdot"></span>Staff</div>
+        <p>Day-to-day work &mdash; orders, patients, their own profile &mdash; without access to settings or account management.</p>
+      </div>
+    </div>
+
+    <p class="cap-group-label">Core functionality</p>
+    <ul class="cap-grid">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><b>Dashboard</b> &mdash; greets staff by name, live job tracking across every order</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><b>Patient intake</b> &mdash; links each patient to prior orders &amp; Rx history</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><b>Order intake</b> &mdash; Rx &amp; Non-Rx job orders, deposits, balances</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><b>Financials (Admin)</b> &mdash; daily cash reconciliation, expenses &amp; withdrawals by payment source</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><b>Reports</b> &mdash; Orders &amp; Sales, matched to your own spreadsheet layout</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><b>Print capability</b> &mdash; job-order slips, multiple paper sizes</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><b>Settings (Admin)</b> &mdash; staff accounts, Rx ranges, website &amp; AI configuration</li>
+    </ul>
+  </div>
+
+  <!-- AI SERVICES -->
+  <div class="cap-card">
+    <div class="cap-head">
+      <div class="cap-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M9 3l1.5 4M15 3l-1.5 4M9 13h.01M15 13h.01"/></svg>
+      </div>
+      <div class="cap-title">
+        <h2>AI Services</h2>
+        <span class="cap-sub">Patient-facing chat &amp; staff summarization</span>
+      </div>
+      <span class="cap-status waiting">Built, awaiting live API key</span>
+    </div>
+    <ul class="cap-grid">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Patient-facing chat for common questions (hours, HMO, first exam)</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Staff-side AI summarization of order &amp; Rx history</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Floating chat bubble on every page</li>
+    </ul>
+    <p class="module-note">Built so far: the chat widget on the homepage and a floating chat bubble site-wide, both sharing the same settings. <b>You can change the assistant's name under Settings &gt; AI Services</b> &mdash; it updates the chat header, its greeting, and how it introduces itself, consistently across both the homepage panel and the floating bubble. What's still needed: a live AI API key to actually power responses (it's wired up and ready, just not switched on yet).</p>
+  </div>
+
+  <!-- ============ TECH STACK ============ -->
+  <p class="section-label">2. Tech stack</p>
+  <div class="cap-card">
+    <div class="stack-grid">
+      <div class="stack-tile">
+        <p class="stack-role">Domain</p>
+        <p class="stack-name">GoDaddy</p>
+        <p>dcamoptical.com, registered and renewed yearly.</p>
+        <p class="stack-detail">$22/year</p>
+      </div>
+      <div class="stack-tile">
+        <p class="stack-role">Hosting</p>
+        <p class="stack-name">Vercel</p>
+        <p>Runs the site and portal; deploys updates automatically.</p>
+      </div>
+      <div class="stack-tile">
+        <p class="stack-role">Database</p>
+        <p class="stack-name">Supabase</p>
+        <p>Stores every order, payment, prescription, and staff record.</p>
+      </div>
+      <div class="stack-tile">
+        <p class="stack-role">Source code</p>
+        <p class="stack-name">GitHub</p>
+        <p>Private repository holding the full codebase; every change is tracked and deploys from here.</p>
+        <p class="stack-detail">wintraservices-cyber/dcam-optical &middot; main branch</p>
+      </div>
+      <div class="stack-tile">
+        <p class="stack-role">Business email</p>
+        <p class="stack-name">Google Workspace</p>
+        <p>Professional @dcamoptical.com email, 2 seats.</p>
+        <p class="stack-detail">$8.49/seat/mo &middot; $16.98/mo total</p>
+      </div>
+      <div class="stack-tile">
+        <p class="stack-role">Built with</p>
+        <p class="stack-name">HTML / JS / SQL</p>
+        <p>Standard web front end with a Postgres database backend &mdash; no proprietary platform lock-in.</p>
+      </div>
+      <div class="stack-tile">
+        <p class="stack-role">AI</p>
+        <p class="stack-name">Claude</p>
+        <p>Powers the patient-facing chat assistant and staff-side order/Rx summarization.</p>
+      </div>
+    </div>
+    <div class="stack-flow">
+      <span class="node">GoDaddy</span><span class="arrow">&rarr;</span>
+      <span class="node">GitHub</span><span class="arrow">&rarr;</span>
+      <span class="node">Vercel</span><span class="arrow">&rarr;</span>
+      <span class="node">Supabase</span><span class="arrow">&rarr;</span>
+      <span class="node">Claude</span>
+    </div>
+  </div>
+
+  <!-- ============ PHASE 2 ============ -->
+  <p class="section-label">3. Phase 2 plans</p>
+  <div class="cap-card">
+    <ul class="phase2-grid">
+      <li>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7L12 3 4 7m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        <span><span class="p2-title">Inventory</span><span class="p2-note">Track frames and stock on hand, tied to orders.</span></span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M7 6v12M11 6v12M15 6v12"/></svg>
+        <span><span class="p2-title">Barcode scanning</span><span class="p2-note">Scan items in and out instead of manual entry.</span></span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>
+        <span><span class="p2-title">Analytics</span><span class="p2-note">Trends and totals across sales, patients, and orders over time.</span></span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+        <span><span class="p2-title">Notifications &mdash; email</span><span class="p2-note">Automatic emails for order status, reminders, and receipts.</span></span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+        <span><span class="p2-title">Notifications &mdash; SMS</span><span class="p2-note">Text alerts for order-ready and appointment reminders.</span></span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span><span class="p2-title">Facebook Messenger assistant</span><span class="p2-note">Pending confirmation DCAM has a Facebook page.</span></span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="pending-card">
+    <h2>Waiting on you</h2>
+    <p>A short list of what needs your input or confirmation before launch.</p>
+    <div class="pending-row">
+      <span class="pending-tag action">Action needed</span>
+      <span>Turn off Maintenance mode when you're ready for the site to go live to the public.</span>
+    </div>
+    <div class="pending-row">
+      <span class="pending-tag action">Action needed</span>
+      <span>Share the AI chat assistant's API key so the chat feature can go live.</span>
+    </div>
+    <div class="pending-row">
+      <span class="pending-tag confirm">Please confirm</span>
+      <span>Print a real order slip and confirm the recent print fixes look right on paper.</span>
+    </div>
+  </div>
+
+  <!-- ============ TIMELINE (moved to bottom) ============ -->
+  <p class="section-label">4. Build history</p>
+  <div class="timeline-card">
+    <h2>Weekly highlights</h2>
+    <p class="lede">The short version, week by week, since kickoff. A detailed internal log is kept alongside this for our own reference.</p>
+
+    <div class="tl-group">
+      <div class="tl-group-head">
+        <span class="tl-group-date">Week of Sep 14 &ndash; 20 &middot; Kickoff</span>
+      </div>
+      <ul class="tl-items">
+        <li>Project kicked off, SOW sent, and the build started &mdash; landing page, staff portal, hosting, and database all stood up.</li>
+        <li>Rx/Non-Rx job order flow and patient intake form started.</li>
+        <li>Marketing materials (photos &amp; content) requested from DCAM.</li>
+      </ul>
+    </div>
+
+    <div class="tl-group">
+      <div class="tl-group-head"><span class="tl-group-date">Week of Sep 21 &ndash; 27 &middot; Core build</span></div>
+      <ul class="tl-items">
+        <li>Domain purchase started, and role-based access (Admin/Staff) built.</li>
+        <li>Phone validation and Rx field validation added across both intake forms.</li>
+        <li><b>AI assistant added to scope</b> &mdash; for both the website and staff portal, including order-status lookup and a knowledge base.</li>
+        <li>Rx fields made typeable with smart suggestions; calendar date picker, auto print filenames, and expanding lens-type field added.</li>
+        <li class="fix"><b>Fixed:</b> a rare duplicate-order bug when saving while an order was still loading.</li>
+      </ul>
+    </div>
+
+    <div class="tl-group">
+      <div class="tl-group-head"><span class="tl-group-date">Sep 28 &ndash; 29 &middot; Domain &amp; design</span></div>
+      <ul class="tl-items">
+        <li>Domain purchase completed, connected, and confirmed live &mdash; dcamoptical.com (currently showing a Coming Soon page).</li>
+        <li><b>Design direction selected</b> and <b>daily cash reconciliation built.</b></li>
+        <li>Reports matched to your spreadsheet layout; FAQ section and search-engine groundwork added ahead of launch.</li>
+      </ul>
+    </div>
+
+    <div class="tl-group">
+      <div class="tl-group-head"><span class="tl-group-date">Sep 30 &middot; Payments, accounts &amp; print</span></div>
+      <ul class="tl-items">
+        <li>Gcash added as a payment option for expenses and withdrawals.</li>
+        <li>Staff accounts expanded with self-service profile management.</li>
+        <li class="fix"><b>Fixed:</b> print alignment and readability on the job-order slip.</li>
+      </ul>
+    </div>
+
+    <div class="tl-group">
+      <div class="tl-group-head"><span class="tl-group-date">Oct 2 &middot; Payments, printing &amp; AI</span></div>
+      <ul class="tl-items">
+        <li><b>Partial payments now show up the day they're collected</b> in both reports and the live Orders list.</li>
+        <li><b>Choose your paper size</b> for job-order slips &mdash; A4, A5, Legal, or Letter.</li>
+        <li><b>Staff avatars, bios, and last-login tracking</b> added; settings reorganized.</li>
+        <li>You can now give the chat assistant its own name &mdash; <b>confirmed working everywhere on the live site.</b></li>
+        <li class="fix"><b>Fixed:</b> several print-slip bugs, a Gcash withdrawal save failure, and an order showing no balance when paid in full at intake.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ END-TO-END FLOW ============ -->
+  <p class="section-label">5. End-to-end flow</p>
+  <div class="flow-card">
+    <h2>From website visit to pickup</h2>
+    <p class="lede">How a single visit moves across the Website and the Staff Portal, start to finish.</p>
+
+    <div class="flow-lanes">
+      <div class="flow-lane patient">
+        <div class="flow-lane-label">Patient</div>
+        <div class="flow-steps">
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 4 6 4 9s-1.5 6.4-4 9c-2.5-2.6-4-6-4-9s1.5-6.4 4-9z"/></svg>Visits website, chats with AI or browses</div>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Books appointment or submits patient intake form</div>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0113 0"/></svg>Arrives for exam / fitting</div>
+        </div>
+      </div>
+
+      <div class="flow-divider">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+        Handoff to staff at the shop
+      </div>
+
+      <div class="flow-lane staff">
+        <div class="flow-lane-label">Staff</div>
+        <div class="flow-steps">
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21a7 7 0 0114 0M17 11l2 2 4-4"/></svg>Looks up patient &amp; prior order history</div>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Creates Rx or Non-Rx job order &mdash; status starts at <b>Ordered</b></div>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Takes deposit &amp; prints job-order slip</div>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Updates status to <b>Ready</b> once the order is prepared</div>
+        </div>
+      </div>
+
+      <div class="flow-lane patient">
+        <div class="flow-lane-label">Patient</div>
+        <div class="flow-steps">
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Tracks the job order on the website using the order number &amp; phone</div>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Sees status: Being prepared / Ready for pick-up / Already claimed</div>
+        </div>
+      </div>
+
+      <div class="flow-divider">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+        Patient sees "Ready" and returns to collect order
+      </div>
+
+      <div class="flow-lane staff">
+        <div class="flow-lane-label">Staff</div>
+        <div class="flow-steps">
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Collects balance payment (Cash / Gcash / Check)</div>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Marks the order <b>Claimed</b></div>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>Payment posts to Orders &amp; Sales reports same day</div>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="flow-step"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg>Closes the day &mdash; cash reconciliation locks the balances</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="flow-note">Every job order moves through three statuses &mdash; <b>Ordered</b> &rarr; <b>Ready</b> &rarr; <b>Claimed</b> &mdash; visible live on the Staff Portal's <b>Dashboard</b> view, so any staff member can see where every order stands at a glance. The <b>patient</b> can check that same status on the website at any point, using just the order number and the last 4 digits of their phone &mdash; no login needed. Everything else &mdash; the order record, payments, balances, and reporting &mdash; runs through the <b>Staff Portal</b>, which is why an order paid down days after intake, or a payment taken on a different date than the order, still shows up correctly in the same day's reports and on the live Orders list.</p>
+  </div>
+
+  <footer>
+    DCAM Optical &middot; built by ArrowheadX AI<br>
+    Updated October 2, 2026
+  </footer>
+
+</div>
+
+</body>
+</html>

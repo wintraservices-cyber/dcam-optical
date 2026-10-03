@@ -149,6 +149,15 @@
   .save-status { font-size: 0.82rem; }
   .save-status.error { color: #B0405A; }
   .save-status.success { color: #3E8E5A; }
+  .iframe-wrap {
+    margin-top: 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    height: 70vh;
+    min-height: 420px;
+  }
+  .iframe-wrap iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
 
   table { width: 100%; border-collapse: collapse; margin-top: 4px; }
   th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 0.85rem; }
@@ -911,7 +920,7 @@
 
     <div class="card">
       <h2>Client project updates</h2>
-      <div class="card-sub">Client-facing summary of what's been built, current status, and what's next. Shared with the client as a live page; not editable from here -- update/refresh is requested from the ArrowheadX team.</div>
+      <div class="card-sub">Client-facing summary of what's been built, current status, and what's next. This is a snapshot saved to the site -- it reflects the page as of the version/date below, not necessarily this exact minute.</div>
       <div class="field-grid">
         <div>
           <label>Title</label>
@@ -919,12 +928,19 @@
         </div>
         <div>
           <label>Version</label>
-          <input type="text" value="Version 15" readonly>
+          <input type="text" id="pstatusVersion" value="Version 15" readonly>
         </div>
         <div>
-          <label>Last updated</label>
-          <input type="text" value="Oct 2, 2026" readonly>
+          <label>Snapshot date</label>
+          <input type="text" id="pstatusDate" value="Oct 2, 2026" readonly>
         </div>
+      </div>
+      <div class="save-row">
+        <button class="save-btn" id="refreshUpdatesBtn">Refresh / generate latest updates</button>
+        <span class="save-status" id="refreshUpdatesStatus"></span>
+      </div>
+      <div class="iframe-wrap">
+        <iframe id="projectUpdatesFrame" src="project-updates.html" title="DCAM Optical client project updates" loading="lazy"></iframe>
       </div>
     </div>
   </div>
@@ -967,6 +983,27 @@
       panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + btn.dataset.tab));
     });
   });
+
+  // Client project updates: the embedded page is a saved snapshot, not a
+  // live view -- there's no service this app can call to regenerate it on
+  // demand, so "refresh" means reload the snapshot that's on the site now.
+  // Getting a newer snapshot still means asking the ArrowheadX team to
+  // publish one.
+  const refreshBtn = document.getElementById('refreshUpdatesBtn');
+  const refreshStatus = document.getElementById('refreshUpdatesStatus');
+  const updatesFrame = document.getElementById('projectUpdatesFrame');
+  if (refreshBtn && updatesFrame) {
+    refreshBtn.addEventListener('click', () => {
+      refreshStatus.textContent = 'Reloading…';
+      refreshStatus.className = 'save-status';
+      const src = updatesFrame.getAttribute('src').split('?')[0];
+      updatesFrame.setAttribute('src', src + '?t=' + Date.now());
+      updatesFrame.addEventListener('load', () => {
+        refreshStatus.textContent = 'Showing the latest saved snapshot (' + (document.getElementById('pstatusVersion') || {}).value + ').';
+        refreshStatus.className = 'save-status success';
+      }, { once: true });
+    });
+  }
 
   async function checkAuth() {
     try {
