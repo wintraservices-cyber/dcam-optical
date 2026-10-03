@@ -142,3 +142,11 @@ Settings → **Website** has a switch that puts the public home page behind a te
 - **Preview PIN:** the teaser's "View site" button checks the PIN via `POST /api/settings?action=site_preview`. The PIN is hashed with scrypt (same as staff passwords) and never returned to any browser; wrong attempts are slowed down. A correct PIN sets a flag in that browser so it sees the real site, with an "Exit preview" pill.
 - **Facebook link:** set it in the same card; the teaser's Facebook icon stays inactive until it's filled in.
 - `/coming-soon?view=1` shows the teaser even when the site is live; `?mode=maintenance` previews the maintenance wording.
+
+## Optometrists on the home page
+
+Settings → **Business info → Optometrists** manages the "Meet our optometrists" section: add as many as needed, edit name / title / PRC license no. / bio, upload or remove a photo, reorder, hide, or delete. The section is hidden on the website when no one is listed (or all are hidden); one entry shows as a featured card, two side by side, three or more as a grid.
+
+- Stored in `app_settings`: `optometrists` (names, bios, order, visibility) and `optometrist_photos` (images, kept separate so normal settings loads stay small). No schema change needed.
+- Photos are cropped to a 4:5 portrait and resized to 640×800 JPEG in the browser before upload (~100 KB).
+- Public endpoints (no login): `GET /api/settings?view=team` (visible entries only) and `GET /api/settings?view=team_photo&id=…&v=…` (cached for a year; `v` changes when the photo changes).

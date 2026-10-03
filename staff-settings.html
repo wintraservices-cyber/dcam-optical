@@ -360,6 +360,27 @@
   @media (max-width: 700px) {
     .field-grid, .field-grid.cols-3, .new-account-grid, .range-row { grid-template-columns: 1fr; }
   }
+  /* ---------- Optometrists ---------- */
+  .team-list { display: flex; flex-direction: column; gap: 14px; margin: 16px 0; }
+  .team-item { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; grid-template-columns: 120px 1fr auto; gap: 18px; align-items: start; background: #fff; }
+  .team-item.hidden-entry { opacity: 0.6; }
+  .team-photo { width: 120px; height: 150px; border-radius: 60px 60px 12px 12px; background: var(--ivory-dim, #EFE6D8); overflow: hidden; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 800; font-size: 1.6rem; color: var(--purple); }
+  .team-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .team-photo-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .team-photo-actions button, .team-side button { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-family: var(--body); font-size: 0.76rem; cursor: pointer; color: var(--charcoal); }
+  .team-photo-actions button:hover, .team-side button:hover { border-color: var(--blue); }
+  .team-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .team-fields .full { grid-column: 1 / -1; }
+  .team-fields label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); margin-bottom: 4px; font-weight: 600; }
+  .team-fields input, .team-fields textarea { width: 100%; border: 1.5px solid var(--line); border-radius: 8px; padding: 9px 11px; font-family: var(--body); font-size: 0.88rem; color: var(--charcoal); background: #fff; }
+  .team-fields textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+  .team-fields input:focus, .team-fields textarea:focus { outline: none; border-color: var(--blue); }
+  .team-side { display: flex; flex-direction: column; gap: 8px; align-items: stretch; min-width: 96px; }
+  .team-side .show-row { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: var(--charcoal-soft); }
+  .team-side button.del { color: #B0405A; }
+  .team-empty { border: 1.5px dashed var(--line); border-radius: 14px; padding: 22px; text-align: center; color: var(--charcoal-soft); font-size: 0.88rem; }
+  .bio-count { font-size: 0.72rem; color: var(--charcoal-soft); text-align: right; margin-top: 2px; }
+  @media (max-width: 760px) { .team-item { grid-template-columns: 1fr; } .team-fields { grid-template-columns: 1fr; } .team-side { flex-direction: row; flex-wrap: wrap; } }
 </style>
 </head>
 <body>
@@ -455,6 +476,17 @@
       <div class="save-row">
         <button class="save-btn" id="saveBizInfo">Save business info</button>
         <span class="save-status" id="bizInfoStatus"></span>
+      </div>
+    </div>
+
+    <div class="card" id="teamCard">
+      <h2>Optometrists</h2>
+      <div class="card-sub">Shown in the "Meet our optometrists" section of the home page, in this order. Add as many as you need. Hidden entries stay saved but don't appear. Photos are cropped to a portrait and resized automatically. Get each optometrist's OK before putting their photo online. <a href="/#team" target="_blank" rel="noopener" style="color: var(--purple-deep, #8F4680);">View on the website ↗</a></div>
+      <div class="team-list" id="teamList"></div>
+      <button type="button" class="save-btn secondary" id="teamAdd">+ Add optometrist</button>
+      <div class="save-row">
+        <button class="save-btn" id="saveTeam">Save optometrists</button>
+        <span class="save-status" id="teamStatus"></span>
       </div>
     </div>
 
@@ -2016,6 +2048,131 @@
     if (!ok) { box.checked = !box.checked; syncSiteStatus(); }
   });
 
+  // ---- Optometrists ----
+  let team = [];
+  function initials(name) {
+    return String(name || '').replace(/^(dr\.?|doc)\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+  }
+  function renderTeam() {
+    const list = document.getElementById('teamList');
+    if (!team.length) {
+      list.innerHTML = '<div class="team-empty">No optometrists yet. The section stays hidden on the website until you add one.</div>';
+      return;
+    }
+    list.innerHTML = team.map((e, i) => {
+      const src = e._photoData || (!e._removePhoto && e.photo_url) || '';
+      return `
+      <div class="team-item ${e.active === false ? 'hidden-entry' : ''}" data-i="${i}">
+        <div>
+          <div class="team-photo">${src ? `<img src="${escapeHtml(src)}" alt="">` : escapeHtml(initials(e.name))}</div>
+          <div class="team-photo-actions">
+            <button type="button" data-act="photo">${src ? 'Change photo' : 'Upload photo'}</button>
+            ${src ? '<button type="button" data-act="nophoto">Remove photo</button>' : ''}
+          </div>
+        </div>
+        <div class="team-fields">
+          <div><label>Name</label><input data-f="name" maxlength="80" value="${escapeHtml(e.name)}" placeholder="e.g. Dr. Maria Santos"></div>
+          <div><label>Title</label><input data-f="title" maxlength="80" value="${escapeHtml(e.title)}" placeholder="e.g. Optometrist, OD"></div>
+          <div><label>PRC license no. (optional)</label><input data-f="license" maxlength="40" value="${escapeHtml(e.license)}" placeholder="e.g. 0012345"></div>
+          <div class="full"><label>Bio</label><textarea data-f="bio" maxlength="900" placeholder="Training, years in practice, what patients can expect…">${escapeHtml(e.bio)}</textarea><div class="bio-count">${(e.bio || '').length}/900</div></div>
+        </div>
+        <div class="team-side">
+          <label class="show-row"><span class="switch"><input type="checkbox" data-f="active" ${e.active !== false ? 'checked' : ''} aria-label="Show on website"><span class="slider"></span></span>Show</label>
+          <button type="button" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑ Up</button>
+          <button type="button" data-act="down" ${i === team.length - 1 ? 'disabled' : ''} aria-label="Move down">↓ Down</button>
+          <button type="button" class="del" data-act="del">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  function renderTeamFrom(value) {
+    team = ((value && value.entries) || []).map(e => ({ ...e }));
+    renderTeam();
+  }
+  // Crop to a 4:5 portrait and shrink to 640x800 JPEG in the browser,
+  // so a phone photo uploads as ~100 KB.
+  function processPhoto(file) {
+    return new Promise((resolve, reject) => {
+      if (!/^image\//.test(file.type)) return reject(new Error('Please choose an image file.'));
+      if (file.size > 20 * 1024 * 1024) return reject(new Error('That image is over 20 MB.'));
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const W = 640, H = 800, ratio = W / H;
+        let sw = img.naturalWidth, sh = img.naturalHeight, sx = 0, sy = 0;
+        if (sw / sh > ratio) { const nw = sh * ratio; sx = (sw - nw) / 2; sw = nw; }
+        else { const nh = sw / ratio; sy = Math.max(0, (sh - nh) * 0.3); sh = nh; }
+        const c = document.createElement('canvas'); c.width = W; c.height = H;
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+        URL.revokeObjectURL(url);
+        let q = 0.85, out = c.toDataURL('image/jpeg', q);
+        while (out.length > 450000 && q > 0.5) { q -= 0.1; out = c.toDataURL('image/jpeg', q); }
+        resolve(out);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image.')); };
+      img.src = url;
+    });
+  }
+  const teamList = document.getElementById('teamList');
+  teamList.addEventListener('input', (ev) => {
+    const item = ev.target.closest('.team-item'); if (!item) return;
+    const e = team[+item.dataset.i], f = ev.target.dataset.f;
+    if (!f || f === 'active') return;
+    e[f] = ev.target.value;
+    if (f === 'bio') item.querySelector('.bio-count').textContent = ev.target.value.length + '/900';
+  });
+  teamList.addEventListener('change', (ev) => {
+    if (ev.target.dataset.f !== 'active') return;
+    const item = ev.target.closest('.team-item');
+    team[+item.dataset.i].active = ev.target.checked;
+    item.classList.toggle('hidden-entry', !ev.target.checked);
+  });
+  teamList.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-act]'); if (!btn) return;
+    const i = +btn.closest('.team-item').dataset.i, e = team[i], act = btn.dataset.act;
+    if (act === 'up' && i > 0) { [team[i - 1], team[i]] = [team[i], team[i - 1]]; renderTeam(); }
+    else if (act === 'down' && i < team.length - 1) { [team[i + 1], team[i]] = [team[i], team[i + 1]]; renderTeam(); }
+    else if (act === 'del') {
+      if (!confirm(`Remove ${e.name || 'this optometrist'} from the list? This takes effect when you save.`)) return;
+      team.splice(i, 1); renderTeam();
+    } else if (act === 'nophoto') { e._photoData = ''; e._removePhoto = true; renderTeam(); }
+    else if (act === 'photo') {
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = async () => {
+        const f = inp.files && inp.files[0]; if (!f) return;
+        const st = document.getElementById('teamStatus');
+        try { st.textContent = 'Preparing photo…'; st.className = 'save-status'; e._photoData = await processPhoto(f); e._removePhoto = false; st.textContent = 'Photo ready. Click Save optometrists to publish.'; renderTeam(); }
+        catch (err) { st.textContent = err.message; st.className = 'save-status error'; }
+      };
+      inp.click();
+    }
+  });
+  document.getElementById('teamAdd').addEventListener('click', () => {
+    team.push({ name: '', title: 'Optometrist', license: '', bio: '', active: true });
+    renderTeam();
+    const items = teamList.querySelectorAll('.team-item');
+    const last = items[items.length - 1]; last.scrollIntoView({ behavior: 'smooth', block: 'center' }); last.querySelector('input[data-f="name"]').focus();
+  });
+  document.getElementById('saveTeam').addEventListener('click', async () => {
+    const btn = document.getElementById('saveTeam'), st = document.getElementById('teamStatus');
+    if (team.some(e => !String(e.name || '').trim())) { st.textContent = 'Every optometrist needs a name.'; st.className = 'save-status error'; return; }
+    btn.disabled = true; st.textContent = 'Saving…'; st.className = 'save-status';
+    const entries = team.map(e => {
+      const o = { id: e.id, name: e.name, title: e.title, license: e.license, bio: e.bio, active: e.active !== false };
+      if (e._photoData) o.photo_data = e._photoData; else if (e._removePhoto) o.remove_photo = true;
+      return o;
+    });
+    try {
+      const resp = await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'optometrists', value: { entries } }) });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      renderTeamFrom(result.setting && result.setting.value);
+      st.textContent = 'Saved. The website updates within a minute.'; st.className = 'save-status success';
+    } catch (err) { st.textContent = err.message; st.className = 'save-status error'; }
+    finally { btn.disabled = false; }
+  });
+
   (async function init() {
     const authed = await checkAuth();
     if (!authed) return;
@@ -2028,6 +2185,7 @@
       mainWrap.style.display = 'block';
       renderRxRangesForm(result.settings.rx_ranges);
       renderBusinessInfo(result.settings.business_info);
+      renderTeamFrom(result.settings.optometrists);
       renderPhoneValidation(result.settings.phone_validation);
       renderPrintPrefs(result.settings.print_prefs);
       renderAiAccess(result.settings.ai_access);
@@ -2039,6 +2197,7 @@
       mainWrap.style.display = 'block';
       renderRxRangesForm(null);
       renderBusinessInfo(null);
+      renderTeamFrom(null);
       renderPhoneValidation(null);
       renderPrintPrefs(null);
       renderAiAccess(null);

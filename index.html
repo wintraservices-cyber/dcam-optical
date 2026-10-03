@@ -179,6 +179,31 @@
   .values h3 { font-size: 23px; font-weight: 700; margin-bottom: 10px; }
   .values p { color: var(--muted); }
 
+  /* ---------- Optometrists (from Settings) ---------- */
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px; }
+  .team-grid.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 960px; }
+  .doc { background: var(--surface); border-radius: 28px; overflow: hidden; display: flex; flex-direction: column; }
+  .doc-photo { aspect-ratio: 4 / 5; background: var(--orchid-tint); display: flex; align-items: center; justify-content: center; font: 800 56px var(--display); color: var(--link); }
+  .doc-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .doc-body { padding: 26px 28px 30px; display: flex; flex-direction: column; gap: 6px; }
+  .doc h3 { font-size: 24px; font-weight: 700; }
+  .doc .role { color: var(--link); font-weight: 600; font-size: 15px; }
+  .doc .lic { color: var(--muted); font-size: 13px; }
+  .doc .bio { color: var(--muted); font-size: 15px; line-height: 1.65; margin-top: 10px; white-space: pre-line; }
+  .doc .bio.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  .doc .more { align-self: flex-start; background: none; border: none; padding: 0; margin-top: 4px; color: var(--link); font: 600 14px var(--body); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .team-grid.solo { grid-template-columns: 1fr; }
+  .team-grid.solo .doc { flex-direction: row; max-width: 980px; }
+  .team-grid.solo .doc-photo { width: 380px; flex-shrink: 0; }
+  .team-grid.solo .doc-body { padding: clamp(28px, 4vw, 52px); justify-content: center; }
+  .team-grid.solo .doc h3 { font-size: clamp(28px, 3vw, 38px); }
+  .team-grid.solo .doc .bio.clamp { -webkit-line-clamp: 10; }
+  @media (max-width: 760px) {
+    .team-grid.n2 { grid-template-columns: 1fr; }
+    .team-grid.solo .doc { flex-direction: column; }
+    .team-grid.solo .doc-photo { width: 100%; }
+  }
+
   /* ---------- Chat (carried over) ---------- */
   .ai-section { background: #1C1819; color: #F7F1E8; padding: clamp(72px, 10vw, 112px) 0; }
   .ai-grid { display: grid; grid-template-columns: .85fr 1.15fr; gap: 56px; align-items: start; }
@@ -359,6 +384,7 @@
       <div class="navlinks">
         <a href="#services">Services</a>
         <a href="#story">Our story</a>
+        <a href="#team" data-team-link hidden>Optometrists</a>
         <a href="#ai">Ask us</a>
         <a href="#quiz">Find your frame</a>
         <a href="#visit">Visit</a>
@@ -443,6 +469,16 @@
       <div><h3>Honest advice</h3><p>We recommend what you need, not the most expensive option.</p></div>
       <div><h3>Frames that fit your life</h3><p>Try on as many as you like. We'll help you find the one.</p></div>
     </div>
+  </div>
+</section>
+
+<section class="block" id="team" hidden aria-labelledby="teamTitle">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><div class="kicker">Meet our optometrists</div><h2 class="h2" id="teamTitle">The people behind your exam.</h2></div>
+      <p class="lede">Licensed optometrists who take the time to explain every result, and every choice.</p>
+    </div>
+    <div class="team-grid" id="teamGrid"></div>
   </div>
 </section>
 
@@ -743,6 +779,35 @@
     document.documentElement.setAttribute('data-theme', next);
     try { localStorage.setItem('dcam_theme', next); } catch (e) {}
   });
+
+  // ---- Optometrists from Settings > Business info (hidden when none) ----
+  fetch('/api/settings?view=team').then(function (r) { return r.json(); }).then(function (d) {
+    var team = (d && d.team) || [];
+    if (!team.length) return;
+    var grid = document.getElementById('teamGrid');
+    grid.className = 'team-grid' + (team.length === 1 ? ' solo' : team.length === 2 ? ' n2' : '');
+    function initials(n) { return n.replace(/^(dr\.?|doc)\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase(); }
+    team.forEach(function (p) {
+      var card = document.createElement('article'); card.className = 'doc';
+      var ph = document.createElement('div'); ph.className = 'doc-photo';
+      if (p.photo_url) { var img = document.createElement('img'); img.src = p.photo_url; img.alt = 'Photo of ' + p.name; img.loading = 'lazy'; ph.appendChild(img); }
+      else { ph.textContent = initials(p.name); ph.setAttribute('aria-hidden', 'true'); }
+      var body = document.createElement('div'); body.className = 'doc-body';
+      var h = document.createElement('h3'); h.textContent = p.name; body.appendChild(h);
+      if (p.title) { var r = document.createElement('div'); r.className = 'role'; r.textContent = p.title; body.appendChild(r); }
+      if (p.license) { var l = document.createElement('div'); l.className = 'lic'; l.textContent = 'PRC License No. ' + p.license; body.appendChild(l); }
+      if (p.bio) {
+        var b = document.createElement('p'); b.className = 'bio clamp'; b.textContent = p.bio; body.appendChild(b);
+        var more = document.createElement('button'); more.type = 'button'; more.className = 'more'; more.textContent = 'Read more'; more.hidden = true;
+        more.addEventListener('click', function () { var open = b.classList.toggle('clamp'); more.textContent = open ? 'Read more' : 'Show less'; });
+        body.appendChild(more);
+        requestAnimationFrame(function () { more.hidden = b.scrollHeight <= b.clientHeight + 2; });
+      }
+      card.appendChild(ph); card.appendChild(body); grid.appendChild(card);
+    });
+    document.getElementById('team').hidden = false;
+    document.querySelectorAll('[data-team-link]').forEach(function (a) { a.hidden = false; });
+  }).catch(function () {});
 
   // ---- Contact details from Settings (hidden when empty) ----
   fetch('/api/settings?view=public_info').then(function (r) { return r.json(); }).then(function (d) {

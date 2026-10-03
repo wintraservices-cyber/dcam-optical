@@ -14,8 +14,9 @@ const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport } = require('../lib/ai-usage');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
+const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('../lib/team');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists'];
 
 async function readSetting(key) {
   const resp = await supabaseRequest(`app_settings?key=eq.${encodeURIComponent(key)}&limit=1`, { method: 'GET' });
@@ -24,13 +25,23 @@ async function readSetting(key) {
   return rows[0] ? rows[0].value : null;
 }
 
+async function writeSetting(key, value, username) {
+  const resp = await supabaseRequest('app_settings?on_conflict=key', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ key, value, updated_at: new Date().toISOString(), updated_by: username || null }),
+  });
+  if (!resp.ok) throw new Error(`app_settings write ${resp.status}: ${await resp.text()}`);
+}
+
 async function getSettings(req, res) {
   const { key } = req.query || {};
 
   try {
     const path = key
       ? `app_settings?key=eq.${encodeURIComponent(key)}&limit=1`
-      : 'app_settings?select=key,value';
+      // Optometrist photos are large and only needed on the home page.
+      : 'app_settings?select=key,value&key=neq.optometrist_photos';
     const resp = await supabaseRequest(path, { method: 'GET' });
     if (!resp.ok) {
       const errText = await resp.text();
@@ -42,18 +53,29 @@ async function getSettings(req, res) {
 
     if (key) {
       const value = rows[0] ? rows[0].value : null;
-      res.status(200).json({ ok: true, value: key === 'site_mode' ? redactSiteMode(value) : value });
+      res.status(200).json({ ok: true, value: key === 'site_mode' ? redactSiteMode(value) : key === 'optometrists' ? adminTeam(value) : value });
       return;
     }
 
     const settings = {};
     rows.forEach(row => { settings[row.key] = row.value; });
     if (settings.site_mode) settings.site_mode = redactSiteMode(settings.site_mode);
+    if (settings.optometrists) settings.optometrists = adminTeam(settings.optometrists);
+    delete settings.optometrist_photos;
     res.status(200).json({ ok: true, settings });
   } catch (err) {
     console.error('Unexpected error reading settings:', err);
     res.status(500).json({ ok: false, error: 'Unexpected server error.' });
   }
+}
+
+// Splits the optometrists list into its small record + the photos record,
+// writes the photos, and returns the small record for putSetting to save.
+async function saveTeamPhotos(value, sessionUser) {
+  const [prevMeta, prevPhotos] = await Promise.all([readSetting('optometrists'), readSetting('optometrist_photos')]);
+  const { meta, photos } = buildTeam(value, prevMeta, prevPhotos);
+  await writeSetting('optometrist_photos', photos, sessionUser.username);
+  return meta;
 }
 
 async function putSetting(req, res, sessionUser) {
@@ -83,9 +105,10 @@ async function putSetting(req, res, sessionUser) {
     storedValue = key === 'ai_access' ? normalizeAiAccess(value)
       : key === 'ai_knowledge' ? normalizeKnowledge(value)
       : key === 'site_mode' ? normalizeSiteMode(value, await readSetting('site_mode'))
+      : key === 'optometrists' ? await saveTeamPhotos(value, sessionUser)
       : value;
   } catch (err) {
-    if (err instanceof SiteModeError) {
+    if (err instanceof SiteModeError || err instanceof TeamError) {
       res.status(400).json({ ok: false, error: err.message });
       return;
     }
@@ -119,6 +142,7 @@ async function putSetting(req, res, sessionUser) {
 
     const [saved] = await resp.json();
     if (saved && saved.key === 'site_mode') saved.value = redactSiteMode(saved.value);
+    if (saved && saved.key === 'optometrists') saved.value = adminTeam(saved.value);
     res.status(200).json({ ok: true, setting: saved });
   } catch (err) {
     console.error('Unexpected error saving setting:', err);
@@ -284,6 +308,41 @@ module.exports = async (req, res) => {
     } catch (err) {
       console.error('public_info read error:', err.message);
       res.status(200).json({ ok: true, info: {} });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'team') {
+    // Public: the optometrists shown on the home page.
+    try {
+      const team = publicTeam(await readSetting('optometrists'));
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Vercel-CDN-Cache-Control', 'max-age=60, stale-while-revalidate=300');
+      res.status(200).json({ ok: true, team });
+    } catch (err) {
+      console.error('team read error:', err.message);
+      res.status(200).json({ ok: true, team: [] });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'team_photo') {
+    // Public: one optometrist photo. The URL carries a hash of the image
+    // (v=...), so it can be cached for a long time.
+    try {
+      const id = String(req.query.id || '');
+      const meta = await readSetting('optometrists');
+      const entry = ((meta && meta.entries) || []).find(e => e.id === id && e.active !== false);
+      const photos = entry ? await readSetting('optometrist_photos') : null;
+      const img = photos && decodePhoto(photos[id]);
+      if (!img) { res.status(404).json({ ok: false, error: 'Photo not found.' }); return; }
+      res.setHeader('Content-Type', img.type);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.status(200).end(img.buf);
+    } catch (err) {
+      console.error('team_photo error:', err.message);
+      res.status(502).json({ ok: false, error: 'Could not load photo.' });
     }
     return;
   }
