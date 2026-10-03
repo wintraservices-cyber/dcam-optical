@@ -187,12 +187,13 @@
   .rx-subtype-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 8px;
+    flex-wrap: nowrap;
     margin-bottom: 14px;
     padding: 10px 12px;
     background: var(--ivory-dim);
     border-radius: 8px;
+    overflow-x: auto;
   }
   .rx-subtype-label {
     font-family: var(--display);
@@ -205,12 +206,13 @@
   }
   .rx-subtype-chips {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
+    flex-wrap: nowrap;
   }
   .subtype-chip {
     position: relative;
     cursor: pointer;
+    flex-shrink: 0;
   }
   .subtype-chip input {
     position: absolute;
@@ -221,22 +223,26 @@
     margin: 0;
   }
   .subtype-chip span {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.15;
     font-family: var(--display);
     font-weight: 700;
-    font-size: 0.74rem;
-    padding: 6px 12px;
-    border-radius: 100px;
+    font-size: 0.72rem;
+    padding: 5px 9px;
+    border-radius: 10px;
     border: 1.3px solid var(--line);
     background: #fff;
     color: var(--charcoal);
+    white-space: nowrap;
     transition: border-color 0.15s, background 0.15s, color 0.15s;
   }
   .subtype-chip span em {
     font-style: normal;
     font-weight: 400;
     opacity: 0.7;
-    font-size: 0.68rem;
+    font-size: 0.6rem;
   }
   .subtype-chip input:checked + span {
     border-color: var(--purple);
@@ -636,6 +642,8 @@
     letter-spacing: 0.03em;
     color: var(--charcoal-soft);
   }
+  .save-status.error { color: #B0405A; }
+  .save-status.success { color: #3E8E5A; }
   .payment-chip {
     position: relative;
     cursor: pointer;
@@ -1152,15 +1160,17 @@
       <div class="rx-subtype-row">
         <span class="rx-subtype-label">Rx job type:</span>
         <div class="rx-subtype-chips">
-          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="CMRX" checked><span>CMRX <em>(Complete Rx)</em></span></label>
-          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="L/O"><span>L/O <em>(Lenses Only)</em></span></label>
-          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="F/O"><span>F/O <em>(Frame Only)</em></span></label>
-          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="CL"><span>CL <em>(Contacts)</em></span></label>
+          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="CMRX" checked><span>CMRX<em>Complete Rx</em></span></label>
+          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="L/O"><span>L/O<em>Lenses Only</em></span></label>
+          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="F/O"><span>F/O<em>Frame Only</em></span></label>
+          <label class="subtype-chip"><input type="radio" name="rxSubtype" value="CL"><span>CL<em>Contacts</em></span></label>
         </div>
-        <div class="field-inline" style="max-width:90px; margin-left:auto;">
-          <label for="rxQty">Qty</label>
-          <input type="text" id="rxQty" inputmode="numeric" autocomplete="off" value="1" placeholder="1">
-        </div>
+        <!-- Qty is hidden from the UI -- a Rx order is always exactly one
+             job (one pair of glasses/lenses), so this always submits "1"
+             without staff needing to see or touch it. The input stays in
+             the DOM (just visually hidden) so the existing save/populate
+             code that reads/writes #rxQty keeps working unchanged. -->
+        <input type="hidden" id="rxQty" value="1">
       </div>
       <table class="grid">
         <thead>
@@ -1225,6 +1235,13 @@
       <p class="rx-hint">Axis and Base enable automatically once Cylinder or Prism is entered.</p>
 
       <table class="grid">
+        <colgroup>
+          <col style="width:8%;">
+          <col style="width:13%;">
+          <col style="width:13%;">
+          <col style="width:46%;">
+          <col style="width:20%;">
+        </colgroup>
         <thead>
           <tr>
             <th></th>
@@ -1298,6 +1315,21 @@
         <div class="field-inline"><label>Balance <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(auto)</span></label><input type="text" id="balance" inputmode="decimal" placeholder="0.00"></div>
       </div>
       <div class="payment-rows-group">
+        <!-- Job status (Ordered/Ready/Claimed): only meaningful for an
+             order that already exists (a brand-new order always starts
+             at "Ordered" server-side -- see api/orders.js), so this row
+             stays hidden until editing an existing order, same moment
+             editingOrderId gets set. Mirrors the same select+PATCH
+             pattern as the Status column on the Orders list
+             (staff-orders.html) so both places agree on behavior. -->
+        <div class="payment-status-row" id="jobStatusRow" style="display:none;">
+          <span class="payment-status-label">Job status:</span>
+          <label class="payment-chip"><input type="radio" name="jobStatus" value="ordered" checked><span>Ordered</span></label>
+          <label class="payment-chip"><input type="radio" name="jobStatus" value="ready"><span>Ready</span></label>
+          <label class="payment-chip"><input type="radio" name="jobStatus" value="claimed"><span>Claimed</span></label>
+          <span class="save-status" id="jobStatusSaveStatus" style="margin-left:8px; font-size:0.72rem;"></span>
+        </div>
+
         <div class="payment-status-row">
           <span class="payment-status-label">Payment status:</span>
           <label class="payment-chip"><input type="radio" name="paymentStatus" value="unpaid" checked><span>Unpaid</span></label>
@@ -1603,7 +1635,15 @@
       ordNotes: val('ordNotes'),
       amount: fmtMoney(val('amount')),
       deposit: fmtMoney(val('deposit')),
-      balance: fmtMoney(val('balance')),
+      // #balance is usually already populated (it auto-calculates as
+      // Amount - Deposit -- see recalcBalance()), but an order loaded
+      // from a record saved before that logic existed can have a blank
+      // stored balance, which printed as an empty Balance on the claim
+      // stub even though Amount/Deposit were both right there on the
+      // same form. Fall back to Amount - Deposit so the stub (and the
+      // print) always show a real figure, same as the on-screen stub
+      // preview does.
+      balance: fmtMoney(val('balance') || (parseFloat(val('amount')) - parseFloat(val('deposit')))),
       lensMaterial: isRx ? checkedVal('lensMaterial') : '',
       takenBy: val('takenBy'),
     };
@@ -2034,6 +2074,10 @@
     const paymentMethodEl = document.querySelector(`input[name="paymentMethod"][value="${order.payment_method || 'cash'}"]`);
     if (paymentMethodEl) paymentMethodEl.checked = true;
     splitPaymentRow.style.display = (order.payment_method === 'split') ? 'grid' : 'none';
+
+    const jobStatusEl = document.querySelector(`input[name="jobStatus"][value="${order.status || 'ordered'}"]`);
+    if (jobStatusEl) jobStatusEl.checked = true;
+    if (jobStatusRow) jobStatusRow.style.display = 'flex';
 
     if (order.order_type === 'non_rx') {
       itemRowsContainer.innerHTML = '';
@@ -2786,6 +2830,37 @@
   document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
       splitPaymentRow.style.display = e.target.value === 'split' ? 'grid' : 'none';
+    });
+  });
+
+  // ---- Job status (Ordered / Ready / Claimed) ----
+  // Saves immediately on change via PATCH, the same way the Status
+  // column on the Orders list (staff-orders.html) does -- this is a
+  // live field on an already-saved order, not part of the normal
+  // Save/Save changes flow below, so a status change here isn't lost
+  // if staff navigate away without clicking Save.
+  const jobStatusRow = document.getElementById('jobStatusRow');
+  const jobStatusSaveStatus = document.getElementById('jobStatusSaveStatus');
+  document.querySelectorAll('input[name="jobStatus"]').forEach(radio => {
+    radio.addEventListener('change', async (e) => {
+      if (!editingOrderId) return; // row is hidden until editing, but guard anyway
+      const status = e.target.value;
+      jobStatusSaveStatus.textContent = 'Saving…';
+      jobStatusSaveStatus.className = 'save-status';
+      try {
+        const resp = await fetch('/api/orders', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingOrderId, status }),
+        });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not update status.');
+        jobStatusSaveStatus.textContent = 'Saved.';
+        jobStatusSaveStatus.className = 'save-status success';
+      } catch (err) {
+        jobStatusSaveStatus.textContent = err.message;
+        jobStatusSaveStatus.className = 'save-status error';
+      }
     });
   });
 
