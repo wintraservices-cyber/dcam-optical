@@ -444,3 +444,22 @@ Claude-app-only capability, so it works for anyone visiting the live site.
 - Code: `lib/order-status.js`; routes in `api/chat.js`
   (`POST /api/chat?mode=order`). Setup: run the new
   `order_lookup_attempts` block at the bottom of `supabase-schema.sql`.
+
+## Homepage settings (Settings → Website → Homepage, admin only)
+
+- **Section switches:** What we do, Our story, FAQ, Find your frame, and the
+  "Are my glasses ready?" order check. A hidden section's nav/footer/button
+  links are hidden too. The order check also stays hidden whenever Order
+  status lookup (AI assistant tab) is off, and the booking form then uses the
+  full width.
+- **FAQ editor:** up to 12 questions, add / edit / reorder / delete, "Restore
+  original FAQ". Removing every question hides the FAQ section.
+- **Placeholders** filled from Business info when the page loads:
+  `{name} {branch} {address} {hours} {mobile} {tel} {email}` — so hours and
+  address are only typed once. Blank values are tidied out.
+- Stored as `app_settings.homepage` (normalized in `lib/homepage.js`; missing
+  values default to the page's original content). Sent to the site through
+  `GET /api/settings?view=public_info` (`info.homepage`, `info.order_tracking`).
+- Still managed elsewhere: Optometrists, Visit the shop and Facebook link
+  (Business info); the chat (AI assistant); whole-site Coming Soon page
+  (Website). No SQL needed.

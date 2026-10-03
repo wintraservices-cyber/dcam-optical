@@ -15,8 +15,9 @@ const { usageReport } = require('../lib/ai-usage');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('../lib/team');
+const { normalizeHomepage } = require('../lib/homepage');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage'];
 
 async function readSetting(key) {
   const resp = await supabaseRequest(`app_settings?key=eq.${encodeURIComponent(key)}&limit=1`, { method: 'GET' });
@@ -53,13 +54,16 @@ async function getSettings(req, res) {
 
     if (key) {
       const value = rows[0] ? rows[0].value : null;
-      res.status(200).json({ ok: true, value: key === 'site_mode' ? redactSiteMode(value) : key === 'optometrists' ? adminTeam(value) : value });
+      res.status(200).json({ ok: true, value: key === 'site_mode' ? redactSiteMode(value) : key === 'optometrists' ? adminTeam(value) : key === 'homepage' ? normalizeHomepage(value) : value });
       return;
     }
 
     const settings = {};
     rows.forEach(row => { settings[row.key] = row.value; });
     if (settings.site_mode) settings.site_mode = redactSiteMode(settings.site_mode);
+    // Always send the homepage settings in full (defaults = the page's
+    // original content) so the editor shows what the site shows today.
+    settings.homepage = normalizeHomepage(settings.homepage);
     if (settings.optometrists) settings.optometrists = adminTeam(settings.optometrists);
     delete settings.optometrist_photos;
     res.status(200).json({ ok: true, settings });
@@ -105,6 +109,7 @@ async function putSetting(req, res, sessionUser) {
     storedValue = key === 'ai_access' ? normalizeAiAccess(value)
       : key === 'ai_knowledge' ? normalizeKnowledge(value)
       : key === 'site_mode' ? normalizeSiteMode(value, await readSetting('site_mode'))
+      : key === 'homepage' ? normalizeHomepage(value)
       : key === 'optometrists' ? await saveTeamPhotos(value, sessionUser)
       : value;
   } catch (err) {
@@ -287,7 +292,7 @@ module.exports = async (req, res) => {
     // Facebook link from Settings > Website. Only these fields go out.
     const PUBLIC_FIELDS = ['name', 'branch', 'tel', 'mobile', 'email', 'hours', 'address'];
     try {
-      const [biz, site, aiAccess] = await Promise.all([readSetting('business_info'), readSetting('site_mode'), readSetting('ai_access')]);
+      const [biz, site, aiAccess, homepage] = await Promise.all([readSetting('business_info'), readSetting('site_mode'), readSetting('ai_access'), readSetting('homepage')]);
       const info = {};
       PUBLIC_FIELDS.forEach(f => {
         const v = biz && typeof biz[f] === 'string' ? biz[f].trim() : '';
@@ -299,6 +304,12 @@ module.exports = async (req, res) => {
       // client-side if this is blank/unset.
       const assistantName = aiAccess && aiAccess.public && typeof aiAccess.public.name === 'string' ? aiAccess.public.name.trim() : '';
       if (assistantName) info.assistant_name = assistantName.slice(0, 60);
+      // Homepage section switches + FAQ (Settings > Website > Homepage).
+      info.homepage = normalizeHomepage(homepage);
+      // The homepage "Are my glasses ready?" box only works when the
+      // website chat and Order status lookup are both on.
+      const access = normalizeAiAccess(aiAccess);
+      info.order_tracking = !!(access.enabled && access.public.enabled && access.public.order_status);
       res.setHeader('Cache-Control', 'no-cache');
       // Shortened from max-age=60 so a freshly-saved Assistant name (or
       // any other public_info field) shows up on the public site within

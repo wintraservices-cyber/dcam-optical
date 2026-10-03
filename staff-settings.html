@@ -354,6 +354,21 @@
   .count-badge { display: inline-block; min-width: 20px; text-align: center; font-size: 0.7rem; font-weight: 700; background: var(--purple); color: #fff; border-radius: 100px; padding: 1px 7px; margin-left: 6px; vertical-align: 2px; }
   @media (max-width: 700px) { .kb-item { grid-template-columns: 1fr; } .kb-item .kb-side { grid-row: auto; grid-column: 1; } .uq-item { flex-direction: column; } }
 
+  /* ---------- Homepage settings ---------- */
+  .hp-sub { font-family: var(--display); font-size: 0.92rem; margin: 22px 0 6px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .hp-help { font-size: 0.8rem; color: var(--charcoal-soft); line-height: 1.6; margin-bottom: 12px; }
+  .hp-ph { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.74rem; background: var(--ivory); border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; margin: 1px 0; }
+  .hp-faq { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: start; }
+  .hp-faq label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); margin-bottom: 4px; }
+  .hp-faq input, .hp-faq textarea { width: 100%; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 8px; padding: 9px 11px; font-family: var(--body); font-size: 0.88rem; color: var(--charcoal); }
+  .hp-faq textarea { resize: vertical; min-height: 64px; }
+  .hp-faq input:focus, .hp-faq textarea:focus { outline: none; border-color: var(--blue); }
+  .hp-faq .hp-fields { display: flex; flex-direction: column; gap: 8px; }
+  .hp-faq .hp-actions { display: flex; flex-direction: column; gap: 2px; }
+  .link-btn:disabled { opacity: 0.35; cursor: default; }
+  .hp-faq .hp-count { font-size: 0.7rem; color: var(--charcoal-soft); text-align: right; }
+  @media (max-width: 700px) { .hp-faq { grid-template-columns: 1fr; } .hp-faq .hp-actions { flex-direction: row; } }
+
   .loading-state, .empty-state { text-align: center; padding: 30px; color: var(--charcoal-soft); font-size: 0.9rem; }
   .not-admin-state { text-align: center; padding: 80px 20px; color: var(--charcoal-soft); }
 
@@ -580,6 +595,26 @@
       <div class="save-row">
         <button class="save-btn" id="saveSiteMode">Save teaser page</button>
         <span class="save-status" id="siteModeStatus"></span>
+      </div>
+    </div>
+
+    <div class="card" id="homepageCard">
+      <h2>Homepage</h2>
+      <div class="card-sub">Choose which sections appear on the public home page and edit the FAQ. Changes show on the website within a few seconds of saving. Optometrists, Visit the shop and Follow us are managed under Business info; the chat is under AI assistant. <a href="/" target="_blank" rel="noopener" style="color: var(--purple-deep, #8F4680);">View the website ↗</a></div>
+      <div id="hpSections"></div>
+
+      <h3 class="hp-sub">Frequently asked questions</h3>
+      <div class="hp-help">Shown in this order. To keep details in one place, you can type placeholders that are filled in from Business info:
+        <span class="hp-ph">{name}</span> <span class="hp-ph">{branch}</span> <span class="hp-ph">{address}</span> <span class="hp-ph">{hours}</span> <span class="hp-ph">{mobile}</span> <span class="hp-ph">{tel}</span> <span class="hp-ph">{email}</span>
+        — e.g. "We are open {hours}." Removing every question hides the FAQ section.</div>
+      <div id="hpFaqList"></div>
+      <div class="save-row" style="margin-top:6px;">
+        <button class="save-btn secondary" id="hpFaqAdd" type="button">+ Add question</button>
+        <button class="link-btn" id="hpFaqReset" type="button">Restore original FAQ</button>
+      </div>
+      <div class="save-row" style="margin-top:16px; border-top:1px solid var(--line); padding-top:16px;">
+        <button class="save-btn" id="hpSave" type="button">Save homepage</button>
+        <span class="save-status" id="hpStatus"></span>
       </div>
     </div>
 
@@ -1698,6 +1733,124 @@
   document.getElementById('aeoCopyFaq').addEventListener('click', () => copyBox('aeoFaqBox', document.getElementById('aeoStatus')));
   document.getElementById('aeoCopySchema').addEventListener('click', () => copyBox('aeoSchemaBox', document.getElementById('aeoStatus')));
 
+  // ---- Homepage (Settings > Website) ----
+  const HP_SECTIONS = [
+    { key: 'services', label: 'What we do (services)', help: 'The three service cards near the top of the page.' },
+    { key: 'story', label: 'Our story', help: '"Formerly Limuaco Optical, now DCAM Optical" and the values below it.' },
+    { key: 'faq', label: 'Frequently asked questions', help: 'The FAQ list edited below.' },
+    { key: 'quiz', label: 'Find your frame (style quiz)', help: 'The 30-second frame style match.' },
+    { key: 'track', label: '"Are my glasses ready?" order check', help: 'The order check box next to the booking form. Also needs Order status lookup switched on under AI assistant.' },
+  ];
+  const HP_DEFAULT_FAQ = [
+    { q: 'Do you take HMO or insurance?', a: 'We accept a number of HMO providers — bring your HMO card and a valid ID for your visit and our front desk will confirm coverage.' },
+    { q: 'What happens at a first eye exam?', a: 'A first visit starts with a quick history, then a full refraction and eye health check. Most first exams take about 20–30 minutes.' },
+    { q: 'What are your hours and where are you located?', a: '{name} is at {branch}, {address}. We are open {hours}.' },
+  ];
+  const HP_MAX_FAQ = 12;
+  let hpFaq = [];
+
+  function renderHomepage(v) {
+    const hp = v || {};
+    const sections = hp.sections || {};
+    hpFaq = Array.isArray(hp.faq) ? hp.faq.map(x => ({ q: x.q || '', a: x.a || '' })) : HP_DEFAULT_FAQ.map(x => ({ ...x }));
+    document.getElementById('hpSections').innerHTML = HP_SECTIONS.map(sec => `
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">${escapeHtml(sec.label)}</div>
+          <div class="ai-help">${escapeHtml(sec.help)}</div>
+        </div>
+        <label class="switch"><input type="checkbox" data-hp-section="${sec.key}" ${sections[sec.key] === false ? '' : 'checked'} aria-label="Show ${escapeHtml(sec.label)}"><span class="slider"></span></label>
+      </div>`).join('');
+    renderHpFaq();
+  }
+
+  function renderHpFaq() {
+    const list = document.getElementById('hpFaqList');
+    list.innerHTML = hpFaq.length ? hpFaq.map((item, i) => `
+      <div class="hp-faq" data-i="${i}">
+        <div class="hp-fields">
+          <div><label>Question ${i + 1}</label><input type="text" data-hp="q" maxlength="200" value="${escapeHtml(item.q)}"></div>
+          <div><label>Answer</label><textarea data-hp="a" maxlength="1000">${escapeHtml(item.a)}</textarea><div class="hp-count">${item.a.length} / 1000</div></div>
+        </div>
+        <div class="hp-actions">
+          <button class="link-btn" type="button" data-hp-move="-1" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑ Up</button>
+          <button class="link-btn" type="button" data-hp-move="1" ${i === hpFaq.length - 1 ? 'disabled' : ''} aria-label="Move down">↓ Down</button>
+          <button class="link-btn danger" type="button" data-hp-delete>Delete</button>
+        </div>
+      </div>`).join('')
+      : '<div class="empty-state" style="padding:14px;">No questions — the FAQ section will be hidden on the website.</div>';
+    document.getElementById('hpFaqAdd').disabled = hpFaq.length >= HP_MAX_FAQ;
+  }
+
+  document.getElementById('hpFaqList').addEventListener('input', e => {
+    const row = e.target.closest('.hp-faq');
+    if (!row || !e.target.dataset.hp) return;
+    hpFaq[+row.dataset.i][e.target.dataset.hp] = e.target.value;
+    if (e.target.dataset.hp === 'a') row.querySelector('.hp-count').textContent = `${e.target.value.length} / 1000`;
+  });
+  document.getElementById('hpFaqList').addEventListener('click', e => {
+    const row = e.target.closest('.hp-faq');
+    if (!row) return;
+    const i = +row.dataset.i;
+    const move = e.target.closest('[data-hp-move]');
+    if (move) {
+      const j = i + Number(move.dataset.hpMove);
+      if (j < 0 || j >= hpFaq.length) return;
+      [hpFaq[i], hpFaq[j]] = [hpFaq[j], hpFaq[i]];
+      renderHpFaq();
+    } else if (e.target.closest('[data-hp-delete]')) {
+      if (!confirm(`Delete "${hpFaq[i].q || 'this question'}"?`)) return;
+      hpFaq.splice(i, 1);
+      renderHpFaq();
+    }
+  });
+  document.getElementById('hpFaqAdd').addEventListener('click', () => {
+    if (hpFaq.length >= HP_MAX_FAQ) return;
+    hpFaq.push({ q: '', a: '' });
+    renderHpFaq();
+    const rows = document.querySelectorAll('#hpFaqList .hp-faq');
+    rows[rows.length - 1].querySelector('input').focus();
+  });
+  document.getElementById('hpFaqReset').addEventListener('click', () => {
+    if (!confirm('Replace the FAQ with the original 3 questions? (Not saved until you click Save homepage.)')) return;
+    hpFaq = HP_DEFAULT_FAQ.map(x => ({ ...x }));
+    renderHpFaq();
+  });
+
+  document.getElementById('hpSave').addEventListener('click', async () => {
+    const btn = document.getElementById('hpSave');
+    const statusEl = document.getElementById('hpStatus');
+    const incomplete = hpFaq.findIndex(x => (x.q.trim() && !x.a.trim()) || (!x.q.trim() && x.a.trim()));
+    if (incomplete !== -1) {
+      statusEl.textContent = `Question ${incomplete + 1} needs both a question and an answer (or delete it).`;
+      statusEl.className = 'save-status error';
+      return;
+    }
+    const sections = {};
+    document.querySelectorAll('[data-hp-section]').forEach(box => { sections[box.dataset.hpSection] = box.checked; });
+    const faq = hpFaq.map(x => ({ q: x.q.trim(), a: x.a.trim() })).filter(x => x.q && x.a);
+    btn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    statusEl.className = 'save-status';
+    try {
+      const resp = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'homepage', value: { sections, faq } }),
+      });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      renderHomepage(result.setting && result.setting.value ? result.setting.value : { sections, faq });
+      statusEl.textContent = 'Saved — the website updates within a few seconds.';
+      statusEl.className = 'save-status success';
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   // ---- AI usage & cost ----
   const usd = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: (Number(n) || 0) < 1 ? 4 : 2 });
   const int = (n) => (Number(n) || 0).toLocaleString('en-US');
@@ -2190,6 +2343,7 @@
       renderPrintPrefs(result.settings.print_prefs);
       renderAiAccess(result.settings.ai_access);
       renderSiteMode(result.settings.site_mode);
+      renderHomepage(result.settings.homepage);
       kbEntries = (result.settings.ai_knowledge && result.settings.ai_knowledge.entries) || [];
       renderKnowledge();
       loadAccounts();
@@ -2202,6 +2356,7 @@
       renderPrintPrefs(null);
       renderAiAccess(null);
       renderSiteMode(null);
+      renderHomepage(null);
       renderKnowledge();
       loadAccounts();
     }
