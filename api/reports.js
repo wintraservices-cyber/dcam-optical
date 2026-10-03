@@ -232,9 +232,11 @@ async function ordersReport(req, res, from, to) {
     // order's own placement date, even on a payment row, so it never
     // changes meaning -- "Transaction Date" is the date THIS row's own
     // event happened (the payment's own date, on a payment row), and
-    // "Entry" says which kind of row it is. Both put at the end, after
-    // everything that matches the client's own sheet, rather than
-    // breaking up that matched column order.
+    // "Entry" says which kind of row it is. Moved 2026-10-02 to sit
+    // right after Payment Method and before Balance -- between what
+    // was paid and how, and the resulting balance -- per the client's
+    // own placement of a "Date"/"Payment type" pair in that same spot
+    // on their sheet, rather than appended after everything else.
     const columns = [
       { label: 'Order Date', value: (o) => o.order_date || '' },
       { label: 'Order #', value: 'order_no' },
@@ -246,6 +248,8 @@ async function ordersReport(req, res, from, to) {
       { label: 'Amount', value: 'amount' },
       { label: 'Deposit', value: 'deposit' },
       { label: 'Payment Method', value: 'payment_method' },
+      { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
+      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
       { label: 'Balance', value: 'balance' },
       // -- not on the client's sheet, appended at the end --
       { label: 'Created Date', value: (o) => (o.created_at || '').slice(0, 10) },
@@ -254,8 +258,6 @@ async function ordersReport(req, res, from, to) {
       { label: 'Payment Status', value: 'payment_status' },
       { label: 'Status', value: 'status' },
       { label: 'Taken By', value: 'taken_by' },
-      { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
-      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
     ];
 
     sendCsv(res, `orders-report-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows, columns));
@@ -293,12 +295,13 @@ async function salesReport(req, res, from, to) {
     // "Transaction Date", "Entry" and "Payment Today" on a Balance
     // Payment row: see the "Transaction Date"/"Entry" comment in
     // ordersReport() above for why these rows exist and why Order Date
-    // stays the order's own date while Transaction Date (at the end,
-    // alongside Entry) carries the payment's own date instead. "Payment
-    // Today" normally shows the order's intake deposit -- on a payment
-    // row there's no separate "deposit" concept, so it shows that
-    // payment's own amount instead, which is exactly what "payment
-    // today" means for that row.
+    // stays the order's own date while Transaction Date carries the
+    // payment's own date instead. Moved 2026-10-02, same as
+    // ordersReport(), to sit right after Payment Method and before
+    // Balance. "Payment Today" normally shows the order's intake
+    // deposit -- on a payment row there's no separate "deposit"
+    // concept, so it shows that payment's own amount instead, which is
+    // exactly what "payment today" means for that row.
     const columns = [
       { label: 'Order Date', value: (o) => o.order_date || '' },
       { label: 'Order #', value: 'order_no' },
@@ -310,13 +313,13 @@ async function salesReport(req, res, from, to) {
       { label: 'Total', value: (o) => (o.__entry === 'payment' ? '' : o.amount) },
       { label: 'Payment Today', value: (o) => (o.__entry === 'payment' ? o.amount : o.deposit) },
       { label: 'Payment Method', value: 'payment_method' },
+      { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
+      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
       { label: 'Balance', value: 'balance' },
       // -- not on the client's sheet, appended at the end --
       { label: 'Payment Status', value: 'payment_status' },
       { label: 'Status', value: 'status' },
       { label: 'Taken By', value: 'taken_by' },
-      { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
-      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
     ];
 
     // Unchanged from before "Entry" rows existed -- these three stay

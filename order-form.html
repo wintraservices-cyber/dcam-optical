@@ -2732,7 +2732,15 @@
     const deposit = parseFloat(depositInput.value) || 0;
     const computedBalance = amount - deposit;
     if (!balanceManuallyEdited) {
-      balanceInput.value = computedBalance ? computedBalance.toFixed(2) : '';
+      // computedBalance === 0 is a real, meaningful result (paid in full
+      // at intake -- Amount and Deposit match) and must still save as
+      // "0.00", not blank/null, the same way a balance payment that
+      // clears an order to zero explicitly stores "0.00" rather than
+      // nothing (see api/balance-payments.js). Leaving it blank here
+      // made a fully-paid-at-intake order show no balance at all on the
+      // orders list ("--") instead of "0.00". Only treat it as blank
+      // when there's no Amount yet at all -- a brand-new, untouched form.
+      balanceInput.value = amount > 0 ? computedBalance.toFixed(2) : '';
     }
     // Balance is set programmatically above rather than typed, so it
     // never fires the `input` event the stubBalance mirror listens for
