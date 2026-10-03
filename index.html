@@ -135,6 +135,7 @@
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sky); animation: pulse 1.8s ease-out infinite; }
   .hero h1 { font-size: clamp(48px, 7.4vw, 104px); font-weight: 800; letter-spacing: -0.045em; line-height: .96; }
   .hero h1 span { color: var(--orchid-soft); }
+  .hero h1 span.l1 { color: inherit; }
   .hero .lede { color: #E4DACB; max-width: 560px; }
   .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
   .up { animation: up 1s cubic-bezier(.2,.7,.2,1) both; }
@@ -404,9 +405,9 @@
 
   <div class="hero-copy">
     <div class="wrap"><div class="inner" id="heroCopy">
-      <span class="badge up" style="animation-delay:.1s"><span class="dot"></span>Formerly Limuaco Optical · Ever Gotesco Commonwealth</span>
-      <h1 class="up" style="animation-delay:.25s">See the world<br><span>in focus.</span></h1>
-      <p class="lede up" style="animation-delay:.45s">Eye exams and eyewear chosen with care, right in Quezon City. Step inside, and everything gets clearer from here.</p>
+      <span class="badge up" style="animation-delay:.1s"><span class="dot"></span><span data-text="hero_badge">Formerly Limuaco Optical · Ever Gotesco Commonwealth</span></span>
+      <h1 class="up" style="animation-delay:.25s"><span class="l1" data-text="hero_title_1">See the world</span><br><span data-text="hero_title_2">in focus.</span></h1>
+      <p class="lede up" style="animation-delay:.45s" data-text="hero_lede">Eye exams and eyewear chosen with care, right in Quezon City. Step inside, and everything gets clearer from here.</p>
       <div class="hero-ctas up" style="animation-delay:.6s">
         <a class="btn" href="#book" style="background:var(--orchid);color:#fff">Book an eye exam</a>
         <a class="btn btn-ghost" href="#track">Track my glasses</a>
@@ -426,26 +427,26 @@
 <section class="block" id="services">
   <div class="wrap">
     <div class="sec-head">
-      <div><div class="kicker">What we do</div><h2 class="h2">Clear sight, start to finish.</h2></div>
-      <p class="lede">From your first exam to the day you pick up your new glasses, one team looks after you.</p>
+      <div><div class="kicker" data-text="services_kicker">What we do</div><h2 class="h2" data-text="services_title">Clear sight, start to finish.</h2></div>
+      <p class="lede" data-text="services_lede">From your first exam to the day you pick up your new glasses, one team looks after you.</p>
     </div>
     <div class="cards3">
       <div class="card">
         <div class="ico" style="background:var(--sky-tint)"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.7" aria-hidden="true"><path d="M2 12c2.5-4.5 6-7 10-7s7.5 2.5 10 7c-2.5 4.5-6 7-10 7s-7.5-2.5-10-7z"/><circle cx="12" cy="12" r="3"/></svg></div>
-        <h3>Eye exams</h3>
-        <p>Vision and eye health checks for adults and kids, with results explained in plain language.</p>
+        <h3 data-text="svc1_title">Eye exams</h3>
+        <p data-text="svc1_text">Vision and eye health checks for adults and kids, with results explained in plain language.</p>
         <a href="#book">Book an exam →</a>
       </div>
       <div class="card">
         <div class="ico" style="background:var(--orchid-tint)"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--link)" stroke-width="1.7" aria-hidden="true"><circle cx="6.5" cy="14" r="4"/><circle cx="17.5" cy="14" r="4"/><path d="M10.5 14h3M2.5 14 4 7M21.5 14 20 7"/></svg></div>
-        <h3>Glasses, lenses &amp; frames</h3>
-        <p>Prescription glasses, contact lenses, frames and sunwear. Bring your own Rx or use ours.</p>
+        <h3 data-text="svc2_title">Glasses, lenses &amp; frames</h3>
+        <p data-text="svc2_text">Prescription glasses, contact lenses, frames and sunwear. Bring your own Rx or use ours.</p>
         <a href="#quiz">Find your frame →</a>
       </div>
       <div class="card dark">
         <div class="ico" style="background:rgba(91,175,192,.18)"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5BAFC0" stroke-width="1.7" aria-hidden="true"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/><path d="M4 7l8 4 8-4M12 11v10"/></svg></div>
-        <h3>Order tracking</h3>
-        <p>Use the order number on your claim stub and your phone number to see if your glasses are ready.</p>
+        <h3 data-text="svc3_title">Order tracking</h3>
+        <p data-text="svc3_text">Use the order number on your claim stub and your phone number to see if your glasses are ready.</p>
         <a href="#track">Track my glasses →</a>
       </div>
     </div>
@@ -461,16 +462,16 @@
     </div>
     <div class="story-copy">
       <div class="kicker" style="margin:0">Our story</div>
-      <h2 class="h2">Formerly Limuaco Optical, now DCAM Optical.</h2>
-      <p>For decades, families along Commonwealth Avenue have known us as <strong>Limuaco Optical</strong>, a family-friendly optical shop that earned its reputation the old-fashioned way: careful eye exams, precise refraction, and glasses and contact lenses fitted properly, first on Panay Avenue and later at Ever Gotesco Commonwealth.</p>
-      <p>Today, that practice transcends to <strong>DCAM Optical</strong>. We're in the same home at Ever Gotesco and share the same belief that good eye care shouldn't be rushed, now with a new name, a refreshed shop, and new conveniences like online booking and order tracking.</p>
+      <h2 class="h2" data-text="story_title">Formerly Limuaco Optical, now DCAM Optical.</h2>
+      <p data-text="story_p1" data-text-rich>For decades, families along Commonwealth Avenue have known us as <strong>Limuaco Optical</strong>, a family-friendly optical shop that earned its reputation the old-fashioned way: careful eye exams, precise refraction, and glasses and contact lenses fitted properly, first on Panay Avenue and later at Ever Gotesco Commonwealth.</p>
+      <p data-text="story_p2" data-text-rich>Today, that practice transcends to <strong>DCAM Optical</strong>. We're in the same home at Ever Gotesco and share the same belief that good eye care shouldn't be rushed, now with a new name, a refreshed shop, and new conveniences like online booking and order tracking.</p>
     </div>
   </div>
   <div class="wrap values-wrap">
     <div class="values">
-      <div><h3>Unhurried exams</h3><p>Time to ask questions, and results you actually understand.</p></div>
-      <div><h3>Honest advice</h3><p>We recommend what you need, not the most expensive option.</p></div>
-      <div><h3>Frames that fit your life</h3><p>Try on as many as you like. We'll help you find the one.</p></div>
+      <div><h3 data-text="value1_title">Unhurried exams</h3><p data-text="value1_text">Time to ask questions, and results you actually understand.</p></div>
+      <div><h3 data-text="value2_title">Honest advice</h3><p data-text="value2_text">We recommend what you need, not the most expensive option.</p></div>
+      <div><h3 data-text="value3_title">Frames that fit your life</h3><p data-text="value3_text">Try on as many as you like. We'll help you find the one.</p></div>
     </div>
   </div>
 </section>
@@ -546,9 +547,9 @@
 <section class="quiz-section" id="quiz">
   <div class="wrap">
     <div class="quiz-header">
-      <div class="kicker">Find your frame</div>
-      <h2>A 30-second style match.</h2>
-      <p class="lede">Answer a few quick questions and we'll point you toward frame shapes that actually suit you — a starting point for your fitting, not a final decision.</p>
+      <div class="kicker" data-text="quiz_kicker">Find your frame</div>
+      <h2 data-text="quiz_title">A 30-second style match.</h2>
+      <p class="lede" data-text="quiz_lede">Answer a few quick questions and we'll point you toward frame shapes that actually suit you — a starting point for your fitting, not a final decision.</p>
     </div>
 
     <div class="quiz-card">
@@ -684,7 +685,7 @@
   <div class="wrap">
     <div class="book-grid">
       <div class="panel book">
-        <h2>Book your eye exam</h2>
+        <h2 data-text="book_title">Book your eye exam</h2>
         <form class="fgrid" id="bookForm" novalidate>
           <div class="field"><label for="fname">First name</label><input type="text" id="fname" autocomplete="given-name"></div>
           <div class="field"><label for="lname">Last name</label><input type="text" id="lname" autocomplete="family-name"></div>
@@ -703,12 +704,12 @@
           <label class="consent-row field full" style="flex-direction:row;font-weight:400"><input type="checkbox" id="consent">I consent to DCAM Optical collecting and processing this information to schedule and manage my appointment, in line with the Data Privacy Act of 2012.</label>
           <div class="field full"><a class="btn btn-light" href="intake.html" id="startIntakeLink">Start intake form</a></div>
         </form>
-        <p class="form-note">This opens our full patient intake form. It takes about two minutes.</p>
+        <p class="form-note" data-text="book_note">This opens our full patient intake form. It takes about two minutes.</p>
       </div>
 
       <div class="panel track" id="track">
-        <h2>Are my glasses ready?</h2>
-        <p>Enter both details from when you placed your order.</p>
+        <h2 data-text="track_title">Are my glasses ready?</h2>
+        <p data-text="track_text">Enter both details from when you placed your order.</p>
         <form id="trackForm" class="fgrid" style="grid-template-columns:1fr" novalidate>
           <div class="field"><label for="trackOrder">Order number (on your claim stub)</label><input id="trackOrder" inputmode="numeric" autocomplete="off" placeholder="e.g. 2026-0012" maxlength="20" required></div>
           <div class="field"><label for="trackLast4">Last 4 digits of your phone number</label><input id="trackLast4" inputmode="numeric" autocomplete="off" placeholder="e.g. 4567" maxlength="4" pattern="[0-9]{4}" required></div>
@@ -748,12 +749,12 @@
 <section class="block" style="padding-top:clamp(64px,8vw,96px)">
   <div class="wrap notes">
     <div class="note">
-      <h3>Your privacy</h3>
-      <p>We handle your personal and health information in line with the Data Privacy Act of 2012 (RA 10173). We collect only what we need for your care and orders, keep it secure, and never sell it. You can ask us to access, correct or delete your data at any time<span data-biz-email-note></span>.</p>
+      <h3 data-text="privacy_title">Your privacy</h3>
+      <p><span data-text="privacy_body">We handle your personal and health information in line with the Data Privacy Act of 2012 (RA 10173). We collect only what we need for your care and orders, keep it secure, and never sell it. You can ask us to access, correct or delete your data at any time.</span><span data-biz-email-note></span></p>
     </div>
     <div class="note">
-      <h3>How we use AI</h3>
-      <p>Our website chat uses AI to answer common questions and help you book. It doesn't diagnose or give medical advice; eye health questions go to our licensed optometrists. Please don't share sensitive health details in chat. You can always reach a person at the shop.</p>
+      <h3 data-text="ai_notice_title">How we use AI</h3>
+      <p data-text="ai_notice_body">Our website chat uses AI to answer common questions and help you book. It doesn't diagnose or give medical advice; eye health questions go to our licensed optometrists. Please don't share sensitive health details in chat. You can always reach a person at the shop.</p>
     </div>
   </div>
 </section>
@@ -827,8 +828,9 @@
     if (b.mobile || b.tel || b.email) document.querySelector('[data-biz-row="contact"]').hidden = false;
     if (b.email) {
       var n = document.querySelector('[data-biz-email-note]');
-      n.textContent = ' by emailing ';
+      n.textContent = ' Email us at ';
       var a = document.createElement('a'); a.href = 'mailto:' + b.email; a.textContent = b.email; n.appendChild(a);
+      n.appendChild(document.createTextNode('.'));
     }
     if (b.facebook_url) {
       document.getElementById('fbBtn').href = b.facebook_url;
@@ -852,7 +854,24 @@
   // {hours} filled in from Business info.
   function applyHomepage(b) {
     var hp = b.homepage;
-    if (!hp || !hp.sections) return;
+    if (!hp) return;
+    // Page text overrides (Settings > Website > Homepage > Page text).
+    // Plain text only; fields marked data-text-rich also allow **bold**.
+    if (hp.text && typeof hp.text === 'object') {
+      Object.keys(hp.text).forEach(function (key) {
+        var val = String(hp.text[key] || '');
+        if (!val) return;
+        document.querySelectorAll('[data-text="' + key + '"]').forEach(function (el) {
+          if (el.hasAttribute('data-text-rich')) {
+            var safe = val.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            el.innerHTML = safe.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+          } else {
+            el.textContent = val;
+          }
+        });
+      });
+    }
+    if (!hp.sections) return;
     function hideSection(id) {
       var el = document.getElementById(id);
       if (el) el.hidden = true;

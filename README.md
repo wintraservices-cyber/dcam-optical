@@ -463,3 +463,16 @@ Claude-app-only capability, so it works for anyone visiting the live site.
 - Still managed elsewhere: Optometrists, Visit the shop and Facebook link
   (Business info); the chat (AI assistant); whole-site Coming Soon page
   (Website). No SQL needed.
+
+### Page text (Settings → Website → Homepage → Page text)
+
+- 33 labelled text blocks in 6 collapsible groups: Hero, What we do, Our
+  story, Booking & order check, Find your frame, Privacy & AI notice.
+- Each block maps to an element marked `data-text="<key>"` in `index.html`;
+  the field list and original wording live in `lib/homepage.js`
+  (`TEXT_FIELDS`). Only changed fields are stored (`homepage.text`), so
+  "Restore original" / an empty box falls back to the shipped wording.
+- Text only (inserted with textContent). The story paragraphs also accept
+  `**bold**`; everything else is escaped, so HTML/scripts can't be injected.
+- To make another block editable: add `data-text="new_key"` to the element
+  and a matching entry in `TEXT_FIELDS` with its exact current wording.

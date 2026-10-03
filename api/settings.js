@@ -15,7 +15,7 @@ const { usageReport } = require('../lib/ai-usage');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('../lib/team');
-const { normalizeHomepage } = require('../lib/homepage');
+const { normalizeHomepage, TEXT_FIELDS } = require('../lib/homepage');
 
 const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage'];
 
@@ -64,6 +64,8 @@ async function getSettings(req, res) {
     // Always send the homepage settings in full (defaults = the page's
     // original content) so the editor shows what the site shows today.
     settings.homepage = normalizeHomepage(settings.homepage);
+    // Field list for the Page text editor (labels + original wording).
+    settings.homepage_text_fields = TEXT_FIELDS;
     if (settings.optometrists) settings.optometrists = adminTeam(settings.optometrists);
     delete settings.optometrist_photos;
     res.status(200).json({ ok: true, settings });

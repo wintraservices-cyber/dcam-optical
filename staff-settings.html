@@ -366,6 +366,23 @@
   .hp-faq .hp-fields { display: flex; flex-direction: column; gap: 8px; }
   .hp-faq .hp-actions { display: flex; flex-direction: column; gap: 2px; }
   .link-btn:disabled { opacity: 0.35; cursor: default; }
+  .hp-group { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; background: #fff; }
+  .hp-group > summary { cursor: pointer; padding: 12px 14px; font-family: var(--display); font-weight: 700; font-size: 0.88rem; list-style: none; display: flex; align-items: center; gap: 8px; }
+  .hp-group > summary::-webkit-details-marker { display: none; }
+  .hp-group > summary::before { content: '▸'; color: var(--charcoal-soft); transition: transform .15s; }
+  .hp-group[open] > summary::before { transform: rotate(90deg); }
+  .hp-group .hp-edited-count { margin-left: auto; font-size: 0.7rem; font-weight: 700; color: var(--purple-deep); background: rgba(176,90,158,0.12); border-radius: 100px; padding: 2px 8px; }
+  .hp-group .hp-group-body { padding: 0 14px 6px; }
+  .hp-tf { padding: 10px 0 12px; border-top: 1px solid var(--line); }
+  .hp-tf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .hp-tf-head label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); margin: 0; }
+  .hp-tf-head .hp-edited { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--purple-deep); background: rgba(176,90,158,0.12); border-radius: 100px; padding: 1px 7px; }
+  .hp-tf-head .link-btn { margin-left: auto; }
+  .hp-tf input, .hp-tf textarea { width: 100%; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 8px; padding: 9px 11px; font-family: var(--body); font-size: 0.88rem; color: var(--charcoal); }
+  .hp-tf textarea { resize: vertical; min-height: 70px; }
+  .hp-tf input:focus, .hp-tf textarea:focus { outline: none; border-color: var(--blue); }
+  .hp-tf.changed input, .hp-tf.changed textarea { border-color: rgba(176,90,158,0.45); }
+  .hp-tf .hp-count { font-size: 0.7rem; color: var(--charcoal-soft); text-align: right; margin-top: 2px; }
   .hp-faq .hp-count { font-size: 0.7rem; color: var(--charcoal-soft); text-align: right; }
   @media (max-width: 700px) { .hp-faq { grid-template-columns: 1fr; } .hp-faq .hp-actions { flex-direction: row; } }
 
@@ -612,6 +629,10 @@
         <button class="save-btn secondary" id="hpFaqAdd" type="button">+ Add question</button>
         <button class="link-btn" id="hpFaqReset" type="button">Restore original FAQ</button>
       </div>
+      <h3 class="hp-sub">Page text</h3>
+      <div class="hp-help">Edit the wording of the fixed parts of the home page. Text only — layout, buttons and pictures stay the same. In the story paragraphs you can wrap words in <span class="hp-ph">**double stars**</span> to make them <strong>bold</strong>. "Restore original" puts back the wording the site launched with. Leaving a box empty also uses the original.</div>
+      <div id="hpTextGroups"></div>
+
       <div class="save-row" style="margin-top:16px; border-top:1px solid var(--line); padding-top:16px;">
         <button class="save-btn" id="hpSave" type="button">Save homepage</button>
         <span class="save-status" id="hpStatus"></span>
@@ -1733,6 +1754,78 @@
   document.getElementById('aeoCopyFaq').addEventListener('click', () => copyBox('aeoFaqBox', document.getElementById('aeoStatus')));
   document.getElementById('aeoCopySchema').addEventListener('click', () => copyBox('aeoSchemaBox', document.getElementById('aeoStatus')));
 
+  // ---- Page text (Homepage card) ----
+  let hpTextFields = [];   // [{ key, group, label, max, rich, original }] from the server
+  let hpText = {};         // current values for every field (original or edited)
+
+  function renderHpText(overrides) {
+    const box = document.getElementById('hpTextGroups');
+    if (!hpTextFields.length) {
+      box.innerHTML = '<div class="empty-state" style="padding:14px;">Page text could not be loaded — refresh the page to try again.</div>';
+      return;
+    }
+    hpText = {};
+    hpTextFields.forEach(f => { hpText[f.key] = (overrides && overrides[f.key]) || f.original; });
+    const groups = [];
+    hpTextFields.forEach(f => { let g = groups.find(x => x.name === f.group); if (!g) groups.push(g = { name: f.group, fields: [] }); g.fields.push(f); });
+    const openGroups = new Set([...box.querySelectorAll('details[open]')].map(d => d.dataset.group));
+    box.innerHTML = groups.map(g => `
+      <details class="hp-group" data-group="${escapeHtml(g.name)}" ${openGroups.has(g.name) ? 'open' : ''}>
+        <summary>${escapeHtml(g.name)}<span class="hp-edited-count" hidden></span></summary>
+        <div class="hp-group-body">
+          ${g.fields.map(f => {
+            const id = 'hpt_' + f.key;
+            const long = f.max > 140;
+            const val = escapeHtml(hpText[f.key]);
+            return `<div class="hp-tf" data-key="${f.key}">
+              <div class="hp-tf-head">
+                <label for="${id}">${escapeHtml(f.label)}</label>
+                <span class="hp-edited" hidden>Edited</span>
+                <button class="link-btn" type="button" data-hpt-restore hidden>Restore original</button>
+              </div>
+              ${long ? `<textarea id="${id}" maxlength="${f.max}" rows="3">${val}</textarea>` : `<input type="text" id="${id}" maxlength="${f.max}" value="${val}">`}
+              <div class="hp-count"></div>
+            </div>`;
+          }).join('')}
+        </div>
+      </details>`).join('');
+    hpTextFields.forEach(f => syncHpField(f.key));
+  }
+
+  function syncHpField(key) {
+    const f = hpTextFields.find(x => x.key === key);
+    const row = document.querySelector(`.hp-tf[data-key="${key}"]`);
+    if (!f || !row) return;
+    const v = hpText[key];
+    const changed = v.trim() !== '' && v.replace(/\s+/g, ' ').trim() !== f.original;
+    row.classList.toggle('changed', changed);
+    row.querySelector('.hp-edited').hidden = !changed;
+    row.querySelector('[data-hpt-restore]').hidden = !changed;
+    row.querySelector('.hp-count').textContent = `${v.length} / ${f.max}`;
+    const group = row.closest('.hp-group');
+    const n = group.querySelectorAll('.hp-tf.changed').length;
+    const pill = group.querySelector('.hp-edited-count');
+    pill.hidden = !n;
+    pill.textContent = `${n} edited`;
+  }
+
+  document.getElementById('hpTextGroups').addEventListener('input', e => {
+    const row = e.target.closest('.hp-tf');
+    if (!row) return;
+    hpText[row.dataset.key] = e.target.value;
+    syncHpField(row.dataset.key);
+  });
+  document.getElementById('hpTextGroups').addEventListener('click', e => {
+    if (!e.target.closest('[data-hpt-restore]')) return;
+    const row = e.target.closest('.hp-tf');
+    const f = hpTextFields.find(x => x.key === row.dataset.key);
+    hpText[f.key] = f.original;
+    row.querySelector('input, textarea').value = f.original;
+    syncHpField(f.key);
+    document.getElementById('hpStatus').textContent = 'Original wording restored — click Save homepage to publish it.';
+    document.getElementById('hpStatus').className = 'save-status';
+  });
+
   // ---- Homepage (Settings > Website) ----
   const HP_SECTIONS = [
     { key: 'services', label: 'What we do (services)', help: 'The three service cards near the top of the page.' },
@@ -1762,6 +1855,7 @@
         <label class="switch"><input type="checkbox" data-hp-section="${sec.key}" ${sections[sec.key] === false ? '' : 'checked'} aria-label="Show ${escapeHtml(sec.label)}"><span class="slider"></span></label>
       </div>`).join('');
     renderHpFaq();
+    renderHpText(hp.text || {});
   }
 
   function renderHpFaq() {
@@ -1836,11 +1930,11 @@
       const resp = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'homepage', value: { sections, faq } }),
+        body: JSON.stringify({ key: 'homepage', value: { sections, faq, text: hpText } }),
       });
       const result = await resp.json().catch(() => ({}));
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
-      renderHomepage(result.setting && result.setting.value ? result.setting.value : { sections, faq });
+      renderHomepage(result.setting && result.setting.value ? result.setting.value : { sections, faq, text: hpText });
       statusEl.textContent = 'Saved — the website updates within a few seconds.';
       statusEl.className = 'save-status success';
     } catch (err) {
@@ -2343,6 +2437,7 @@
       renderPrintPrefs(result.settings.print_prefs);
       renderAiAccess(result.settings.ai_access);
       renderSiteMode(result.settings.site_mode);
+      hpTextFields = result.settings.homepage_text_fields || [];
       renderHomepage(result.settings.homepage);
       kbEntries = (result.settings.ai_knowledge && result.settings.ai_knowledge.entries) || [];
       renderKnowledge();
