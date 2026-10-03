@@ -407,7 +407,17 @@ function buildPresetAvatar(bg, fg) {
     `<line x1="20" y1="60" x2="10" y2="52"/>` +
     `<line x1="108" y1="60" x2="118" y2="52"/>` +
     `</g></svg>`;
-  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  // The server's avatar_data_url validator only accepts a base64-encoded
+  // data: URI ("data:image/<type>;base64,..."), but this used to build a
+  // raw "data:image/svg+xml;utf8,<url-encoded svg>" URI -- a different
+  // encoding the validator's regex never matched. It previewed and
+  // rendered fine client-side (the <img>/background-image tags don't
+  // care), so the bug was invisible until Save, which always failed with
+  // "Please choose a PNG, JPG, WEBP, or GIF image." Base64-encoding the
+  // same SVG markup instead keeps it as a tiny, instantly-available
+  // string (no async image decode needed) while matching the format the
+  // server expects.
+  return 'data:image/svg+xml;base64,' + btoa(svg);
 }
 
 function renderAvatarPresets(currentDataUrl) {

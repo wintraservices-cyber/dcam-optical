@@ -179,7 +179,12 @@ async function handleUpdateProfile(req, res) {
         res.status(400).json({ ok: false, error: 'That picture is too large -- please use a smaller image.' });
         return;
       }
-      if (!/^data:image\/(png|jpe?g|webp|gif);base64,/.test(avatar)) {
+      // svg+xml is accepted alongside the uploaded-photo formats below so
+      // the staff-profile preset avatars (plain inline-SVG shapes,
+      // base64-encoded client-side in staff-profile.html) can actually be
+      // saved -- they aren't a user-supplied upload, just one of a fixed
+      // set of safe shapes this app itself generates.
+      if (!/^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,/.test(avatar)) {
         res.status(400).json({ ok: false, error: 'Please choose a PNG, JPG, WEBP, or GIF image.' });
         return;
       }
