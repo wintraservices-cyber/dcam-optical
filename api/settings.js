@@ -17,7 +17,7 @@ const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, Site
 const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('../lib/team');
 const { normalizeHomepage, TEXT_FIELDS } = require('../lib/homepage');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status'];
 
 async function readSetting(key) {
   const resp = await supabaseRequest(`app_settings?key=eq.${encodeURIComponent(key)}&limit=1`, { method: 'GET' });

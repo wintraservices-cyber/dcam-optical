@@ -920,20 +920,22 @@
 
     <div class="card">
       <h2>Client project updates</h2>
-      <div class="card-sub">Client-facing summary of what's been built, current status, and what's next. This is a snapshot saved to the site -- it reflects the page as of the version/date below, not necessarily this exact minute.</div>
+      <div class="card-sub">Client-facing summary of what's been built, current status, and what's next. This is a snapshot saved to the site -- it reflects the page as of its last refresh, not necessarily this exact minute.</div>
       <div class="field-grid">
         <div>
-          <label>Title</label>
-          <input type="text" value="DCAM Optical Updates" readonly>
+          <label>Phase</label>
+          <input type="text" id="pstatusPhase" placeholder="e.g. Core Build / QA / UAT">
         </div>
-        <div>
-          <label>Version</label>
-          <input type="text" id="pstatusVersion" value="Version 15" readonly>
+      </div>
+      <div class="field-grid">
+        <div style="grid-column: 1 / -1;">
+          <label>Description</label>
+          <textarea id="pstatusNote" rows="3" placeholder="Short internal note on where things stand -- shown to staff here only, not on the client page."></textarea>
         </div>
-        <div>
-          <label>Snapshot date</label>
-          <input type="text" id="pstatusDate" value="Oct 2, 2026" readonly>
-        </div>
+      </div>
+      <div class="save-row">
+        <button class="save-btn" id="savePstatusBtn">Save</button>
+        <span class="save-status" id="pstatusSaveStatus"></span>
       </div>
       <div class="save-row">
         <button class="save-btn" id="refreshUpdatesBtn">Refresh / generate latest updates</button>
@@ -999,7 +1001,7 @@
       const src = updatesFrame.getAttribute('src').split('?')[0];
       updatesFrame.setAttribute('src', src + '?t=' + Date.now());
       updatesFrame.addEventListener('load', () => {
-        refreshStatus.textContent = 'Showing the latest saved snapshot (' + (document.getElementById('pstatusVersion') || {}).value + ').';
+        refreshStatus.textContent = 'Showing the latest saved snapshot.';
         refreshStatus.className = 'save-status success';
       }, { once: true });
     });
@@ -1141,6 +1143,41 @@
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'business_info', value }),
+      });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      statusEl.textContent = 'Saved.';
+      statusEl.className = 'save-status success';
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.className = 'save-status error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---- Project status (internal note shown on the Project status tab) ----
+  function renderProjectStatus(setting) {
+    const p = setting || {};
+    document.getElementById('pstatusPhase').value = p.phase || '';
+    document.getElementById('pstatusNote').value = p.note || '';
+  }
+
+  document.getElementById('savePstatusBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('savePstatusBtn');
+    const statusEl = document.getElementById('pstatusSaveStatus');
+    btn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    statusEl.className = 'save-status';
+    try {
+      const value = {
+        phase: document.getElementById('pstatusPhase').value.trim(),
+        note: document.getElementById('pstatusNote').value.trim(),
+      };
+      const resp = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'project_status', value }),
       });
       const result = await resp.json();
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
@@ -2506,6 +2543,7 @@
       mainWrap.style.display = 'block';
       renderRxRangesForm(result.settings.rx_ranges);
       renderBusinessInfo(result.settings.business_info);
+      renderProjectStatus(result.settings.project_status);
       renderTeamFrom(result.settings.optometrists);
       renderPhoneValidation(result.settings.phone_validation);
       renderPrintPrefs(result.settings.print_prefs);
@@ -2520,6 +2558,7 @@
       mainWrap.style.display = 'block';
       renderRxRangesForm(null);
       renderBusinessInfo(null);
+      renderProjectStatus(null);
       renderTeamFrom(null);
       renderPhoneValidation(null);
       renderPrintPrefs(null);
