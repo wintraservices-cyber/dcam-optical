@@ -63,12 +63,12 @@
 
   .wrap { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
 
-  .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
   .tabs button {
     font-family: var(--display);
     font-weight: 700;
-    font-size: 0.85rem;
-    padding: 10px 20px;
+    font-size: 0.78rem;
+    padding: 7px 14px;
     border-radius: 100px;
     border: 1px solid var(--line);
     background: #fff;
@@ -458,27 +458,6 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>Intake phone number validation</h2>
-      <div class="card-sub">Controls what phone numbers the public intake form accepts.</div>
-      <div class="field-grid" style="grid-template-columns: 1fr;">
-        <div>
-          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
-            <input type="radio" name="phoneValidationMode" value="ph_only" checked style="width:auto;">
-            Philippine mobile numbers only (e.g. 0917 123 4567)
-          </label>
-          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem;">
-            <input type="radio" name="phoneValidationMode" value="international" style="width:auto;">
-            Accept international numbers too
-          </label>
-        </div>
-      </div>
-      <div class="save-row">
-        <button class="save-btn" id="savePhoneValidation">Save</button>
-        <span class="save-status" id="phoneValidationStatus"></span>
-      </div>
-    </div>
-
   </div>
 
   <!-- Staff Accounts -->
@@ -602,6 +581,27 @@
       <div class="save-row">
         <button class="save-btn" id="savePrintPrefs">Save</button>
         <span class="save-status" id="printPrefsStatus"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Intake phone number validation</h2>
+      <div class="card-sub">Controls what phone numbers the public intake form accepts.</div>
+      <div class="field-grid" style="grid-template-columns: 1fr;">
+        <div>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem; margin-bottom:8px;">
+            <input type="radio" name="phoneValidationMode" value="ph_only" checked style="width:auto;">
+            Philippine mobile numbers only (e.g. 0917 123 4567)
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:0.9rem;">
+            <input type="radio" name="phoneValidationMode" value="international" style="width:auto;">
+            Accept international numbers too
+          </label>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="save-btn" id="savePhoneValidation">Save</button>
+        <span class="save-status" id="phoneValidationStatus"></span>
       </div>
     </div>
   </div>
