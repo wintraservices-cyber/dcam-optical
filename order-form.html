@@ -273,6 +273,8 @@
   }
   table.grid td input {
     width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     border: none;
     background: transparent;
     text-align: center;
@@ -1029,6 +1031,13 @@
     }
     .tu-box.checked { background: #000 !important; }
     .tu-full { margin-bottom: 2px; border-bottom: 0.75px solid #000; padding-bottom: 2px; }
+    /* Items block only applies to Non-Rx orders (the Rx grids above show
+       nothing useful for a Non-Rx slip) -- hidden by default, shown by
+       renderThreeUpCopy() toggling a "visible" class once it knows which
+       order type this copy is for. See the isRx note on collectThreeUpData(). */
+    .tu-items-block { display: none; }
+    .tu-items-block.visible { display: block; }
+    .tu-rx-grids.hidden { display: none; }
     .tu-sig { margin-top: 3px; font-weight: 700; font-size: 6.3px; }
     .tu-sig [data-field="takenBy"] {
       display: inline-block;
@@ -1236,11 +1245,11 @@
 
       <table class="grid">
         <colgroup>
-          <col style="width:8%;">
-          <col style="width:13%;">
-          <col style="width:13%;">
-          <col style="width:46%;">
-          <col style="width:20%;">
+          <col style="width:6%;">
+          <col style="width:16%;">
+          <col style="width:16%;">
+          <col style="width:40%;">
+          <col style="width:22%;">
         </colgroup>
         <thead>
           <tr>
@@ -1425,6 +1434,7 @@
             <div class="tu-field"><label>Tel. No.</label><span data-field="ordTel"></span></div>
           </div>
           <div class="tu-jobtype">Type: <span data-field="rxSubtype"></span></div>
+          <div class="tu-rx-grids">
           <table class="tu-grid">
             <thead>
               <tr><th></th><th>SPH</th><th>CYL</th><th>Axis</th><th>Prism</th><th>Base</th><th rowspan="2" class="tu-lensmat">Type</th></tr>
@@ -1473,6 +1483,8 @@
               </tr>
             </tbody>
           </table>
+          </div><!-- /tu-rx-grids -->
+          <div class="tu-field tu-full tu-items-block"><label>Items</label><span data-field="itemsSummary"></span></div>
           <div class="tu-field tu-full"><label>Frame</label><span data-field="ordFrame"></span></div>
           <div class="tu-field tu-full"><label>Special Instructions</label><span data-field="ordNotes"></span></div>
           <div class="tu-sig">By: <span data-field="takenBy"></span></div>
@@ -1646,6 +1658,17 @@
       balance: fmtMoney(val('balance') || (parseFloat(val('amount')) - parseFloat(val('deposit')))),
       lensMaterial: isRx ? checkedVal('lensMaterial') : '',
       takenBy: val('takenBy'),
+      // Non-Rx has no SPH/CYL/etc. grid to print -- the on-screen form
+      // instead shows a list of items (name/qty/price). The print
+      // previously had no equivalent at all, so a Non-Rx slip printed
+      // with an empty Rx grid and nothing showing what was actually
+      // ordered, while the screen clearly listed the items. Summarize
+      // the item rows into one printable line instead, e.g.
+      // "Sunglasses case x2, Nosepads x1".
+      isRx,
+      itemsSummary: isRx ? '' : collectItemRows()
+        .map(it => it.item_name + (parseInt(it.item_qty, 10) > 1 ? ` x${it.item_qty}` : ''))
+        .join(', '),
     };
   }
 
@@ -1659,6 +1682,13 @@
       const [field, value] = el.getAttribute('data-check').split(':');
       if (data[field] === value) el.classList.add('checked');
     });
+    // Non-Rx: show the Items line instead of the (always-blank) Rx
+    // SPH/CYL/etc. grids, so the printed slip actually matches what a
+    // Non-Rx order looks like on screen.
+    if (!data.isRx) {
+      node.querySelectorAll('.tu-rx-grids').forEach(el => el.classList.add('hidden'));
+      node.querySelectorAll('.tu-items-block').forEach(el => el.classList.add('visible'));
+    }
     // Reuse the real logo <img> already in the page (it's a large inline
     // base64 image) instead of duplicating it in the template markup.
     const logoSrc = document.querySelector('.brandbox img');
