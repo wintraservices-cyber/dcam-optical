@@ -374,6 +374,13 @@
   </div>
 </section>
 
+<section class="form-shell" id="bookingPaused" hidden>
+  <div class="scope-note" style="margin:0 auto;max-width:640px">
+    <p><strong>Online booking is paused right now.</strong> Please visit or contact the shop and our team will help you directly.</p>
+    <p id="pausedContact" style="margin-top:8px"></p>
+  </div>
+</section>
+
 <section class="form-shell">
   <form id="intakeForm">
     <div class="form-section">
@@ -486,6 +493,31 @@
 </footer>
 
 <script>
+(function() {
+  // Settings > Website > Homepage > "Book your eye exam" switch. When staff
+  // turn booking off, show a pause notice instead of the form. If the
+  // settings can't be read, the form simply stays available.
+  fetch('/api/settings?view=public_info').then(function (r) { return r.json(); }).then(function (d) {
+    var info = (d && d.info) || {};
+    var sec = info.homepage && info.homepage.sections;
+    if (!sec || sec.book !== false) return;
+    var shell = document.getElementById('intakeForm').closest('.form-shell');
+    if (shell) shell.hidden = true;
+    var intro = document.querySelector('.intro');
+    if (intro) intro.hidden = true;
+    var notice = document.getElementById('bookingPaused');
+    notice.hidden = false;
+    var c = document.getElementById('pausedContact');
+    [info.mobile, info.tel].filter(Boolean).forEach(function (t, i) {
+      if (i) c.appendChild(document.createTextNode(' · '));
+      c.appendChild(document.createTextNode(t));
+    });
+    if (info.email) {
+      if (c.firstChild) c.appendChild(document.createTextNode(' · '));
+      var a = document.createElement('a'); a.href = 'mailto:' + info.email; a.textContent = info.email; c.appendChild(a);
+    }
+  }).catch(function () {});
+})();
 (function() {
   const form = document.getElementById('intakeForm');
   const confirmPanel = document.getElementById('confirmPanel');
