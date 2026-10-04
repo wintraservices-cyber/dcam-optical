@@ -684,7 +684,7 @@
 <section class="block" id="book">
   <div class="wrap">
     <div class="book-grid">
-      <div class="panel book">
+      <div class="panel book" id="bookPanel">
         <h2 data-text="book_title">Book your eye exam</h2>
         <form class="fgrid" id="bookForm" novalidate>
           <div class="field"><label for="fname">First name</label><input type="text" id="fname" autocomplete="given-name"></div>
@@ -878,11 +878,25 @@
       document.querySelectorAll('a[href="#' + id + '"]').forEach(function (a) { a.hidden = true; });
     }
     ['services', 'story', 'faq', 'quiz'].forEach(function (id) { if (hp.sections[id] === false) hideSection(id); });
-    // The order-check box also needs Order status lookup to be on.
-    if (hp.sections.track === false || b.order_tracking === false) {
-      hideSection('track');
+    // Booking and the order check share one section (#book), so each is
+    // hidden by its own panel. Booking off also hides every "Book..." link
+    // and button. The order-check box also needs Order status lookup on.
+    var bookOff = hp.sections.book === false;
+    var trackOff = hp.sections.track === false || b.order_tracking === false;
+    if (bookOff) {
+      var bookPanel = document.getElementById('bookPanel');
+      if (bookPanel) bookPanel.hidden = true;
+      document.querySelectorAll('a[href="#book"]').forEach(function (a) { a.hidden = true; });
+    }
+    if (trackOff) hideSection('track');
+    if (bookOff || trackOff) {
       var grid = document.querySelector('.book-grid');
       if (grid) grid.classList.add('solo');
+    }
+    // Both off: nothing left in the section, so hide the whole thing.
+    if (bookOff && trackOff) {
+      var bookSection = document.getElementById('book');
+      if (bookSection) bookSection.hidden = true;
     }
     var faqSection = document.getElementById('faq');
     if (faqSection && Array.isArray(hp.faq)) {
