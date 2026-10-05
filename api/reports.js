@@ -245,8 +245,14 @@ async function ordersReport(req, res, from, to) {
       { label: 'Lens Type', value: 'lens_type' },
       { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
       { label: 'Qty', value: totalQty },
-      { label: 'Amount', value: 'amount' },
-      { label: 'Deposit', value: 'deposit' },
+      // "Total" and "Payment Today" replace the old Amount/Deposit pair
+      // (2026-10-05) so this report reads the same as the Sales report:
+      // Total is the order's price (blank on a Balance Payment row, so
+      // the column can be summed without double-counting), and Payment
+      // Today is the money collected on that row -- the intake deposit
+      // on an Order row, the payment itself on a Balance Payment row.
+      { label: 'Total', value: (o) => (o.__entry === 'payment' ? '' : o.amount) },
+      { label: 'Payment Today', value: (o) => (o.__entry === 'payment' ? o.amount : o.deposit) },
       { label: 'Payment Method', value: 'payment_method' },
       { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
       { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
