@@ -481,7 +481,7 @@
         <td data-label="Item / Frame">${o.order_type === 'non_rx' ? itemsSummary(o) : (escapeHtml(o.frame) || '—')}</td>
         <td data-label="Balance">
           ${o.balance ? '₱' + escapeHtml(o.balance) : '—'}
-          ${o.balance && parseFloat(o.balance) > 0 ? `
+          ${o.balance && parseFloat(o.balance) > 0 && o.payment_status !== 'paid' ? `
             <button type="button" class="log-payment-btn" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">Log payment</button>
             <div class="payment-panel" id="paymentPanel-${o.id}">
               <div class="payment-panel-grid">

@@ -2488,8 +2488,8 @@
     const axisValues = rxRange(r.axis.min, r.axis.max, r.axis.step);
     const prismValues = rxRange(r.prism.min, r.prism.max, r.prism.step);
 
-    const sphFormat = (v) => (v > 0 ? `+${v.toFixed(2)}` : v === 0 ? '0.00' : v.toFixed(2));
-    const cylFormat = (v) => v.toFixed(2);
+    const sphFormat = (v) => (v > 0 ? `+${v.toFixed(2)}` : v === 0 ? 'PLANO' : v.toFixed(2));
+    const cylFormat = (v) => (v === 0 ? 'PLANO' : v.toFixed(2));
     const addFormat = (v) => `+${v.toFixed(2)}`;
     const axisFormat = (v) => `${v}`;
     const prismFormat = (v) => `${v}`;
@@ -2517,9 +2517,19 @@
   // Once a typed value is confirmed valid, snap it to the canonical
   // display format (e.g. "1.25" -> "+1.25") so the stored value and the
   // printed slip are consistent no matter how staff typed it.
+  // A power of zero (0, 0.00, +0.00, -0.00) or the word PLANO on SPH, CYL
+  // or ADD is stored and printed as "PLANO" -- the standard optical term.
+  function isPlanoInput(v, kind) {
+    if (kind !== 'sph' && kind !== 'cyl' && kind !== 'add') return false;
+    v = String(v || '').trim();
+    if (/^plano$/i.test(v)) return true;
+    return /^[+-]?\d*\.?\d*$/.test(v) && /\d/.test(v) && parseFloat(v) === 0;
+  }
+
   function snapRxValue(el, kind) {
     const v = el.value.trim();
     if (!v) return;
+    if (isPlanoInput(v, kind)) { el.value = 'PLANO'; return; }
     const num = parseFloat(v);
     if (!Number.isFinite(num)) return;
     for (const allowed of rxValidValues[kind]) {
@@ -2546,6 +2556,7 @@
   function markRxValidity(el, kind) {
     const v = el.value.trim();
     if (!v) { el.classList.remove('field-invalid'); return; }
+    if (isPlanoInput(v, kind)) { el.classList.remove('field-invalid'); return; }
     const num = parseFloat(v);
     let isValid = Number.isFinite(num) && /^[+-]?\d+(\.\d+)?$/.test(v);
     if (isValid) {
@@ -2588,7 +2599,7 @@
   function toggleAxisBase(eye) {
     const cyl = document.getElementById(`rx_${eye}_cyl`).value.trim();
     const prism = document.getElementById(`rx_${eye}_prism`).value.trim();
-    const shouldEnable = (!!cyl && parseFloat(cyl) !== 0) || !!prism;
+    const shouldEnable = (!!cyl && !isPlanoInput(cyl, 'cyl') && parseFloat(cyl) !== 0) || !!prism;
     const axisEl = document.getElementById(`rx_${eye}_axis`);
     const baseEl = document.getElementById(`rx_${eye}_base`);
     axisEl.disabled = !shouldEnable;
