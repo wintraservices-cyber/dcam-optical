@@ -815,7 +815,7 @@
        browsers enforce a minimum rendered size for the OS widget
        itself, so at print time they end up looking oversized next to
        everything else even though the on-screen version and a headless
-       PDF render both look fine. Styling the native <input> directly
+       PDF render both look fine. Styling the native <input autocomplete="off"> directly
        (appearance: none + a ::after dot) does not actually paint
        anything in Chromium's print pipeline -- confirmed by cropping
        the rendered PDF at the exact widget coordinates and finding
@@ -1142,7 +1142,7 @@
 
       <div class="order-no-row">
         <span class="hash">No. #</span>
-        <input type="text" id="orderNo" placeholder="2025-0001" maxlength="14">
+        <input type="text" id="orderNo" placeholder="2025-0001" maxlength="14" autocomplete="off">
       </div>
 
       <div class="order-type-toggle">
@@ -1151,9 +1151,9 @@
       </div>
 
       <div class="field-row cols-3">
-        <div class="field-inline"><label>Date</label><input type="date" id="ordDate"></div>
-        <div class="field-inline"><label>Due date</label><input type="date" id="ordDue"></div>
-        <div class="field-inline"><label>Tray no.</label><input type="text" id="trayNo"></div>
+        <div class="field-inline"><label>Date</label><input type="date" id="ordDate" autocomplete="off"></div>
+        <div class="field-inline"><label>Due date</label><input type="date" id="ordDue" autocomplete="off"></div>
+        <div class="field-inline"><label>Tray no.</label><input type="text" id="trayNo" autocomplete="off"></div>
       </div>
 
       <div class="field-row cols-2">
@@ -1162,7 +1162,7 @@
           <input type="text" id="ordName" autocomplete="off">
           <div class="patient-suggestions" id="patientSuggestions"></div>
         </div>
-        <div class="field-inline"><label>Tel. no.</label><input type="text" id="ordTel"></div>
+        <div class="field-inline"><label>Tel. no.</label><input type="text" id="ordTel" autocomplete="off"></div>
       </div>
 
       <div id="rxSection">
@@ -1264,7 +1264,7 @@
           <tr>
             <td class="label-cell">R</td>
             <td><input type="text" id="add_r" class="rx-field" list="addList" inputmode="decimal" autocomplete="off" placeholder="0.00"></td>
-            <td><input type="text" id="seg_ht_r" class="rx-field" inputmode="decimal" placeholder="18" title="Segment height in mm"></td>
+            <td><input type="text" id="seg_ht_r" class="rx-field" inputmode="decimal" placeholder="18" title="Segment height in mm" autocomplete="off"></td>
             <td rowspan="2" style="position:relative;">
               <textarea id="lens_type" rows="1" placeholder="e.g. Progressive, Single Vision" autocomplete="off"></textarea>
               <div class="lens-suggestions" id="lensSuggestions"></div>
@@ -1275,13 +1275,13 @@
               <datalist id="addList"></datalist>
               <datalist id="prismList"></datalist>
             </td>
-            <td id="pdCellR"><input type="text" id="pd_r" class="rx-field" inputmode="decimal" placeholder="31.5" title="Pupillary distance in mm"></td>
+            <td id="pdCellR"><input type="text" id="pd_r" class="rx-field" inputmode="decimal" placeholder="31.5" title="Pupillary distance in mm" autocomplete="off"></td>
           </tr>
           <tr>
             <td class="label-cell">L</td>
             <td><input type="text" id="add_l" class="rx-field" list="addList" inputmode="decimal" autocomplete="off" placeholder="0.00"></td>
-            <td><input type="text" id="seg_ht_l" class="rx-field" inputmode="decimal" placeholder="18" title="Segment height in mm"></td>
-            <td id="pdCellL"><input type="text" id="pd_l" class="rx-field" inputmode="decimal" placeholder="31.5" title="Pupillary distance in mm"></td>
+            <td><input type="text" id="seg_ht_l" class="rx-field" inputmode="decimal" placeholder="18" title="Segment height in mm" autocomplete="off"></td>
+            <td id="pdCellL"><input type="text" id="pd_l" class="rx-field" inputmode="decimal" placeholder="31.5" title="Pupillary distance in mm" autocomplete="off"></td>
           </tr>
         </tbody>
       </table>
@@ -1314,14 +1314,14 @@
           <div class="field-inline"><label>Frame</label><input type="text" id="ordFrame" list="frameCatalogList" autocomplete="off"><datalist id="frameCatalogList"></datalist></div>
         </div>
         <div class="field-row single">
-          <div class="field-inline"><label>Special instructions</label><textarea id="ordNotes"></textarea></div>
+          <div class="field-inline"><label>Special instructions</label><textarea id="ordNotes" autocomplete="off"></textarea></div>
         </div>
       </div>
 
       <div class="field-row cols-3">
-        <div class="field-inline"><label>Amount ₱</label><input type="text" id="amount" inputmode="decimal" placeholder="0.00"></div>
-        <div class="field-inline"><label>Deposit / Payment</label><input type="text" id="deposit" inputmode="decimal" placeholder="0.00"></div>
-        <div class="field-inline"><label>Balance <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(auto)</span></label><input type="text" id="balance" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field-inline"><label>Amount ₱</label><input type="text" id="amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></div>
+        <div class="field-inline"><label>Deposit / Payment</label><input type="text" id="deposit" inputmode="decimal" placeholder="0.00" autocomplete="off"></div>
+        <div class="field-inline"><label>Balance <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(auto)</span></label><input type="text" id="balance" inputmode="decimal" placeholder="0.00" autocomplete="off"></div>
       </div>
       <div class="payment-rows-group">
         <!-- Job status (Ordered/Ready/Claimed): only meaningful for an
@@ -1355,13 +1355,13 @@
 
         <div class="sig-row">
           <label>By:</label>
-          <input type="text" id="takenBy" readonly title="Set automatically from your staff login -- not editable.">
+          <input type="text" id="takenBy" readonly title="Set automatically from your staff login -- not editable." autocomplete="off">
         </div>
       </div>
       <div class="field-row cols-3" id="splitPaymentRow" style="display:none;">
-        <div class="field-inline"><label>Split — Cash ₱</label><input type="text" id="splitCash" inputmode="decimal" placeholder="0.00"></div>
-        <div class="field-inline"><label>Split — GCash/CC ₱</label><input type="text" id="splitGcash" inputmode="decimal" placeholder="0.00"></div>
-        <div class="field-inline"><label>Split total <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(should match payment today)</span></label><input type="text" id="splitTotalDisplay" inputmode="decimal" placeholder="0.00" readonly></div>
+        <div class="field-inline"><label>Split — Cash ₱</label><input type="text" id="splitCash" inputmode="decimal" placeholder="0.00" autocomplete="off"></div>
+        <div class="field-inline"><label>Split — GCash/CC ₱</label><input type="text" id="splitGcash" inputmode="decimal" placeholder="0.00" autocomplete="off"></div>
+        <div class="field-inline"><label>Split total <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(should match payment today)</span></label><input type="text" id="splitTotalDisplay" inputmode="decimal" placeholder="0.00" readonly autocomplete="off"></div>
       </div>
     </div>
 
@@ -1378,15 +1378,15 @@
         </div>
       </div>
 
-      <div class="field-row single"><div class="field-inline"><label>Name</label><input type="text" id="stubName"></div></div>
-      <div class="field-row single"><div class="field-inline"><label>Date</label><input type="date" id="stubDate"></div></div>
-      <div class="field-row single"><div class="field-inline"><label>Due date</label><input type="date" id="stubDue"></div></div>
-      <div class="field-row single"><div class="field-inline"><label>Lens type</label><textarea id="stubLens" rows="1" style="resize:none; overflow:hidden; white-space:pre-wrap; word-break:break-word; height:auto; border:1.3px solid var(--charcoal);"></textarea></div></div>
-      <div class="field-row single"><div class="field-inline"><label>Frame</label><input type="text" id="stubFrame"></div></div>
+      <div class="field-row single"><div class="field-inline"><label>Name</label><input type="text" id="stubName" autocomplete="off"></div></div>
+      <div class="field-row single"><div class="field-inline"><label>Date</label><input type="date" id="stubDate" autocomplete="off"></div></div>
+      <div class="field-row single"><div class="field-inline"><label>Due date</label><input type="date" id="stubDue" autocomplete="off"></div></div>
+      <div class="field-row single"><div class="field-inline"><label>Lens type</label><textarea id="stubLens" rows="1" style="resize:none; overflow:hidden; white-space:pre-wrap; word-break:break-word; height:auto; border:1.3px solid var(--charcoal);" autocomplete="off"></textarea></div></div>
+      <div class="field-row single"><div class="field-inline"><label>Frame</label><input type="text" id="stubFrame" autocomplete="off"></div></div>
       <div class="field-row cols-3 stub-amounts">
-        <div class="field-inline"><label>Amount ₱</label><input type="text" id="stubAmount" readonly></div>
-        <div class="field-inline"><label>Deposit ₱</label><input type="text" id="stubDeposit" readonly></div>
-        <div class="field-inline"><label>Balance ₱</label><input type="text" id="stubBalance" readonly></div>
+        <div class="field-inline"><label>Amount ₱</label><input type="text" id="stubAmount" readonly autocomplete="off"></div>
+        <div class="field-inline"><label>Deposit ₱</label><input type="text" id="stubDeposit" readonly autocomplete="off"></div>
+        <div class="field-inline"><label>Balance ₱</label><input type="text" id="stubBalance" readonly autocomplete="off"></div>
       </div>
 
       <p class="forfeit-note">Eyeglasses or contact lenses not claimed within 60 days will be forfeited.</p>
@@ -1394,7 +1394,7 @@
       <div class="claim-title">Claim Stub</div>
       <div class="claim-no">
         <span class="hash">No. #</span>
-        <input type="text" id="claimNoDisplay" readonly>
+        <input type="text" id="claimNoDisplay" readonly autocomplete="off">
       </div>
     </div>
   </div>
@@ -1858,6 +1858,21 @@
     setOrderType('rx'); // also re-suggests the order number for the reset type
   });
 
+  // A new order must start blank. Browsers can bring back the previous
+  // page's typed values (Back button / bfcache, or restoring form state on
+  // reload), which showed up as the last order's Amount on a new order.
+  // The inputs above are marked autocomplete="off"; this is the backstop.
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted && !new URLSearchParams(window.location.search).get('id')) window.location.reload();
+  });
+  window.addEventListener('load', () => {
+    if (new URLSearchParams(window.location.search).get('id')) return;
+    setTimeout(() => {
+      ['amount', 'deposit', 'balance'].forEach(id => { const el = document.getElementById(id); if (el && el.value) el.value = ''; });
+      const stub = document.getElementById('stubBalance'); if (stub) stub.value = '';
+    }, 0);
+  });
+
   // ---- Auth gate ----
   async function checkAuth() {
     try {
@@ -2264,9 +2279,9 @@
   }
 
   // ---- Lens type catalog suggestions ----
-  // lens_type is now a wrapping <textarea> (see CSS) so long descriptions
+  // lens_type is now a wrapping <textarea autocomplete="off"> (see CSS) so long descriptions
   // stay fully visible/printed instead of scrolling out of view -- but a
-  // <textarea> can't use the native <input list="..."> datalist, so this
+  // <textarea autocomplete="off"> can't use the native <input list="..." autocomplete="off"> datalist, so this
   // reimplements the same "type to filter, click to pick" behavior as a
   // small dropdown, matching the pattern already used for patient search.
   const lensSuggestionsBox = document.getElementById('lensSuggestions');
@@ -2703,9 +2718,9 @@
     row.dataset.rowId = rowId;
     row.innerHTML = `
       <input type="text" class="item-name-field" placeholder="e.g. Nosepads" data-field="name" list="itemCatalogList" autocomplete="off">
-      <input type="text" class="item-qty-field" inputmode="numeric" placeholder="1" data-field="qty" value="1">
-      <input type="text" class="item-price-field" inputmode="decimal" placeholder="0.00" data-field="price">
-      <input type="text" class="item-total-field item-line-total" inputmode="decimal" placeholder="0.00" data-field="total" readonly>
+      <input type="text" class="item-qty-field" inputmode="numeric" placeholder="1" data-field="qty" value="1" autocomplete="off">
+      <input type="text" class="item-price-field" inputmode="decimal" placeholder="0.00" data-field="price" autocomplete="off">
+      <input type="text" class="item-total-field item-line-total" inputmode="decimal" placeholder="0.00" data-field="total" readonly autocomplete="off">
       <button type="button" class="remove-item-btn" title="Remove item">×</button>
     `;
     itemRowsContainer.appendChild(row);
