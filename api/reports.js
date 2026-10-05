@@ -193,6 +193,21 @@ function paymentRowSummary(p) {
 // for an order row, or when it was collected for a payment row -- so
 // the two interleave in the one true chronological order rather than
 // all orders first, then all payments.
+// Balance shown on a report row. A Balance Payment row shows the balance
+// right after that payment (balance_after). An Order row shows what was
+// still owed when the order was placed (Total minus the intake deposit),
+// not the order's live balance -- otherwise an order settled later reads
+// as owing nothing on the day it was taken. Set to false to go back to
+// showing the order's current balance on Order rows (changed 2026-10-05).
+const ORDER_ROW_BALANCE_AS_OF_INTAKE = true;
+function rowBalance(o) {
+  if (o.__entry === 'payment' || !ORDER_ROW_BALANCE_AS_OF_INTAKE) return o.balance;
+  const amount = parseFloat(o.amount);
+  if (!Number.isFinite(amount)) return o.balance;
+  const deposit = parseFloat(o.deposit) || 0;
+  return Math.max(amount - deposit, 0).toFixed(2);
+}
+
 function mergeRowsByDate(orderRows, paymentRows) {
   return [...orderRows, ...paymentRows].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
 }
@@ -256,7 +271,7 @@ async function ordersReport(req, res, from, to) {
       { label: 'Payment Method', value: 'payment_method' },
       { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
       { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
-      { label: 'Balance', value: 'balance' },
+      { label: 'Balance', value: rowBalance },
       // -- not on the client's sheet, appended at the end --
       { label: 'Created Date', value: (o) => (o.created_at || '').slice(0, 10) },
       { label: 'Phone', value: 'tel_no' },
@@ -321,7 +336,7 @@ async function salesReport(req, res, from, to) {
       { label: 'Payment Method', value: 'payment_method' },
       { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
       { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
-      { label: 'Balance', value: 'balance' },
+      { label: 'Balance', value: rowBalance },
       // -- not on the client's sheet, appended at the end --
       { label: 'Payment Status', value: 'payment_status' },
       { label: 'Status', value: 'status' },
