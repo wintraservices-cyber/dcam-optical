@@ -2098,6 +2098,8 @@
     setVal('splitGcash', order.split_gcash);
     balanceManuallyEdited = true; // preserve the loaded balance rather than recalculating over it
     paymentStatusManuallyEdited = true; // preserve the loaded payment status rather than recalculating over it
+    paymentStatusUserSet = false;       // ...but only until Amount/Deposit is edited (see applyAmountDepositDelta)
+    syncPrevAmounts();
 
     const paymentStatusEl = document.querySelector(`input[name="paymentStatus"][value="${order.payment_status || 'unpaid'}"]`);
     if (paymentStatusEl) paymentStatusEl.checked = true;
@@ -2804,12 +2806,22 @@
   // Paid. A manual click on a status chip opts that order out of the
   // auto behavior, same pattern as the existing balance override.
   let paymentStatusManuallyEdited = false;
+  // True only when staff actually clicked a status chip (as opposed to the
+  // flag being set because an existing order was loaded).
+  let paymentStatusUserSet = false;
+  // Amount/Deposit as of the last edit, so a change can be applied to the
+  // stored balance as a difference (see applyAmountDepositDelta).
+  let prevAmount = 0, prevDeposit = 0;
+  function syncPrevAmounts() {
+    prevAmount = parseFloat(amountInput.value) || 0;
+    prevDeposit = parseFloat(depositInput.value) || 0;
+  }
   function setPaymentStatus(value) {
     const el = document.querySelector(`input[name="paymentStatus"][value="${value}"]`);
     if (el) el.checked = true;
   }
   document.querySelectorAll('input[name="paymentStatus"]').forEach(radio => {
-    radio.addEventListener('change', () => { paymentStatusManuallyEdited = true; });
+    radio.addEventListener('change', () => { paymentStatusManuallyEdited = true; paymentStatusUserSet = true; });
   });
 
   function recalcBalance() {
@@ -2837,18 +2849,38 @@
     // value -- rather than assuming it's always amount minus deposit.
     const effectiveBalance = parseFloat(balanceInput.value) || 0;
     if (!paymentStatusManuallyEdited) {
-      if (deposit <= 0) {
-        setPaymentStatus('unpaid');
-      } else if (effectiveBalance <= 0) {
+      // Nothing paid yet = balance still equals the full amount. Judging by
+      // the balance (not only Deposit) keeps this right for an order that
+      // was settled later through balance payments.
+      if (effectiveBalance <= 0 && amount > 0) {
         setPaymentStatus('paid');
+      } else if (deposit <= 0 && effectiveBalance >= amount) {
+        setPaymentStatus('unpaid');
       } else {
         setPaymentStatus('partial');
       }
     }
   }
-  amountInput.addEventListener('input', recalcBalance);
-  depositInput.addEventListener('input', recalcBalance);
+  // When the balance is locked (an existing order was loaded, or staff typed
+  // a balance), editing Amount or Deposit must still move it. Apply the
+  // change as a difference to the current balance rather than recomputing
+  // Amount - Deposit, because a loaded balance may already include later
+  // balance payments that Deposit doesn't know about.
+  function applyAmountDepositDelta() {
+    if (!balanceManuallyEdited) { recalcBalance(); return; }
+    const amount = parseFloat(amountInput.value) || 0;
+    const deposit = parseFloat(depositInput.value) || 0;
+    const current = parseFloat(balanceInput.value) || 0;
+    const next = current + (amount - prevAmount) - (deposit - prevDeposit);
+    balanceInput.value = (amount > 0 || next !== 0) ? Math.max(next, 0).toFixed(2) : '';
+    prevAmount = amount; prevDeposit = deposit;
+    if (!paymentStatusUserSet) paymentStatusManuallyEdited = false;
+    recalcBalance();
+  }
+  amountInput.addEventListener('input', () => { if (!balanceManuallyEdited) syncPrevAmounts(); applyAmountDepositDelta(); });
+  depositInput.addEventListener('input', () => { if (!balanceManuallyEdited) syncPrevAmounts(); applyAmountDepositDelta(); });
   balanceInput.addEventListener('input', () => {
+    syncPrevAmounts();
     balanceManuallyEdited = true;
     recalcBalance(); // re-evaluate payment status against the manually-typed balance
   });
