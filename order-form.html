@@ -2126,7 +2126,10 @@
         if (item.catalog_item_id) row.dataset.catalogItemId = item.catalog_item_id;
       });
       if (itemRowsContainer.children.length === 0) createItemRow();
+      // Loading must show the saved Amount/Balance as-is, not re-derive them.
+      suppressItemSync = true;
       recalcItemsOrderTotal();
+      suppressItemSync = false;
     } else {
       const rxSubtypeEl = document.querySelector(`input[name="rxSubtype"][value="${order.rx_subtype || 'CMRX'}"]`);
       if (rxSubtypeEl) rxSubtypeEl.checked = true;
@@ -2723,6 +2726,7 @@
     return row;
   }
 
+  let suppressItemSync = false;
   function recalcItemsOrderTotal() {
     let sum = 0;
     itemRowsContainer.querySelectorAll('.item-row').forEach(row => {
@@ -2733,9 +2737,13 @@
     // Mirror the combined items total into the shared Amount field
     // automatically (still editable/overridable in the claim-stub
     // section below), same behavior as the old single-item version.
-    if (sum && !balanceManuallyEdited) {
+    if (sum && !suppressItemSync) {
       amountInput.value = sum.toFixed(2);
-      recalcBalance();
+      // A saved order has its balance locked: move it by the change in
+      // Amount (so earlier deposits/payments are kept) instead of leaving
+      // Amount and Balance stale when item lines are edited.
+      if (balanceManuallyEdited) applyAmountDepositDelta();
+      else recalcBalance();
     }
   }
 
