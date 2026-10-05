@@ -2097,6 +2097,26 @@
     setVal('splitCash', order.split_cash);
     setVal('splitGcash', order.split_gcash);
     balanceManuallyEdited = true; // preserve the loaded balance rather than recalculating over it
+    // ...unless the stored balance is simply wrong. What's still owed must
+    // equal Amount - Deposit - any balance payments logged since. An order
+    // saved while the balance was stale (e.g. Deposit typed after opening
+    // it) keeps the wrong figure forever otherwise, and every later edit
+    // is applied on top of it.
+    {
+      const amt = parseFloat(order.amount);
+      if (Number.isFinite(amt) && Array.isArray(order.balance_payments)) {
+        const paidLater = order.balance_payments.reduce((t, p) => t + (parseFloat(p.amount) || 0), 0);
+        const expected = Math.max(amt - (parseFloat(order.deposit) || 0) - paidLater, 0);
+        const stored = parseFloat(order.balance);
+        if (!Number.isFinite(stored) || Math.abs(stored - expected) > 0.005) {
+          setVal('balance', expected.toFixed(2));
+          const stub = document.getElementById('stubBalance');
+          if (stub) stub.value = expected.toFixed(2);
+          // Keep the payment status consistent with the corrected balance.
+          order.payment_status = (expected <= 0 && amt > 0) ? 'paid' : (expected < amt ? 'partial' : 'unpaid');
+        }
+      }
+    }
     paymentStatusManuallyEdited = true; // preserve the loaded payment status rather than recalculating over it
     paymentStatusUserSet = false;       // ...but only until Amount/Deposit is edited (see applyAmountDepositDelta)
     syncPrevAmounts();

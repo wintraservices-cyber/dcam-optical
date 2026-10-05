@@ -411,7 +411,7 @@ async function listOrders(req, res) {
   // a deleted order is only viewable/actionable from the Trash tab, not
   // editable via the normal order form.
   if (id && typeof id === 'string') {
-    path = `orders?select=*,order_items(*)&id=eq.${encodeURIComponent(id)}${NOT_DELETED}&limit=1`;
+    path = `orders?select=*,order_items(*),balance_payments(amount)&id=eq.${encodeURIComponent(id)}${NOT_DELETED}&limit=1`;
     try {
       const resp = await supabaseRequest(path, { method: 'GET' });
       if (!resp.ok) {
