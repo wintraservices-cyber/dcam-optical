@@ -56,17 +56,6 @@ function sendCsv(res, filename, csvContent) {
   res.status(200).send('\uFEFF' + csvContent);
 }
 
-// Order rows are dated by the order's own order_date (the Transaction Date
-// the report shows), not created_at -- otherwise an order keyed in on Oct 5
-// for Oct 3/4 appeared in an Oct 5 report with a different Transaction Date.
-// order_date is a plain YYYY-MM-DD text column, so it compares as text.
-function orderDateFilter(from, to) {
-  let filter = '';
-  if (from) filter += `&order_date=gte.${encodeURIComponent(from)}`;
-  if (to) filter += `&order_date=lte.${encodeURIComponent(to)}`;
-  return filter;
-}
-
 function dateRangeFilter(from, to, field) {
   let filter = '';
   if (from) filter += `&${field}=gte.${encodeURIComponent(from)}T00:00:00`;
@@ -292,14 +281,14 @@ const SALES_COLUMNS = [
 
 async function ordersReport(req, res, from, to) {
   try {
-    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${orderDateFilter(from, to)}`;
+    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${dateRangeFilter(from, to, 'created_at')}`;
     const resp = await supabaseRequest(path, { method: 'GET' });
     if (!resp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load orders for the report.' });
       return;
     }
     const orders = await resp.json();
-    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: o.order_date || '' }));
+    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: (o.created_at || '').slice(0, 10) }));
     const paymentRows = await fetchPaymentRows(from, to);
     const rows = mergeRowsByDate(orderRows, paymentRows);
 
@@ -341,14 +330,14 @@ async function ordersReport(req, res, from, to) {
 
 async function salesReport(req, res, from, to) {
   try {
-    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${orderDateFilter(from, to)}`;
+    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${dateRangeFilter(from, to, 'created_at')}`;
     const resp = await supabaseRequest(path, { method: 'GET' });
     if (!resp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load orders for the report.' });
       return;
     }
     const orders = await resp.json();
-    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: o.order_date || '' }));
+    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: (o.created_at || '').slice(0, 10) }));
     const paymentRows = await fetchPaymentRows(from, to);
     const rows = mergeRowsByDate(orderRows, paymentRows);
 
