@@ -1884,11 +1884,68 @@
     }, 0);
   });
 
+  // ---- Staff permissions (Settings > Staff accounts > Staff permissions) ----
+  // The server enforces these; this only mirrors them on screen so staff see
+  // locked fields instead of an error after pressing Save.
+  const PERM = { admin: false, perms: {} };
+  function permAllowed(key) { return PERM.admin || !!PERM.perms[key]; }
+  async function loadPermissions(role) {
+    PERM.admin = role === 'admin';
+    try {
+      const r = await (await fetch('/api/settings?view=permissions')).json();
+      if (r && r.ok) PERM.perms = r.permissions || {};
+    } catch (e) { /* stay locked down if they can't be read */ }
+  }
+  function lockOrderNumberAndDate() {
+    const no = document.getElementById('orderNo');
+    if (no && !permAllowed('change_order_number')) {
+      no.readOnly = true;
+      no.title = 'The job number is assigned automatically. Only an admin can change it.';
+    }
+    const td = document.getElementById('txnDate');
+    if (td && !permAllowed('set_transaction_date')) {
+      td.disabled = true;
+      td.title = 'Only an admin can change the transaction date.';
+    }
+  }
+  function applyStatusPermissions() {
+    const rank = { ordered: 0, ready: 1, claimed: 2 };
+    const checked = document.querySelector('input[name="jobStatus"]:checked');
+    const current = checked ? rank[checked.value] : 0;
+    document.querySelectorAll('input[name="jobStatus"]').forEach(r => {
+      const blocked = !permAllowed('set_job_status') || (!permAllowed('reverse_job_status') && rank[r.value] < current);
+      r.disabled = blocked;
+    });
+  }
+  function applySavedOrderLocks() {
+    lockOrderNumberAndDate();
+    applyStatusPermissions();
+    if (permAllowed('edit_saved_orders')) return;
+    const keep = '[name="jobStatus"], #printBtnBottom, #historyPanel *';
+    document.querySelectorAll('.page-wrap input, .page-wrap select, .page-wrap textarea, .page-wrap button').forEach(el => {
+      if (el.matches(keep)) return;
+      if (el.name === 'jobStatus') return;
+      el.disabled = true;
+    });
+    // Keep the status radios as set by applyStatusPermissions above.
+    ['saveBtn', 'saveBtnBottom', 'clearBtn'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = 'none'; });
+    if (!document.getElementById('lockedOrderNote')) {
+      const note = document.createElement('div');
+      note.id = 'lockedOrderNote';
+      note.className = 'no-print';
+      note.style.cssText = 'background:#FBF1E4; color:#8A5A1E; border:1px solid #E7DFD2; border-radius:10px; padding:10px 14px; margin:0 0 14px; font-size:0.9rem;';
+      note.textContent = 'This order is saved and locked. You can print it, change its status, and log payments from the Orders list. To change details, ask an admin.';
+      const wrap = document.querySelector('.page-wrap');
+      wrap.insertBefore(note, wrap.firstChild);
+    }
+  }
+
   // ---- Auth gate ----
   async function checkAuth() {
     try {
       const resp = await fetch('/api/staff-auth');
       const result = await resp.json();
+      if (result.authenticated) await loadPermissions(result.role);
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=order-form.html';
         return;
@@ -1923,6 +1980,7 @@
         // Only fetch the suggested order number once we know the session
         // is valid -- avoids a pointless 401 round-trip otherwise.
         suggestOrderNumber();
+        lockOrderNumberAndDate();
       }
       loadCatalog();
       loadBusinessInfo();
@@ -1997,6 +2055,7 @@
       const result = await resp.json();
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load this order.');
       populateOrderForm(result.order); // sets editingOrderId and restores the Save button text
+      applySavedOrderLocks();
       loadOrderHistory(id);
 
       // Came here from the "Print" link on the View orders list

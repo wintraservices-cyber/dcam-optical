@@ -2,6 +2,7 @@ const { requireAuth, requireAdmin } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 const { findOrCreatePatient } = require('../lib/patients-helper');
 const { logOrderAudit, diffFields } = require('../lib/audit');
+const { getPermissions, can, isBackwards, manilaToday, deny } = require('../lib/staff-permissions');
 
 // Soft delete: any logged-in staff member can delete (sets deleted_at/
 // deleted_by rather than removing the row); only an admin can restore or
@@ -185,6 +186,15 @@ async function createOrder(req, res, session) {
 
   const items = sanitizeItems(body.items);
 
+  // Staff permissions (Settings > Staff accounts): unless allowed, a
+  // staff-entered order always gets today's date and the next job number.
+  const perms = await getPermissions();
+  if (!can(session, perms, 'set_transaction_date')) record.transaction_date = manilaToday();
+  if (!can(session, perms, 'change_order_number')) {
+    const nextNo = await computeNextOrderNumber(record.order_type);
+    if (nextNo) record.order_no = nextNo;
+  }
+
   cleanTxnDate(record);
   if (!record.transaction_date) delete record.transaction_date;
 
@@ -276,6 +286,11 @@ async function updateOrderFull(req, res, session) {
   }
   const { id } = body;
 
+  const perms = await getPermissions();
+  if (!can(session, perms, 'edit_saved_orders')) {
+    return deny(res, 'Saved orders can only be changed by an admin.');
+  }
+
   const record = {};
   for (const [key, maxLen] of Object.entries(FIELD_LIMITS)) {
     if (body[key] !== undefined) record[key] = sanitize(body[key], maxLen);
@@ -289,6 +304,9 @@ async function updateOrderFull(req, res, session) {
     res.status(400).json({ ok: false, error: 'Patient name cannot be empty.' });
     return;
   }
+
+  if (!can(session, perms, 'change_order_number')) delete record.order_no;
+  if (!can(session, perms, 'set_transaction_date')) delete record.transaction_date;
 
   if (record.status !== undefined) record.status = isValidStatus(record.status) ? record.status : undefined;
   if (record.payment_status !== undefined) record.payment_status = isValidPaymentStatus(record.payment_status) ? record.payment_status : undefined;
@@ -558,6 +576,14 @@ async function updateOrderStatus(req, res, session) {
     return;
   }
 
+  const perms = await getPermissions();
+  if (paymentStatusProvided && !can(session, perms, 'set_payment_status')) {
+    return deny(res, 'Only an admin can change payment status by hand. Use Log payment instead.');
+  }
+  if (statusProvided && !can(session, perms, 'set_job_status')) {
+    return deny(res, 'Only an admin can change the job status.');
+  }
+
   const patch = {};
   if (statusProvided) patch.status = status;
   if (paymentStatusProvided) patch.payment_status = payment_status;
@@ -574,6 +600,10 @@ async function updateOrderStatus(req, res, session) {
       }
     } catch (beforeErr) {
       console.error('Could not load pre-edit order for audit diff:', beforeErr);
+    }
+
+    if (statusProvided && beforeRow && !can(session, perms, 'reverse_job_status') && isBackwards(beforeRow.status, status)) {
+      return deny(res, 'Only an admin can move an order back to an earlier status.');
     }
 
     const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}${NOT_DELETED}`, {
@@ -699,6 +729,29 @@ function suggestNextNonRx(existingOrderNos, currentYear, currentMonth) {
   return `${currentYear}-${monthStr}-${String(next).padStart(widestPadding, '0')}`;
 }
 
+// Computes the next suggested order number (null if it can't be worked out).
+// Used when a staff account is not allowed to choose its own job number.
+async function computeNextOrderNumber(order_type) {
+  if (order_type !== 'rx' && order_type !== 'non_rx') return null;
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  try {
+    const prefix = order_type === 'rx'
+      ? encodeURIComponent(`${currentYear}-%`)
+      : encodeURIComponent(`${currentYear}-${String(currentMonth).padStart(2, '0')}-%`);
+    const resp = await supabaseRequest(`orders?select=order_no&order_no=ilike.${prefix}&order=order_no.desc&limit=500`, { method: 'GET' });
+    if (!resp.ok) return null;
+    const orderNos = (await resp.json()).map(r => r.order_no);
+    return order_type === 'rx'
+      ? suggestNextRx(orderNos, currentYear)
+      : suggestNextNonRx(orderNos, currentYear, currentMonth);
+  } catch (e) {
+    console.error('computeNextOrderNumber failed:', e.message);
+    return null;
+  }
+}
+
 async function nextOrderNumber(req, res) {
   const { order_type } = req.query || {};
   if (order_type !== 'rx' && order_type !== 'non_rx') {
@@ -753,6 +806,10 @@ async function nextOrderNumber(req, res) {
 
 async function softDeleteOrder(req, res, session) {
   const { id } = req.query || {};
+  const perms = await getPermissions();
+  if (!can(session, perms, 'delete_orders')) {
+    return deny(res, 'Only an admin can delete orders.');
+  }
   if (!id) {
     res.status(400).json({ ok: false, error: 'An order id is required.' });
     return;

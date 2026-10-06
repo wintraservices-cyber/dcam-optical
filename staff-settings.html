@@ -577,6 +577,15 @@
         <span class="save-status" id="accountsStatus"></span>
       </div>
     </div>
+    <div class="card" id="permissionsCard">
+      <h2>Staff permissions</h2>
+      <div class="card-sub">What a staff login (not an admin) may do with orders. Admins can always do everything. Printing is always available to staff. Changes apply the next time a page loads.</div>
+      <div id="permList"><div class="loading-state">Loading…</div></div>
+      <div class="save-row">
+        <button class="save-btn" id="permSaveBtn" type="button">Save permissions</button>
+        <span class="save-status" id="permStatus"></span>
+      </div>
+    </div>
   </div>
   <!-- Website -->
   <div class="panel" id="panel-website">
@@ -2570,8 +2579,59 @@
       loadAccounts();
     }
   })();
+
+  // ---- Staff permissions ----
+  (function () {
+    const list = document.getElementById('permList');
+    const btn = document.getElementById('permSaveBtn');
+    const statusEl = document.getElementById('permStatus');
+    let keys = [];
+    async function load() {
+      try {
+        const resp = await fetch('/api/settings?view=permissions');
+        const r = await resp.json();
+        if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not load permissions.');
+        keys = Object.keys(r.permissions);
+        list.innerHTML = keys.map((k, i) => `
+          <div class="ai-master" style="${i ? 'border-top:1px solid var(--line); ' : ''}${i === keys.length - 1 ? 'border-bottom:none; ' : ''}padding:12px 0;">
+            <div>
+              <div class="ai-label">${escapeHtml(r.labels[k].label)}</div>
+              <div class="ai-help">${escapeHtml(r.labels[k].hint)}</div>
+            </div>
+            <label class="switch"><input type="checkbox" data-perm="${k}" ${r.permissions[k] ? 'checked' : ''} aria-label="${escapeHtml(r.labels[k].label)}"><span class="slider"></span></label>
+          </div>`).join('');
+      } catch (err) {
+        list.innerHTML = '<div class="loading-state">' + escapeHtml(err.message) + '</div>';
+      }
+    }
+    btn.addEventListener('click', async () => {
+      const value = {};
+      list.querySelectorAll('input[data-perm]').forEach(i => { value[i.getAttribute('data-perm')] = i.checked; });
+      btn.disabled = true;
+      statusEl.textContent = 'Saving…';
+      statusEl.className = 'save-status';
+      try {
+        const resp = await fetch('/api/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'staff_permissions', value }),
+        });
+        const r = await resp.json();
+        if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not save.');
+        statusEl.textContent = 'Saved.';
+        statusEl.className = 'save-status success';
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.className = 'save-status error';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    load();
+  })();
 })();
 </script>
-<script src="staff-assistant.js" defer></script>
+<script src="staff-assistant.js" defer>
+</script>
 </body>
 </html>

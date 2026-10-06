@@ -16,8 +16,9 @@ const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansw
 const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('../lib/team');
 const { normalizeHomepage, TEXT_FIELDS } = require('../lib/homepage');
+const { PERMISSIONS, normalizePermissions, getPermissions } = require('../lib/staff-permissions');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status', 'staff_permissions'];
 
 async function readSetting(key) {
   const resp = await supabaseRequest(`app_settings?key=eq.${encodeURIComponent(key)}&limit=1`, { method: 'GET' });
@@ -112,6 +113,7 @@ async function putSetting(req, res, sessionUser) {
       : key === 'ai_knowledge' ? normalizeKnowledge(value)
       : key === 'site_mode' ? normalizeSiteMode(value, await readSetting('site_mode'))
       : key === 'homepage' ? normalizeHomepage(value)
+      : key === 'staff_permissions' ? normalizePermissions(value)
       : key === 'optometrists' ? await saveTeamPhotos(value, sessionUser)
       : value;
   } catch (err) {
@@ -322,6 +324,18 @@ module.exports = async (req, res) => {
       console.error('public_info read error:', err.message);
       res.status(200).json({ ok: true, info: {} });
     }
+    return;
+  }
+
+  // Staff permissions (what a non-admin may do with orders), readable by
+  // any logged-in user so the order form and Orders list can lock themselves.
+  if (req.method === 'GET' && req.query && req.query.view === 'permissions') {
+    const sessionUser = requireAuth(req, res);
+    if (!sessionUser) return;
+    const permissions = await getPermissions();
+    const labels = {};
+    for (const k of Object.keys(PERMISSIONS)) labels[k] = { label: PERMISSIONS[k].label, hint: PERMISSIONS[k].hint };
+    res.status(200).json({ ok: true, role: sessionUser.role, permissions, labels });
     return;
   }
 

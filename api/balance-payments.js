@@ -8,6 +8,7 @@
 const { requireAuth } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 const { logOrderAudit } = require('../lib/audit');
+const { getPermissions, can, deny } = require('../lib/staff-permissions');
 
 function isValidPaymentMethod(method) {
   return ['cash', 'gcash_cc', 'split'].includes(method);
@@ -30,6 +31,11 @@ async function recordPayment(req, res, session) {
   if (!body || typeof body !== 'object') {
     res.status(400).json({ ok: false, error: 'Missing payment data' });
     return;
+  }
+
+  const perms = await getPermissions();
+  if (!can(session, perms, 'log_payments')) {
+    return deny(res, 'Only an admin can log payments.');
   }
 
   const { order_id } = body;

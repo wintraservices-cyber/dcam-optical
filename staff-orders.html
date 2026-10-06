@@ -383,10 +383,24 @@
   // are hidden for non-admin staff so the bar isn't cluttered with links
   // to pages they can't use. Direct-URL access is still blocked
   // server-side/page-side on those pages themselves; this is just the nav.
+  // Who is logged in and what staff are allowed to do (Settings > Staff accounts > Staff permissions).
+  const ME = { admin: false, perms: {} };
+  function allowed(key) { return ME.admin || !!ME.perms[key]; }
+  const STATUS_RANK = { ordered: 0, ready: 1, claimed: 2 };
+  function statusOpt(value, label, current) {
+    const backwards = !allowed('reverse_job_status') && (STATUS_RANK[value] < STATUS_RANK[current || 'ordered']);
+    return `<option value="${value}" ${current === value ? 'selected' : ''} ${backwards ? 'disabled' : ''}>${label}</option>`;
+  }
+
   async function checkAuth() {
     try {
       const resp = await fetch('/api/staff-auth');
       const result = await resp.json();
+      ME.admin = result.role === 'admin';
+      try {
+        const pr = await (await fetch('/api/settings?view=permissions')).json();
+        if (pr && pr.ok) ME.perms = pr.permissions || {};
+      } catch (e) { /* keep staff locked down if permissions can't load */ }
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=staff-orders.html';
         return;
@@ -474,14 +488,14 @@
       }
       return `
       <tr>
-        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">Edit</a> <a href="order-form.html?id=${o.id}&threeup=1" class="print-order-btn" title="Print order #${escapeHtml(o.order_no)}" aria-label="Print order #${escapeHtml(o.order_no)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg></a> <button type="button" class="delete-order-btn" title="Delete order #${escapeHtml(o.order_no)}" aria-label="Delete order #${escapeHtml(o.order_no)}" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">&times;</button></td>
+        <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">${allowed('edit_saved_orders') ? 'Edit' : 'View'}</a> <a href="order-form.html?id=${o.id}&threeup=1" class="print-order-btn" title="Print order #${escapeHtml(o.order_no)}" aria-label="Print order #${escapeHtml(o.order_no)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg></a>${allowed('delete_orders') ? ` <button type="button" class="delete-order-btn" title="Delete order #${escapeHtml(o.order_no)}" aria-label="Delete order #${escapeHtml(o.order_no)}" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">&times;</button>` : ''}</td>
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
         <td data-label="Date">${escapeHtml(o.order_date) || '—'}${paymentBadge}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>
         <td data-label="Item / Frame">${o.order_type === 'non_rx' ? itemsSummary(o) : (escapeHtml(o.frame) || '—')}</td>
         <td data-label="Balance">
           ${o.balance ? '₱' + escapeHtml(o.balance) : '—'}
-          ${o.balance && parseFloat(o.balance) > 0 && o.payment_status !== 'paid' ? `
+          ${allowed('log_payments') && o.balance && parseFloat(o.balance) > 0 && o.payment_status !== 'paid' ? `
             <button type="button" class="log-payment-btn" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">Log payment</button>
             <div class="payment-panel" id="paymentPanel-${o.id}">
               <div class="payment-panel-grid">
@@ -502,17 +516,17 @@
           ` : ''}
         </td>
         <td data-label="Payment">
-          <select class="payment-select" data-id="${o.id}">
+          <select class="payment-select" data-id="${o.id}" ${allowed('set_payment_status') ? '' : 'disabled title="Only an admin can change this. Use Log payment."'}>
             <option value="unpaid" ${(!o.payment_status || o.payment_status === 'unpaid') ? 'selected' : ''}>Unpaid</option>
             <option value="partial" ${o.payment_status === 'partial' ? 'selected' : ''}>Partial</option>
             <option value="paid" ${o.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
           </select>
         </td>
         <td data-label="Status">
-          <select class="status-select" data-id="${o.id}">
-            <option value="ordered" ${o.status === 'ordered' ? 'selected' : ''}>Ordered</option>
-            <option value="ready" ${o.status === 'ready' ? 'selected' : ''}>Ready</option>
-            <option value="claimed" ${o.status === 'claimed' ? 'selected' : ''}>Claimed</option>
+          <select class="status-select" data-id="${o.id}" ${allowed('set_job_status') ? '' : 'disabled'}>
+            ${statusOpt('ordered', 'Ordered', o.status)}
+            ${statusOpt('ready', 'Ready', o.status)}
+            ${statusOpt('claimed', 'Claimed', o.status)}
           </select>
         </td>
       </tr>
