@@ -56,6 +56,22 @@ function sendCsv(res, filename, csvContent) {
   res.status(200).send('\uFEFF' + csvContent);
 }
 
+// Report dates for timestamps (orders/payments created_at) use Manila time
+// (UTC+8, no DST) so a late-evening entry lands on the shop's own day.
+const MANILA_OFFSET_MS = 8 * 3600 * 1000;
+function manilaDate(ts) {
+  if (!ts) return '';
+  const t = Date.parse(ts);
+  if (!Number.isFinite(t)) return String(ts).slice(0, 10);
+  return new Date(t + MANILA_OFFSET_MS).toISOString().slice(0, 10);
+}
+function manilaRangeFilter(from, to, field) {
+  let filter = '';
+  if (from) filter += `&${field}=gte.${encodeURIComponent(from + 'T00:00:00+08:00')}`;
+  if (to) filter += `&${field}=lte.${encodeURIComponent(to + 'T23:59:59.999+08:00')}`;
+  return filter;
+}
+
 function dateRangeFilter(from, to, field) {
   let filter = '';
   if (from) filter += `&${field}=gte.${encodeURIComponent(from)}T00:00:00`;
@@ -116,7 +132,7 @@ function totalQty(o) {
 // soft-deleted (embed comes back empty/null in that case, handled
 // below).
 async function fetchPaymentRows(from, to) {
-  const path = `balance_payments?select=*,orders(order_no,order_date,patient_name,frame,lens_type,order_type,rx_subtype,tel_no,payment_status,status)&order=created_at.desc&limit=5000${dateRangeFilter(from, to, 'created_at')}`;
+  const path = `balance_payments?select=*,orders(order_no,order_date,patient_name,frame,lens_type,order_type,rx_subtype,tel_no,payment_status,status)&order=created_at.desc&limit=5000${manilaRangeFilter(from, to, 'created_at')}`;
   const resp = await supabaseRequest(path, { method: 'GET' });
   if (!resp.ok) {
     const errText = await resp.text();
@@ -143,7 +159,7 @@ async function fetchPaymentRows(from, to) {
       order_date: order.order_date || '',
       // When this row's own event actually happened: for a payment row,
       // that's when the payment was collected (not the order's date).
-      transaction_date: (p.created_at || '').slice(0, 10),
+      transaction_date: manilaDate(p.created_at),
       created_at: p.created_at,
       amount: p.amount,
       deposit: '',
@@ -251,7 +267,7 @@ const ORDERS_COLUMNS = [
   { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
   { label: 'Balance', value: rowBalance },
   // -- not on the client's sheet, appended at the end --
-  { label: 'Created Date', value: (o) => (o.created_at || '').slice(0, 10) },
+  { label: 'Created Date', value: (o) => manilaDate(o.created_at) },
   { label: 'Phone', value: 'tel_no' },
   { label: 'Items', value: (o) => (o.__entry === 'payment' ? paymentRowSummary(o) : (o.order_items || []).map(i => `${i.item_name} x${i.item_qty}`).join('; ')) },
   { label: 'Payment Status', value: 'payment_status' },
@@ -281,14 +297,14 @@ const SALES_COLUMNS = [
 
 async function ordersReport(req, res, from, to) {
   try {
-    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${dateRangeFilter(from, to, 'created_at')}`;
+    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${manilaRangeFilter(from, to, 'created_at')}`;
     const resp = await supabaseRequest(path, { method: 'GET' });
     if (!resp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load orders for the report.' });
       return;
     }
     const orders = await resp.json();
-    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: (o.created_at || '').slice(0, 10) }));
+    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: manilaDate(o.created_at) }));
     const paymentRows = await fetchPaymentRows(from, to);
     const rows = mergeRowsByDate(orderRows, paymentRows);
 
@@ -330,14 +346,14 @@ async function ordersReport(req, res, from, to) {
 
 async function salesReport(req, res, from, to) {
   try {
-    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${dateRangeFilter(from, to, 'created_at')}`;
+    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${manilaRangeFilter(from, to, 'created_at')}`;
     const resp = await supabaseRequest(path, { method: 'GET' });
     if (!resp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load orders for the report.' });
       return;
     }
     const orders = await resp.json();
-    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: (o.created_at || '').slice(0, 10) }));
+    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: manilaDate(o.created_at) }));
     const paymentRows = await fetchPaymentRows(from, to);
     const rows = mergeRowsByDate(orderRows, paymentRows);
 
