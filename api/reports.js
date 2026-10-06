@@ -212,6 +212,73 @@ function mergeRowsByDate(orderRows, paymentRows) {
   return [...orderRows, ...paymentRows].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
 }
 
+// ---------------------------------------------------------------------
+// Column choice for the Orders and Sales downloads. The page can ask for a
+// subset, in its own order, with ?cols=Label1,Label2,... (labels exactly as
+// below). Unknown labels are ignored; nothing valid = every column in the
+// default order. ?meta=columns returns the labels so the page never keeps
+// its own copy of the list.
+// ---------------------------------------------------------------------
+function pickColumns(all, colsParam) {
+  if (typeof colsParam !== 'string' || !colsParam.trim()) return all;
+  const byLabel = new Map(all.map(c => [c.label, c]));
+  const seen = new Set();
+  const picked = [];
+  colsParam.split(',').map(x => x.trim()).forEach(label => {
+    if (byLabel.has(label) && !seen.has(label)) { seen.add(label); picked.push(byLabel.get(label)); }
+  });
+  return picked.length ? picked : all;
+}
+
+const ORDERS_COLUMNS = [
+  { label: 'Order Date', value: (o) => o.order_date || '' },
+  { label: 'Order #', value: 'order_no' },
+  { label: 'Patient', value: 'patient_name' },
+  { label: 'Frame', value: 'frame' },
+  { label: 'Lens Type', value: 'lens_type' },
+  { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
+  { label: 'Qty', value: totalQty },
+  // "Total" and "Payment Today" replace the old Amount/Deposit pair
+  // (2026-10-05) so this report reads the same as the Sales report:
+  // Total is the order's price (blank on a Balance Payment row, so
+  // the column can be summed without double-counting), and Payment
+  // Today is the money collected on that row -- the intake deposit
+  // on an Order row, the payment itself on a Balance Payment row.
+  { label: 'Total', value: (o) => (o.__entry === 'payment' ? '' : o.amount) },
+  { label: 'Payment Today', value: (o) => (o.__entry === 'payment' ? o.amount : o.deposit) },
+  { label: 'Payment Method', value: 'payment_method' },
+  { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
+  { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
+  { label: 'Balance', value: rowBalance },
+  // -- not on the client's sheet, appended at the end --
+  { label: 'Created Date', value: (o) => (o.created_at || '').slice(0, 10) },
+  { label: 'Phone', value: 'tel_no' },
+  { label: 'Items', value: (o) => (o.__entry === 'payment' ? paymentRowSummary(o) : (o.order_items || []).map(i => `${i.item_name} x${i.item_qty}`).join('; ')) },
+  { label: 'Payment Status', value: 'payment_status' },
+  { label: 'Status', value: 'status' },
+  { label: 'Taken By', value: 'taken_by' },
+];
+
+const SALES_COLUMNS = [
+  { label: 'Order Date', value: (o) => o.order_date || '' },
+  { label: 'Order #', value: 'order_no' },
+  { label: 'Patient', value: 'patient_name' },
+  { label: 'Frame', value: 'frame' },
+  { label: 'Lens', value: 'lens_type' },
+  { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
+  { label: 'Qty', value: totalQty },
+  { label: 'Total', value: (o) => (o.__entry === 'payment' ? '' : o.amount) },
+  { label: 'Payment Today', value: (o) => (o.__entry === 'payment' ? o.amount : o.deposit) },
+  { label: 'Payment Method', value: 'payment_method' },
+  { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
+  { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
+  { label: 'Balance', value: rowBalance },
+  // -- not on the client's sheet, appended at the end --
+  { label: 'Payment Status', value: 'payment_status' },
+  { label: 'Status', value: 'status' },
+  { label: 'Taken By', value: 'taken_by' },
+];
+
 async function ordersReport(req, res, from, to) {
   try {
     const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${dateRangeFilter(from, to, 'created_at')}`;
@@ -252,34 +319,7 @@ async function ordersReport(req, res, from, to) {
     // was paid and how, and the resulting balance -- per the client's
     // own placement of a "Date"/"Payment type" pair in that same spot
     // on their sheet, rather than appended after everything else.
-    const columns = [
-      { label: 'Order Date', value: (o) => o.order_date || '' },
-      { label: 'Order #', value: 'order_no' },
-      { label: 'Patient', value: 'patient_name' },
-      { label: 'Frame', value: 'frame' },
-      { label: 'Lens Type', value: 'lens_type' },
-      { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
-      { label: 'Qty', value: totalQty },
-      // "Total" and "Payment Today" replace the old Amount/Deposit pair
-      // (2026-10-05) so this report reads the same as the Sales report:
-      // Total is the order's price (blank on a Balance Payment row, so
-      // the column can be summed without double-counting), and Payment
-      // Today is the money collected on that row -- the intake deposit
-      // on an Order row, the payment itself on a Balance Payment row.
-      { label: 'Total', value: (o) => (o.__entry === 'payment' ? '' : o.amount) },
-      { label: 'Payment Today', value: (o) => (o.__entry === 'payment' ? o.amount : o.deposit) },
-      { label: 'Payment Method', value: 'payment_method' },
-      { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
-      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
-      { label: 'Balance', value: rowBalance },
-      // -- not on the client's sheet, appended at the end --
-      { label: 'Created Date', value: (o) => (o.created_at || '').slice(0, 10) },
-      { label: 'Phone', value: 'tel_no' },
-      { label: 'Items', value: (o) => (o.__entry === 'payment' ? paymentRowSummary(o) : (o.order_items || []).map(i => `${i.item_name} x${i.item_qty}`).join('; ')) },
-      { label: 'Payment Status', value: 'payment_status' },
-      { label: 'Status', value: 'status' },
-      { label: 'Taken By', value: 'taken_by' },
-    ];
+    const columns = pickColumns(ORDERS_COLUMNS, req.query && req.query.cols);
 
     sendCsv(res, `orders-report-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows, columns));
   } catch (err) {
@@ -323,25 +363,7 @@ async function salesReport(req, res, from, to) {
     // deposit -- on a payment row there's no separate "deposit"
     // concept, so it shows that payment's own amount instead, which is
     // exactly what "payment today" means for that row.
-    const columns = [
-      { label: 'Order Date', value: (o) => o.order_date || '' },
-      { label: 'Order #', value: 'order_no' },
-      { label: 'Patient', value: 'patient_name' },
-      { label: 'Frame', value: 'frame' },
-      { label: 'Lens', value: 'lens_type' },
-      { label: 'Type', value: (o) => (o.order_type === 'non_rx' ? 'Non-Rx' : (o.rx_subtype || 'Rx')) },
-      { label: 'Qty', value: totalQty },
-      { label: 'Total', value: (o) => (o.__entry === 'payment' ? '' : o.amount) },
-      { label: 'Payment Today', value: (o) => (o.__entry === 'payment' ? o.amount : o.deposit) },
-      { label: 'Payment Method', value: 'payment_method' },
-      { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
-      { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
-      { label: 'Balance', value: rowBalance },
-      // -- not on the client's sheet, appended at the end --
-      { label: 'Payment Status', value: 'payment_status' },
-      { label: 'Status', value: 'status' },
-      { label: 'Taken By', value: 'taken_by' },
-    ];
+    const columns = pickColumns(SALES_COLUMNS, req.query && req.query.cols);
 
     // Unchanged from before "Entry" rows existed -- these three stay
     // order-level sums (total billed, total collected at intake, total
@@ -520,6 +542,10 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (req.query && req.query.meta === 'columns' && (type === 'orders' || type === 'sales')) {
+    const all = type === 'orders' ? ORDERS_COLUMNS : SALES_COLUMNS;
+    return res.status(200).json({ ok: true, columns: all.map(c => c.label) });
+  }
   if (type === 'orders') return ordersReport(req, res, from, to);
   if (type === 'sales') return salesReport(req, res, from, to);
   if (type === 'patients') return patientsReport(req, res);

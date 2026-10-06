@@ -120,6 +120,17 @@
   .download-status.error { color: #B0405A; }
   .download-status.success { color: #3E8E5A; }
 
+  .col-picker { margin: -6px 0 14px; font-size: 0.82rem; }
+  .col-picker summary { cursor: pointer; color: var(--purple); font-weight: 600; }
+  .col-picker .col-list { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; max-height: 280px; overflow-y: auto; }
+  .col-picker .col-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+  .col-picker .col-row label { flex: 1; display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
+  .col-picker .col-row button { border: 1px solid var(--line); background: #fff; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; line-height: 1; }
+  .col-picker .col-row button:disabled { opacity: 0.35; cursor: default; }
+  .col-picker .col-tools { display: flex; gap: 12px; margin-top: 8px; }
+  .col-picker .col-tools button { background: none; border: none; color: var(--purple); cursor: pointer; font-size: 0.8rem; padding: 0; text-decoration: underline; }
+  .col-picker .col-count { color: var(--charcoal-soft); font-weight: 400; }
+
   @media (max-width: 620px) {
     .report-grid { grid-template-columns: 1fr; }
   }
@@ -155,6 +166,11 @@
     <div class="report-card">
       <h2>Orders report</h2>
       <div class="card-sub">Every order — Rx and Non-Rx — with items, pricing, and payment status.</div>
+      <details class="col-picker" data-type="orders">
+        <summary>Choose columns <span class="col-count"></span></summary>
+        <div class="col-list"></div>
+        <div class="col-tools"><button type="button" data-act="all">Select all</button><button type="button" data-act="reset">Reset to default</button></div>
+      </details>
       <button class="download-btn" data-type="orders">Download CSV</button>
       <span class="download-status" id="status-orders"></span>
     </div>
@@ -162,6 +178,11 @@
     <div class="report-card admin-only-report" data-report="sales">
       <h2>Sales / revenue report</h2>
       <div class="card-sub">Money actually collected — order deposits plus balance payments — with cash/GCash totals.</div>
+      <details class="col-picker" data-type="sales">
+        <summary>Choose columns <span class="col-count"></span></summary>
+        <div class="col-list"></div>
+        <div class="col-tools"><button type="button" data-act="all">Select all</button><button type="button" data-act="reset">Reset to default</button></div>
+      </details>
       <button class="download-btn" data-type="sales">Download CSV</button>
       <span class="download-status" id="status-sales"></span>
     </div>
@@ -230,6 +251,90 @@
     defaultPreset: 'all',
   });
 
+  // ---- Column choice for the Orders and Sales downloads ----
+  // The column list comes from the server (?meta=columns) so it can't drift
+  // from what the report actually offers. Each picker keeps its own order and
+  // ticked columns in this browser; a column added later shows up ticked at
+  // the end. Nothing is stored on the server.
+  const columnState = {}; // type -> { defaults: [label], order: [label], on: Set(label) }
+
+  function loadColumnPicker(details) {
+    const type = details.getAttribute('data-type');
+    const listEl = details.querySelector('.col-list');
+    const countEl = details.querySelector('.col-count');
+    const storeKey = 'dcam_report_cols_' + type;
+    let ready = false;
+
+    function save() {
+      const st = columnState[type];
+      try { localStorage.setItem(storeKey, JSON.stringify({ order: st.order, on: [...st.on] })); } catch (e) {}
+    }
+
+    function render() {
+      const st = columnState[type];
+      countEl.textContent = '(' + st.on.size + ' of ' + st.order.length + ')';
+      listEl.innerHTML = '';
+      st.order.forEach((label, i) => {
+        const row = document.createElement('div');
+        row.className = 'col-row';
+        const lab = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = st.on.has(label);
+        cb.addEventListener('change', () => { cb.checked ? st.on.add(label) : st.on.delete(label); save(); render(); });
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(label));
+        const up = document.createElement('button');
+        up.type = 'button'; up.textContent = '↑'; up.title = 'Move up'; up.disabled = i === 0;
+        up.addEventListener('click', () => { [st.order[i - 1], st.order[i]] = [st.order[i], st.order[i - 1]]; save(); render(); });
+        const down = document.createElement('button');
+        down.type = 'button'; down.textContent = '↓'; down.title = 'Move down'; down.disabled = i === st.order.length - 1;
+        down.addEventListener('click', () => { [st.order[i + 1], st.order[i]] = [st.order[i], st.order[i + 1]]; save(); render(); });
+        row.append(lab, up, down);
+        listEl.appendChild(row);
+      });
+    }
+
+    details.querySelector('[data-act="all"]').addEventListener('click', () => {
+      if (!ready) return;
+      const st = columnState[type]; st.on = new Set(st.order); save(); render();
+    });
+    details.querySelector('[data-act="reset"]').addEventListener('click', () => {
+      if (!ready) return;
+      const st = columnState[type]; st.order = st.defaults.slice(); st.on = new Set(st.defaults); save(); render();
+    });
+
+    fetch('/api/reports?type=' + encodeURIComponent(type) + '&meta=columns')
+      .then(r => r.json())
+      .then(result => {
+        if (!result || !result.ok || !Array.isArray(result.columns)) return;
+        const defaults = result.columns;
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem(storeKey) || 'null'); } catch (e) {}
+        let order = defaults.slice();
+        let on = new Set(defaults);
+        if (saved && Array.isArray(saved.order) && Array.isArray(saved.on)) {
+          const known = saved.order.filter(l => defaults.includes(l));
+          const added = defaults.filter(l => !known.includes(l));
+          order = known.concat(added);
+          on = new Set(saved.on.filter(l => defaults.includes(l)).concat(added));
+        }
+        columnState[type] = { defaults, order, on };
+        ready = true;
+        render();
+      })
+      .catch(() => { details.hidden = true; }); // no picker: downloads just use every column
+  }
+  document.querySelectorAll('.col-picker').forEach(loadColumnPicker);
+
+  // Returns the ?cols= value for a report, or '' to use the server default.
+  function selectedColumnsParam(type) {
+    const st = columnState[type];
+    if (!st) return '';
+    const chosen = st.order.filter(l => st.on.has(l));
+    return chosen.length ? chosen.join(',') : '';
+  }
+
   document.querySelectorAll('.download-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const type = btn.getAttribute('data-type');
@@ -245,6 +350,12 @@
         if ((type === 'orders' || type === 'sales' || type === 'expenses' || type === 'withdrawals')) {
           if (from) url += `&from=${encodeURIComponent(from)}`;
           if (to) url += `&to=${encodeURIComponent(to)}`;
+        }
+        if (type === 'orders' || type === 'sales') {
+          const st = columnState[type];
+          if (st && st.on.size === 0) throw new Error('Tick at least one column to download.');
+          const cols = selectedColumnsParam(type);
+          if (cols) url += `&cols=${encodeURIComponent(cols)}`;
         }
 
         const resp = await fetch(url);
