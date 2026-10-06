@@ -225,7 +225,9 @@ function rowBalance(o) {
 }
 
 function mergeRowsByDate(orderRows, paymentRows) {
-  return [...orderRows, ...paymentRows].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  return [...orderRows, ...paymentRows].sort((a, b) =>
+    String(b.transaction_date || '').localeCompare(String(a.transaction_date || '')) ||
+    (b.created_at || '').localeCompare(a.created_at || ''));
 }
 
 // ---------------------------------------------------------------------
@@ -295,16 +297,42 @@ const SALES_COLUMNS = [
   { label: 'Taken By', value: 'taken_by' },
 ];
 
+// Orders are placed on a report day by their Transaction Date: the editable
+// orders.transaction_date (YYYY-MM-DD) when staff set one, otherwise the day
+// the order was entered (created_at, Manila time) -- which is also what all
+// orders saved before that column existed fall back to. If the column has not
+// been added to the database yet, the first query errors and we retry with the
+// old created_at-only filter, so reports keep working either way.
+async function fetchOrdersForReport(from, to) {
+  const tsConds = [];
+  if (from) tsConds.push(`created_at.gte.${encodeURIComponent(from + 'T00:00:00+08:00')}`);
+  if (to) tsConds.push(`created_at.lte.${encodeURIComponent(to + 'T23:59:59.999+08:00')}`);
+  const base = 'orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null';
+  if (!tsConds.length) return supabaseRequest(base, { method: 'GET' });
+
+  const dayConds = [];
+  if (from) dayConds.push(`transaction_date.gte.${encodeURIComponent(from)}`);
+  if (to) dayConds.push(`transaction_date.lte.${encodeURIComponent(to)}`);
+  const or = `(and(${dayConds.join(',')}),and(transaction_date.is.null,${tsConds.join(',')}))`;
+  const resp = await supabaseRequest(`${base}&or=${or}`, { method: 'GET' });
+  if (resp.ok) return resp;
+  console.error('Orders report: transaction_date filter failed, falling back to created_at', resp.status);
+  return supabaseRequest(`${base}${manilaRangeFilter(from, to, 'created_at')}`, { method: 'GET' });
+}
+
+function orderTransactionDate(o) {
+  return o.transaction_date || manilaDate(o.created_at);
+}
+
 async function ordersReport(req, res, from, to) {
   try {
-    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${manilaRangeFilter(from, to, 'created_at')}`;
-    const resp = await supabaseRequest(path, { method: 'GET' });
+    const resp = await fetchOrdersForReport(from, to);
     if (!resp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load orders for the report.' });
       return;
     }
     const orders = await resp.json();
-    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: manilaDate(o.created_at) }));
+    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: orderTransactionDate(o) }));
     const paymentRows = await fetchPaymentRows(from, to);
     const rows = mergeRowsByDate(orderRows, paymentRows);
 
@@ -346,14 +374,13 @@ async function ordersReport(req, res, from, to) {
 
 async function salesReport(req, res, from, to) {
   try {
-    const path = `orders?select=*,order_items(*)&order=created_at.desc&limit=5000&deleted_at=is.null${manilaRangeFilter(from, to, 'created_at')}`;
-    const resp = await supabaseRequest(path, { method: 'GET' });
+    const resp = await fetchOrdersForReport(from, to);
     if (!resp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load orders for the report.' });
       return;
     }
     const orders = await resp.json();
-    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: manilaDate(o.created_at) }));
+    const orderRows = orders.map(o => ({ ...o, __entry: 'order', transaction_date: orderTransactionDate(o) }));
     const paymentRows = await fetchPaymentRows(from, to);
     const rows = mergeRowsByDate(orderRows, paymentRows);
 

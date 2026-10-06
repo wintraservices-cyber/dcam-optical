@@ -721,3 +721,14 @@ alter table staff_users add column if not exists avatar_data_url text;
 -- logged before this column existed -- those older rows simply show a
 -- blank Balance on their report row rather than a guessed number.
 alter table balance_payments add column if not exists balance_after text;
+
+-- ---------------------------------------------------------------------
+-- Orders: editable Transaction Date (2026-10-05)
+-- ---------------------------------------------------------------------
+-- The day a sale counts under in the Orders/Sales reports. Editable on the
+-- order form (defaults to today) so a past sale keyed in late can be
+-- reported on the day it really happened. order_date stays the manual
+-- "order" date and created_at stays the day it was entered. Nullable:
+-- orders saved before this column fall back to their created_at day
+-- (Manila time) in the reports. Plain YYYY-MM-DD text, like order_date.
+alter table orders add column if not exists transaction_date text;

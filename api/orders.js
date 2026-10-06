@@ -10,6 +10,31 @@ const { logOrderAudit, diffFields } = require('../lib/audit');
 // disappears everywhere except Trash.
 const NOT_DELETED = '&deleted_at=is.null';
 
+// transaction_date is the editable day a sale counts under in the reports
+// (separate from order_date, the manual "order" date, and created_at, the
+// day it was keyed in). Must be a real YYYY-MM-DD or it is dropped.
+const TXN_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+function cleanTxnDate(record) {
+  if ('transaction_date' in record && !(record.transaction_date && TXN_DATE_RE.test(record.transaction_date))) {
+    record.transaction_date = null;
+  }
+}
+// Until the transaction_date column exists in the database, a write that
+// includes it fails; retry once without it so saving orders never breaks.
+async function writeOrder(url, method, record) {
+  const send = () => supabaseRequest(url, { method, headers: { Prefer: 'return=representation' }, body: JSON.stringify(record) });
+  let resp = await send();
+  if (!resp.ok && 'transaction_date' in record) {
+    const errText = await resp.clone().text();
+    if (errText.includes('transaction_date')) {
+      console.error('transaction_date column missing; saving without it');
+      delete record.transaction_date;
+      resp = await send();
+    }
+  }
+  return resp;
+}
+
 // Field allow-list + length caps, same defensive pattern as the intake API.
 const FIELD_LIMITS = {
   order_no: 20,
@@ -18,6 +43,7 @@ const FIELD_LIMITS = {
   patient_name: 150,
   tel_no: 40,
   order_date: 20,
+  transaction_date: 10,
   due_date: 60,
   tray_no: 20,
   rx_r_sph: 15, rx_r_cyl: 15, rx_r_axis: 15, rx_r_prism: 15, rx_r_base: 15,
@@ -159,12 +185,11 @@ async function createOrder(req, res, session) {
 
   const items = sanitizeItems(body.items);
 
+  cleanTxnDate(record);
+  if (!record.transaction_date) delete record.transaction_date;
+
   try {
-    const resp = await supabaseRequest('orders', {
-      method: 'POST',
-      headers: { Prefer: 'return=representation' },
-      body: JSON.stringify(record),
-    });
+    const resp = await writeOrder('orders', 'POST', record);
 
     if (!resp.ok) {
       const errText = await resp.text();
@@ -313,11 +338,8 @@ async function updateOrderFull(req, res, session) {
       console.error('Could not load pre-edit order for audit diff:', beforeErr);
     }
 
-    const resp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}${NOT_DELETED}`, {
-      method: 'PATCH',
-      headers: { Prefer: 'return=representation' },
-      body: JSON.stringify(record),
-    });
+    cleanTxnDate(record);
+    const resp = await writeOrder(`orders?id=eq.${encodeURIComponent(id)}${NOT_DELETED}`, 'PATCH', record);
 
     if (!resp.ok) {
       const errText = await resp.text();

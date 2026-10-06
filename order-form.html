@@ -1156,6 +1156,11 @@
         <div class="field-inline"><label>Tray no.</label><input type="text" id="trayNo" autocomplete="off"></div>
       </div>
 
+      <div class="field-row cols-3">
+        <div class="field-inline"><label>Transaction date</label><input type="date" id="txnDate" autocomplete="off" title="The day this sale counts under in the Orders and Sales reports. Defaults to today; change it when entering a past sale."></div>
+        <div class="field-inline" style="grid-column: span 2; align-self:end; color:#6B6259; font-size:0.78rem;">Day this sale counts in reports. Defaults to today &mdash; change it when entering a past sale.</div>
+      </div>
+
       <div class="field-row cols-2">
         <div class="field-inline patient-autocomplete-wrap">
           <label>Patient's name</label>
@@ -1865,9 +1870,15 @@
   window.addEventListener('pageshow', (e) => {
     if (e.persisted && !new URLSearchParams(window.location.search).get('id')) window.location.reload();
   });
+  // Manila (UTC+8) calendar date of a timestamp, or of now.
+  function manilaToday(ts) {
+    const t = ts ? Date.parse(ts) : Date.now();
+    return new Date((Number.isFinite(t) ? t : Date.now()) + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  }
   window.addEventListener('load', () => {
     if (new URLSearchParams(window.location.search).get('id')) return;
     setTimeout(() => {
+      const td = document.getElementById('txnDate'); if (td && !td.value) td.value = manilaToday();
       ['amount', 'deposit', 'balance'].forEach(id => { const el = document.getElementById(id); if (el && el.value) el.value = ''; });
       const stub = document.getElementById('stubBalance'); if (stub) stub.value = '';
     }, 0);
@@ -2101,6 +2112,7 @@
     setVal('ordName', order.patient_name);
     setVal('ordTel', order.tel_no);
     setVal('ordDate', order.order_date);
+    setVal('txnDate', order.transaction_date || manilaToday(order.created_at));
     setVal('ordDue', order.due_date);
     setVal('trayNo', order.tray_no);
     setVal('ordFrame', order.frame);
@@ -2994,6 +3006,7 @@
       patient_name: val('ordName'),
       tel_no: val('ordTel'),
       order_date: val('ordDate'),
+      transaction_date: val('txnDate'),
       due_date: val('ordDue'),
       tray_no: val('trayNo'),
       frame: val('ordFrame'),
