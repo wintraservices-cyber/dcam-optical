@@ -1152,7 +1152,7 @@
 
       <div class="field-row cols-3">
         <div class="field-inline"><label>Date</label><input type="date" id="ordDate" autocomplete="off"></div>
-        <div class="field-inline"><label>Due date</label><input type="date" id="ordDue" autocomplete="off"></div>
+        <div class="field-inline"><label>Due date</label><input type="date" id="ordDue" autocomplete="off"><label style="display:flex; align-items:center; gap:5px; margin-top:4px; font-weight:400; text-transform:none; letter-spacing:0; font-size:0.78rem; cursor:pointer;"><input type="checkbox" id="dueTba" autocomplete="off" style="width:auto; margin:0;">TBA (date not known yet)</label></div>
         <div class="field-inline"><label>Tray no.</label><input type="text" id="trayNo" autocomplete="off"></div>
       </div>
 
@@ -1555,6 +1555,24 @@
   // loading an existing order for edit) that don't fire an `input` event.
   const ordLensType = document.getElementById('lens_type');
   const stubLens = document.getElementById('stubLens');
+  // Due date can be a real date or "TBA" (date not known yet). A date input
+  // can't hold text, so TBA is a checkbox: when ticked the date box is
+  // cleared and disabled and "TBA" is what gets saved and printed.
+  const dueTba = document.getElementById('dueTba');
+  function dueDateValue() {
+    return dueTba && dueTba.checked ? 'TBA' : (ordDue.value || '');
+  }
+  function setDueDate(v) {
+    const tba = String(v || '').trim().toUpperCase() === 'TBA';
+    if (dueTba) dueTba.checked = tba;
+    ordDue.disabled = tba;
+    ordDue.value = tba ? '' : (v || '');
+  }
+  if (dueTba) dueTba.addEventListener('change', () => {
+    ordDue.disabled = dueTba.checked;
+    if (dueTba.checked) ordDue.value = '';
+    ordDue.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   const mirrorPairs = [
     [orderNo, claimNoDisplay],
     [ordName, stubName],
@@ -1638,7 +1656,7 @@
     return {
       orderNo: val('orderNo'),
       ordDate: fmtDate(val('ordDate')),
-      ordDue: fmtDate(val('ordDue')),
+      ordDue: dueDateValue() === 'TBA' ? 'TBA' : fmtDate(val('ordDue')),
       trayNo: val('trayNo'),
       ordName: val('ordName'),
       ordTel: val('ordTel'),
@@ -1846,6 +1864,7 @@
       else el.value = '';
       el.classList.remove('field-invalid');
     });
+    ordDue.disabled = false;
     document.querySelectorAll('.rx-axis, .rx-base').forEach(el => { el.disabled = true; });
     document.querySelector('input[name="pdMode"][value="split"]').checked = true;
     applyPdMode('split');
@@ -2172,7 +2191,7 @@
     setVal('ordTel', order.tel_no);
     setVal('ordDate', order.order_date);
     setVal('txnDate', order.transaction_date || manilaToday(order.created_at));
-    setVal('ordDue', order.due_date);
+    setDueDate(order.due_date);
     setVal('trayNo', order.tray_no);
     setVal('ordFrame', order.frame);
     setVal('ordNotes', order.special_instructions);
@@ -3066,7 +3085,7 @@
       tel_no: val('ordTel'),
       order_date: val('ordDate'),
       transaction_date: val('txnDate'),
-      due_date: val('ordDue'),
+      due_date: dueDateValue(),
       tray_no: val('trayNo'),
       frame: val('ordFrame'),
       special_instructions: val('ordNotes'),
