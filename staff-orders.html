@@ -198,6 +198,8 @@
   .type-tag.rx { background: rgba(176,90,158,0.14); color: var(--purple-deep); }
   .type-tag.non-rx { background: rgba(56,51,52,0.1); color: var(--charcoal-soft); }
 
+  tr.order-row { cursor: default; }
+  tr.order-row:hover td { background: rgba(176,90,158,0.04); }
   select.status-select {
     font-family: var(--body);
     font-size: 0.82rem;
@@ -487,7 +489,7 @@
         }
       }
       return `
-      <tr>
+      <tr class="order-row" data-open-id="${o.id}" title="Double-click to open this order">
         <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">${allowed('edit_saved_orders') ? 'Edit' : 'View'}</a> <a href="order-form.html?id=${o.id}&threeup=1" class="print-order-btn" title="Print order #${escapeHtml(o.order_no)}" aria-label="Print order #${escapeHtml(o.order_no)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg></a>${allowed('delete_orders') ? ` <button type="button" class="delete-order-btn" title="Delete order #${escapeHtml(o.order_no)}" aria-label="Delete order #${escapeHtml(o.order_no)}" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">&times;</button>` : ''}</td>
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
         <td data-label="Date">${escapeHtml(o.order_date) || '—'}${paymentBadge}</td>
@@ -596,6 +598,16 @@
     });
 
     // ---- Delete (soft delete -- moves to Trash, admin can restore) ----
+    // Double-click (or double-tap) anywhere on an order's row opens it, same
+    // as the Edit / View link -- except on the controls inside the row.
+    content.querySelectorAll('tr.order-row').forEach(tr => {
+      tr.addEventListener('dblclick', (e) => {
+        if (e.target.closest('select, button, a, input, textarea, label, .payment-panel')) return;
+        window.getSelection && window.getSelection().removeAllRanges();
+        window.location.href = 'order-form.html?id=' + encodeURIComponent(tr.getAttribute('data-open-id'));
+      });
+    });
+
     content.querySelectorAll('.delete-order-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         deleteOrder(btn.getAttribute('data-order-id'), btn.getAttribute('data-order-no'));
