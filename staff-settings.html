@@ -2675,12 +2675,12 @@
     }
     const GA = '<span class="dash-src ga">GOOGLE ANALYTICS</span>';
     const gaTile = (label, value, sub) => `<div class="dash-tile"><div class="l">${label}</div><div class="v">${value}</div>${sub || ''}${GA}</div>`;
-    const pageName = (p) => p === '/' || p === '/index' || p === '/index.html' ? 'Home page' : p === '/intake' ? 'Intake form' : escapeHtml(p);
+    const pageName = (p) => p === '/' || p === '/index' || p === '/index.html' ? 'Home page' : p === '/intake' ? 'Intake form' : p === '/coming-soon' ? 'Coming-soon page' : escapeHtml(p);
     const barList = (items, labelFn, valFn, fmt) => {
       const max = Math.max(1, ...items.map(valFn));
       return '<div class="dash-bars">' + (items.length ? items.map(i => `<div class="dash-bar"><span>${labelFn(i)}</span><b>${fmt ? fmt(i) : int(valFn(i))}</b><div class="t"><i style="width:${(100 * valFn(i) / max).toFixed(0)}%"></i></div></div>`).join('') : '<div class="sub">No data yet.</div>') + '</div>';
     };
-    function visitors(a, range) {
+    function visitors(a, range, rangeFrom, rangeTo) {
       if (!a || !a.configured) return `<div class="dash-sec">Visitors, pages and traffic sources</div>
         <div class="dash-card dash-ga"><h3>Not connected to Google Analytics yet</h3>
           <div class="sub" style="margin-top:4px">Visitors, where they came from, the most viewed pages, phone and directions taps will appear here once the connection is set up in Vercel.</div>
@@ -2691,7 +2691,17 @@
       const totalCh = Math.max(1, (a.channels || []).reduce((n, c) => n + c.sessions, 0));
       const totalDev = Math.max(1, (a.devices || []).reduce((n, c) => n + c.users, 0));
       const ev = a.events || {};
-      const daily = a.daily && a.daily.length > 1 ? a.daily : null;
+      // Google only lists days that had visitors; fill the quiet days with 0 so the chart spans the whole period.
+      let daily = null;
+      if (rangeFrom && rangeTo && rangeFrom < rangeTo) {
+        const have = {}; (a.daily || []).forEach(d => { have[d.day] = d.users; });
+        daily = [];
+        for (let t = Date.parse(rangeFrom); t <= Date.parse(rangeTo) && daily.length < 400; t += 86400000) {
+          const day = new Date(t).toISOString().slice(0, 10);
+          daily.push({ day, users: have[day] || 0 });
+        }
+        if (daily.length < 2) daily = null;
+      }
       const W = 640, H = 200, L = 40, R2 = 630, T = 16, B = 170;
       let svg = '';
       if (daily) {
@@ -2709,7 +2719,7 @@
         </div>
         <div class="dash-grid" style="margin-top:12px;">
           <div class="dash-card"><h3>Visitors per day</h3><div class="sub">${range}</div>${svg || '<div class="sub" style="margin-top:8px">Pick a period of more than one day to see the chart.</div>'}</div>
-          <div class="dash-card"><h3>How people found you</h3>${barList(a.channels || [], c => escapeHtml(c.name), c => c.sessions, c => Math.round(100 * c.sessions / totalCh) + '%')}
+          <div class="dash-card"><h3>How people found you</h3>${barList(a.channels || [], c => escapeHtml(c.name === 'Unassigned' ? 'Not identified by Google' : c.name), c => c.sessions, c => Math.round(100 * c.sessions / totalCh) + '%')}
             <div class="sub" style="margin-top:10px">${(a.devices || []).map(d => escapeHtml(d.name) + ' ' + Math.round(100 * d.users / totalDev) + '%').join(' · ')}</div><div style="margin-top:8px">${GA}</div></div>
         </div>
         <div class="dash-grid" style="margin-top:12px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
@@ -2727,7 +2737,7 @@
       const intake = r.intake, ai = r.ai, uq = r.unanswered, oc = r.order_checks;
       const cur = ai && ai.current, old = ai && ai.previous;
       const p = [];
-      p.push(visitors(r.analytics, range));
+      p.push(visitors(r.analytics, range, r.range.from, r.range.to));
       p.push(`<div class="dash-sec">Activity · ${range}</div><div class="dash-tiles">
         ${intake ? tile('Intake forms submitted', int(intake.count), delta(intake.count, intake.previous)) : off('Intake forms submitted', 'Could not load')}
         ${oc ? tile('Order status checks', int(oc.checks), delta(oc.checks, oc.previous)) : off('Order status checks', 'Needs the database update')}
