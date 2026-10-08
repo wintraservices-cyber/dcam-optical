@@ -402,6 +402,9 @@
     .field-grid, .field-grid.cols-3, .new-account-grid, .range-row { grid-template-columns: 1fr; }
   }
   /* ---------- Optometrists ---------- */
+  .team-group-head { font-family: var(--display); font-weight: 800; font-size: 0.95rem; color: var(--purple-deep); margin-top: 8px; }
+  .team-group-head span { color: var(--charcoal-soft); font-weight: 500; }
+  .team-fields select { width: 100%; border: 1.5px solid var(--line); border-radius: 8px; padding: 9px 11px; font-family: var(--body); font-size: 0.88rem; background: #fff; }
   .team-list { display: flex; flex-direction: column; gap: 14px; margin: 16px 0; }
   .team-item { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; grid-template-columns: 120px 1fr auto; gap: 18px; align-items: start; background: #fff; }
   .team-item.hidden-entry { opacity: 0.6; }
@@ -522,11 +525,11 @@
 
     <div class="card" id="teamCard">
       <h2>Optometrists</h2>
-      <div class="card-sub">Shown in the "Meet our optometrists" section of the home page, in this order. Add as many as you need. Hidden entries stay saved but don't appear. Photos are cropped to a portrait and resized automatically. Get each optometrist's OK before putting their photo online. <a href="/#team" target="_blank" rel="noopener" style="color: var(--purple-deep, #8F4680);">View on the website ↗</a></div>
+      <div class="card-sub">Shown in the "Meet our team" section of the home page, grouped Optometrists, then Staff, then Technicians, in this order within each group. Add as many as you need. Hidden entries stay saved but don't appear. Photos are cropped to a portrait and resized automatically. Get each optometrist's OK before putting their photo online. <a href="/#team" target="_blank" rel="noopener" style="color: var(--purple-deep, #8F4680);">View on the website ↗</a></div>
       <div class="team-list" id="teamList"></div>
-      <button type="button" class="save-btn secondary" id="teamAdd">+ Add optometrist</button>
+      <button type="button" class="save-btn secondary" data-add="optometrist">+ Add optometrist</button> <button type="button" class="save-btn secondary" data-add="staff">+ Add staff</button> <button type="button" class="save-btn secondary" data-add="tech">+ Add technician</button>
       <div class="save-row">
-        <button class="save-btn" id="saveTeam">Save optometrists</button>
+        <button class="save-btn" id="saveTeam">Save team</button>
         <span class="save-status" id="teamStatus"></span>
       </div>
     </div>
@@ -2417,18 +2420,28 @@
 
   // ---- Optometrists ----
   let team = [];
+  const TEAM_GROUPS = [['optometrist', 'Optometrists'], ['staff', 'Staff'], ['tech', 'Technicians']];
+  const groupIdx = (e) => Math.max(0, TEAM_GROUPS.findIndex(g => g[0] === e.group));
+  // Keep the list in website order: group first, then the order set here.
+  function sortTeam() { team = team.map((e, n) => [e, n]).sort((a, b) => groupIdx(a[0]) - groupIdx(b[0]) || a[1] - b[1]).map(x => x[0]); }
   function initials(name) {
     return String(name || '').replace(/^(dr\.?|doc)\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
   }
   function renderTeam() {
     const list = document.getElementById('teamList');
     if (!team.length) {
-      list.innerHTML = '<div class="team-empty">No optometrists yet. The section stays hidden on the website until you add one.</div>';
+      list.innerHTML = '<div class="team-empty">Nobody added yet. The team section stays hidden on the website until you add someone.</div>';
       return;
     }
+    sortTeam();
     list.innerHTML = team.map((e, i) => {
+      const firstOfGroup = i === 0 || team[i - 1].group !== e.group;
+      const lastOfGroup = i === team.length - 1 || team[i + 1].group !== e.group;
+      const gName = TEAM_GROUPS[groupIdx(e)][1];
+      const gCount = team.filter(x => x.group === e.group).length;
+      const heading = firstOfGroup ? `<div class="team-group-head">${gName} <span>(${gCount})</span></div>` : '';
       const src = e._photoData || (!e._removePhoto && e.photo_url) || '';
-      return `
+      return heading + `
       <div class="team-item ${e.active === false ? 'hidden-entry' : ''}" data-i="${i}">
         <div>
           <div class="team-photo">${src ? `<img src="${escapeHtml(src)}" alt="">` : escapeHtml(initials(e.name))}</div>
@@ -2439,21 +2452,22 @@
         </div>
         <div class="team-fields">
           <div><label>Name</label><input data-f="name" maxlength="80" value="${escapeHtml(e.name)}" placeholder="e.g. Dr. Maria Santos"></div>
+          <div><label>Group on website</label><select data-f="group">${TEAM_GROUPS.map(g => `<option value="${g[0]}" ${e.group === g[0] ? 'selected' : ''}>${g[1]}</option>`).join('')}</select></div>
           <div><label>Title</label><input data-f="title" maxlength="80" value="${escapeHtml(e.title)}" placeholder="e.g. Optometrist, OD"></div>
           <div><label>PRC license no. (optional)</label><input data-f="license" maxlength="40" value="${escapeHtml(e.license)}" placeholder="e.g. 0012345"></div>
           <div class="full"><label>Bio</label><textarea data-f="bio" maxlength="900" placeholder="Training, years in practice, what patients can expect…">${escapeHtml(e.bio)}</textarea><div class="bio-count">${(e.bio || '').length}/900</div></div>
         </div>
         <div class="team-side">
           <label class="show-row"><span class="switch"><input type="checkbox" data-f="active" ${e.active !== false ? 'checked' : ''} aria-label="Show on website"><span class="slider"></span></span>Show</label>
-          <button type="button" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑ Up</button>
-          <button type="button" data-act="down" ${i === team.length - 1 ? 'disabled' : ''} aria-label="Move down">↓ Down</button>
+          <button type="button" data-act="up" ${firstOfGroup ? 'disabled' : ''} aria-label="Move up">↑ Up</button>
+          <button type="button" data-act="down" ${lastOfGroup ? 'disabled' : ''} aria-label="Move down">↓ Down</button>
           <button type="button" class="del" data-act="del">Delete</button>
         </div>
       </div>`;
     }).join('');
   }
   function renderTeamFrom(value) {
-    team = ((value && value.entries) || []).map(e => ({ ...e }));
+    team = ((value && value.entries) || []).map(e => ({ ...e, group: e.group || 'optometrist' }));
     renderTeam();
   }
   // Crop to a 4:5 portrait and shrink to 640x800 JPEG in the browser,
@@ -2485,21 +2499,22 @@
   teamList.addEventListener('input', (ev) => {
     const item = ev.target.closest('.team-item'); if (!item) return;
     const e = team[+item.dataset.i], f = ev.target.dataset.f;
-    if (!f || f === 'active') return;
+    if (!f || f === 'active' || f === 'group') return;
     e[f] = ev.target.value;
     if (f === 'bio') item.querySelector('.bio-count').textContent = ev.target.value.length + '/900';
   });
   teamList.addEventListener('change', (ev) => {
-    if (ev.target.dataset.f !== 'active') return;
     const item = ev.target.closest('.team-item');
+    if (item && ev.target.dataset.f === 'group') { team[+item.dataset.i].group = ev.target.value; renderTeam(); return; }
+    if (ev.target.dataset.f !== 'active') return;
     team[+item.dataset.i].active = ev.target.checked;
     item.classList.toggle('hidden-entry', !ev.target.checked);
   });
   teamList.addEventListener('click', (ev) => {
     const btn = ev.target.closest('button[data-act]'); if (!btn) return;
     const i = +btn.closest('.team-item').dataset.i, e = team[i], act = btn.dataset.act;
-    if (act === 'up' && i > 0) { [team[i - 1], team[i]] = [team[i], team[i - 1]]; renderTeam(); }
-    else if (act === 'down' && i < team.length - 1) { [team[i + 1], team[i]] = [team[i], team[i + 1]]; renderTeam(); }
+    if (act === 'up' && i > 0 && team[i - 1].group === e.group) { [team[i - 1], team[i]] = [team[i], team[i - 1]]; renderTeam(); }
+    else if (act === 'down' && i < team.length - 1 && team[i + 1].group === e.group) { [team[i + 1], team[i]] = [team[i], team[i + 1]]; renderTeam(); }
     else if (act === 'del') {
       if (!confirm(`Remove ${e.name || 'this optometrist'} from the list? This takes effect when you save.`)) return;
       team.splice(i, 1); renderTeam();
@@ -2509,24 +2524,26 @@
       inp.onchange = async () => {
         const f = inp.files && inp.files[0]; if (!f) return;
         const st = document.getElementById('teamStatus');
-        try { st.textContent = 'Preparing photo…'; st.className = 'save-status'; e._photoData = await processPhoto(f); e._removePhoto = false; st.textContent = 'Photo ready. Click Save optometrists to publish.'; renderTeam(); }
+        try { st.textContent = 'Preparing photo…'; st.className = 'save-status'; e._photoData = await processPhoto(f); e._removePhoto = false; st.textContent = 'Photo ready. Click Save team to publish.'; renderTeam(); }
         catch (err) { st.textContent = err.message; st.className = 'save-status error'; }
       };
       inp.click();
     }
   });
-  document.getElementById('teamAdd').addEventListener('click', () => {
-    team.push({ name: '', title: 'Optometrist', license: '', bio: '', active: true });
+  document.querySelectorAll('[data-add]').forEach((btn) => btn.addEventListener('click', () => {
+    const g = btn.dataset.add;
+    team.push({ name: '', group: g, title: g === 'optometrist' ? 'Optometrist' : g === 'tech' ? 'Technician' : '', license: '', bio: '', active: true });
     renderTeam();
-    const items = teamList.querySelectorAll('.team-item');
-    const last = items[items.length - 1]; last.scrollIntoView({ behavior: 'smooth', block: 'center' }); last.querySelector('input[data-f="name"]').focus();
-  });
+    const idx = team.findIndex(e => !e.id && e.name === '' && e.group === g);
+    const item = teamList.querySelector(`.team-item[data-i="${idx}"]`);
+    if (item) { item.scrollIntoView({ behavior: 'smooth', block: 'center' }); item.querySelector('input[data-f="name"]').focus(); }
+  }));
   document.getElementById('saveTeam').addEventListener('click', async () => {
     const btn = document.getElementById('saveTeam'), st = document.getElementById('teamStatus');
-    if (team.some(e => !String(e.name || '').trim())) { st.textContent = 'Every optometrist needs a name.'; st.className = 'save-status error'; return; }
+    if (team.some(e => !String(e.name || '').trim())) { st.textContent = 'Everyone listed needs a name.'; st.className = 'save-status error'; return; }
     btn.disabled = true; st.textContent = 'Saving…'; st.className = 'save-status';
     const entries = team.map(e => {
-      const o = { id: e.id, name: e.name, title: e.title, license: e.license, bio: e.bio, active: e.active !== false };
+      const o = { id: e.id, name: e.name, group: e.group, title: e.title, license: e.license, bio: e.bio, active: e.active !== false };
       if (e._photoData) o.photo_data = e._photoData; else if (e._removePhoto) o.remove_photo = true;
       return o;
     });

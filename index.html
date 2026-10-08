@@ -193,6 +193,12 @@
   .doc .bio { color: var(--muted); font-size: 15px; line-height: 1.65; margin-top: 10px; white-space: pre-line; }
   .doc .bio.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
   .doc .more { align-self: flex-start; background: none; border: none; padding: 0; margin-top: 4px; color: var(--link); font: 600 14px var(--body); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .team-group-title { font: 700 22px var(--display); margin: 44px 0 18px; padding-top: 22px; border-top: 1px solid var(--line, rgba(56,51,52,.14)); }
+  .team-group-title:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
+  .team-grid.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .team-grid.in-groups.n2 { max-width: 660px; }
+  @media (max-width: 960px) { .team-grid.n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .team-grid.n4 { grid-template-columns: 1fr; } }
   .team-grid.solo { grid-template-columns: 1fr; }
   .team-grid.solo .doc { flex-direction: row; max-width: 980px; }
   .team-grid.solo .doc-photo { width: 380px; flex-shrink: 0; }
@@ -479,8 +485,8 @@
 <section class="block" id="team" hidden aria-labelledby="teamTitle">
   <div class="wrap">
     <div class="sec-head">
-      <div><div class="kicker">Meet our optometrists</div><h2 class="h2" id="teamTitle">The people behind your exam.</h2></div>
-      <p class="lede">Licensed optometrists who take the time to explain every result, and every choice.</p>
+      <div><div class="kicker" id="teamKicker">Meet our optometrists</div><h2 class="h2" id="teamTitle">The people behind your exam.</h2></div>
+      <p class="lede" id="teamLede">Licensed optometrists who take the time to explain every result, and every choice.</p>
     </div>
     <div class="team-grid" id="teamGrid"></div>
   </div>
@@ -788,10 +794,12 @@
   fetch('/api/settings?view=team').then(function (r) { return r.json(); }).then(function (d) {
     var team = (d && d.team) || [];
     if (!team.length) return;
-    var grid = document.getElementById('teamGrid');
-    grid.className = 'team-grid' + (team.length === 1 ? ' solo' : team.length === 2 ? ' n2' : '');
+    var wrapEl = document.getElementById('teamGrid').parentNode;
+    var oldGrid = document.getElementById('teamGrid');
+    var GROUPS = [['optometrist', 'Optometrists'], ['staff', 'Our staff'], ['tech', 'Technicians']];
+    var multi = GROUPS.filter(function (g) { return team.some(function (p) { return (p.group || 'optometrist') === g[0]; }); }).length > 1;
     function initials(n) { return n.replace(/^(dr\.?|doc)\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase(); }
-    team.forEach(function (p) {
+    function card(p) {
       var card = document.createElement('article'); card.className = 'doc';
       var ph = document.createElement('div'); ph.className = 'doc-photo';
       if (p.photo_url) { var img = document.createElement('img'); img.src = p.photo_url; img.alt = 'Photo of ' + p.name; img.loading = 'lazy'; ph.appendChild(img); }
@@ -807,8 +815,24 @@
         body.appendChild(more);
         requestAnimationFrame(function () { more.hidden = b.scrollHeight <= b.clientHeight + 2; });
       }
-      card.appendChild(ph); card.appendChild(body); grid.appendChild(card);
+      card.appendChild(ph); card.appendChild(body);
+      return card;
+    }
+    GROUPS.forEach(function (g) {
+      var people = team.filter(function (p) { return (p.group || 'optometrist') === g[0]; });
+      if (!people.length) return;
+      if (multi) { var gh = document.createElement('h3'); gh.className = 'team-group-title'; gh.textContent = g[1]; wrapEl.insertBefore(gh, oldGrid); }
+      var grid = document.createElement('div');
+      grid.className = 'team-grid' + (people.length === 1 ? ' solo' : people.length === 2 ? ' n2' : people.length === 4 ? ' n4' : '') + (multi ? ' in-groups' : '');
+      people.forEach(function (p) { grid.appendChild(card(p)); });
+      wrapEl.insertBefore(grid, oldGrid);
     });
+    oldGrid.remove();
+    if (multi) {
+      document.getElementById('teamKicker').textContent = 'Meet our team';
+      document.getElementById('teamLede').textContent = 'The people who look after you, from your first exam to the day you pick up your new glasses.';
+      document.querySelectorAll('[data-team-link]').forEach(function (a) { a.textContent = 'Our team'; });
+    }
     document.getElementById('team').hidden = false;
     document.querySelectorAll('[data-team-link]').forEach(function (a) { a.hidden = false; });
   }).catch(function () {});
