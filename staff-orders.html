@@ -337,6 +337,9 @@
       <button data-type="rx">Rx</button>
       <button data-type="non_rx">Non-Rx</button>
     </div>
+    <div class="status-filter due-filter">
+      <button data-due="tba" aria-pressed="false" title="Orders whose due date is still TBA">TBA due</button>
+    </div>
   </div>
 
   <div id="content">
@@ -349,10 +352,11 @@
 (function() {
   const content = document.getElementById('content');
   const searchInput = document.getElementById('searchInput');
-  const statusButtons = document.querySelectorAll('.status-filter:not(.type-filter) button');
+  const statusButtons = document.querySelectorAll('.status-filter:not(.type-filter):not(.due-filter) button');
   const typeButtons = document.querySelectorAll('.type-filter button');
   let currentStatus = '';
   let currentType = '';
+  let currentDue = '';
   let searchDebounce = null;
   // Defaults to "All" -- staff pulling up the order list usually want
   // everything (a specific order # search, or checking today's ready
@@ -432,6 +436,7 @@
     if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
     if (currentStatus) params.set('status', currentStatus);
     if (currentType) params.set('order_type', currentType);
+    if (currentDue) params.set('due', currentDue);
     const { from, to } = periodFilter.getRange();
     if (from) params.set('from', from);
     if (to) params.set('to', to);
@@ -694,10 +699,25 @@
     });
   });
 
+  const dueBtn = document.querySelector('.due-filter button');
+  dueBtn.addEventListener('click', () => {
+    const on = !dueBtn.classList.contains('active');
+    dueBtn.classList.toggle('active', on);
+    dueBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    currentDue = on ? 'tba' : '';
+    loadOrders();
+  });
+
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/api/staff-auth?action=logout', { method: 'POST' });
     window.location.href = 'staff-login.html';
   });
+
+  if (new URLSearchParams(location.search).get('due') === 'tba') {
+    currentDue = 'tba';
+    dueBtn.classList.add('active');
+    dueBtn.setAttribute('aria-pressed', 'true');
+  }
 
   checkAuth().then(loadOrders);
 })();

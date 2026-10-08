@@ -80,8 +80,10 @@
     gap: 16px;
     margin-bottom: 20px;
   }
-  @media (max-width: 900px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 520px) { .stat-row { grid-template-columns: 1fr; } }
+  #statRow { grid-template-columns: repeat(5, 1fr); }
+  @media (max-width: 1100px) { #statRow { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 900px) { .stat-row, #statRow { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .stat-row, #statRow { grid-template-columns: 1fr; } }
 
   .stat-row-label {
     font-family: var(--display);
@@ -247,6 +249,11 @@
       <div class="stat-value" id="statDue">—</div>
       <div class="stat-note">Still "Ordered" past due date</div>
     </div>
+    <div class="stat-card accent-purple">
+      <div class="stat-label">TBA</div>
+      <div class="stat-value" id="statTba">—</div>
+      <div class="stat-note">Ordered, due date not known yet</div>
+    </div>
     <div class="stat-card accent-blue">
       <div class="stat-label">Unclaimed Rx</div>
       <div class="stat-value" id="statUnclaimed">—</div>
@@ -300,6 +307,14 @@
     <h2>Due</h2>
     <div class="section-sub">Still marked "Ordered" and past (or at) the due date on file — chase the lab/vendor or call the patient, then mark it Ready once it's actually in.</div>
     <div class="intake-list" id="dueList">
+      <div class="loading-note">Loading…</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>TBA</h2>
+    <div class="section-sub">Still marked "Ordered" with the due date set to TBA. Get a date from the lab/vendor and add it to the order, or mark it Ready once it's in. <a href="staff-orders.html?due=tba" style="color:var(--purple-deep);">See all in Orders</a></div>
+    <div class="intake-list" id="tbaList">
       <div class="loading-note">Loading…</div>
     </div>
   </div>
@@ -540,6 +555,14 @@
         actionLabel: 'Mark Ready',
         nextStatus: 'ready',
         statId: 'statDue',
+      });
+
+      document.getElementById('statTba').textContent = s.tbaOrderCount || 0;
+      renderOrderActionList('tbaList', s.tbaOrders || [], {
+        emptyText: 'No orders waiting on a due date.',
+        actionLabel: 'Mark Ready',
+        nextStatus: 'ready',
+        statId: 'statTba',
       });
 
       document.getElementById('statUnclaimed').textContent = s.unclaimedCount;

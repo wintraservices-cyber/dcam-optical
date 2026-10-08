@@ -204,15 +204,17 @@ async function dashboardSummary(req, res, session) {
     const unclaimedFilter = `&status=eq.ready`;
 
     const intakeQuery = (cols) => supabaseRequest(`intake_submissions?select=${cols}&status=eq.new&order=created_at.desc&limit=50`, { method: 'GET' });
-    const [newIntakesResp, todaysOrdersResp, dueOrdersResp, unclaimedOrdersResp] = await Promise.all([
+    const tbaFilter = `&status=eq.ordered&due_date=ilike.TBA`;
+    const [newIntakesResp, todaysOrdersResp, dueOrdersResp, unclaimedOrdersResp, tbaOrdersResp] = await Promise.all([
       // contact_status is newer; fall back without it until the column exists.
       intakeQuery('id,fname,lname,phone,reason,pref_date,pref_time,created_at,contact_status').then((r) => (r.ok ? r : intakeQuery('id,fname,lname,phone,reason,pref_date,pref_time,created_at'))),
       supabaseRequest(`orders?select=id,order_no,patient_name,status,balance,amount,payment_status${todayFilter}&deleted_at=is.null&order=created_at.desc&limit=200`, { method: 'GET' }),
       supabaseRequest(`orders?select=id,order_no,patient_name,tel_no,due_date${dueFilter}&deleted_at=is.null&order=due_date.asc&limit=200`, { method: 'GET' }),
       supabaseRequest(`orders?select=id,order_no,patient_name,tel_no,due_date${unclaimedFilter}&deleted_at=is.null&order=due_date.asc&limit=200`, { method: 'GET' }),
+      supabaseRequest(`orders?select=id,order_no,patient_name,tel_no,due_date${tbaFilter}&deleted_at=is.null&order=created_at.asc&limit=200`, { method: 'GET' }),
     ]);
 
-    if (!newIntakesResp.ok || !todaysOrdersResp.ok || !dueOrdersResp.ok || !unclaimedOrdersResp.ok) {
+    if (!newIntakesResp.ok || !todaysOrdersResp.ok || !dueOrdersResp.ok || !unclaimedOrdersResp.ok || !tbaOrdersResp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load the dashboard.' });
       return;
     }
@@ -221,6 +223,7 @@ async function dashboardSummary(req, res, session) {
     const todaysOrders = await todaysOrdersResp.json();
     const dueOrders = await dueOrdersResp.json();
     const unclaimedOrders = await unclaimedOrdersResp.json();
+    const tbaOrders = await tbaOrdersResp.json();
 
     const ordersByStatus = { ordered: 0, ready: 0, claimed: 0 };
     todaysOrders.forEach((o) => {
@@ -237,6 +240,8 @@ async function dashboardSummary(req, res, session) {
       },
       dueOrderCount: dueOrders.length,
       dueOrders: dueOrders.slice(0, 8),
+      tbaOrderCount: tbaOrders.length,
+      tbaOrders: tbaOrders.slice(0, 8),
       unclaimedCount: unclaimedOrders.length,
       unclaimedOrders: unclaimedOrders.slice(0, 8),
     };

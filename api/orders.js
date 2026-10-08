@@ -434,7 +434,7 @@ async function updateOrderFull(req, res, session) {
 const ORDER_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 async function listOrders(req, res) {
-  const { q, status, id, from, to, order_type } = req.query || {};
+  const { q, status, id, from, to, order_type, due } = req.query || {};
 
   // order_items(*) embeds each order's line items in the same query,
   // using PostgREST's resource-embedding (a join via the order_items.order_id
@@ -480,6 +480,12 @@ async function listOrders(req, res) {
   // Rx / Non-Rx filter on the orders list -- same eq. pattern as status.
   if (order_type && isValidOrderType(order_type)) {
     path += `&order_type=eq.${encodeURIComponent(order_type)}`;
+  }
+
+  // "TBA due" filter: orders whose due date is the literal text TBA
+  // (date not known yet), saved that way by the order form.
+  if (due === 'tba') {
+    path += '&due_date=ilike.TBA';
   }
 
   if (q && typeof q === 'string' && q.trim()) {
