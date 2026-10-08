@@ -2455,7 +2455,7 @@
           <div><label>Group on website</label><select data-f="group">${TEAM_GROUPS.map(g => `<option value="${g[0]}" ${e.group === g[0] ? 'selected' : ''}>${g[1]}</option>`).join('')}</select></div>
           <div><label>Title</label><input data-f="title" maxlength="80" value="${escapeHtml(e.title)}" placeholder="e.g. Optometrist, OD"></div>
           <div><label>PRC license no. (optional)</label><input data-f="license" maxlength="40" value="${escapeHtml(e.license)}" placeholder="e.g. 0012345"></div>
-          <div class="full"><label>Bio</label><textarea data-f="bio" maxlength="900" placeholder="Training, years in practice, what patients can expect…">${escapeHtml(e.bio)}</textarea><div class="bio-count">${(e.bio || '').length}/900</div></div>
+          <div class="full"><label>Bio</label><textarea data-f="bio" maxlength="2400" placeholder="Training, years in practice, what patients can expect…">${escapeHtml(e.bio)}</textarea><div class="bio-count">${(e.bio || '').length}/2400</div></div>
         </div>
         <div class="team-side">
           <label class="show-row"><span class="switch"><input type="checkbox" data-f="active" ${e.active !== false ? 'checked' : ''} aria-label="Show on website"><span class="slider"></span></span>Show</label>
@@ -2501,7 +2501,7 @@
     const e = team[+item.dataset.i], f = ev.target.dataset.f;
     if (!f || f === 'active' || f === 'group') return;
     e[f] = ev.target.value;
-    if (f === 'bio') item.querySelector('.bio-count').textContent = ev.target.value.length + '/900';
+    if (f === 'bio') item.querySelector('.bio-count').textContent = ev.target.value.length + '/2400';
   });
   teamList.addEventListener('change', (ev) => {
     const item = ev.target.closest('.team-item');
