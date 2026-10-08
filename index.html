@@ -197,6 +197,8 @@
   .team-track { display: flex; gap: 24px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; padding: 4px 2px 18px; scrollbar-width: thin; }
   .team-track:focus-visible { outline: 2px solid var(--link); outline-offset: 4px; border-radius: 12px; }
   .team-track .doc { flex: 0 0 min(300px, 78vw); scroll-snap-align: start; }
+  .team-track.rolling { scroll-snap-type: none; scroll-behavior: auto; scrollbar-width: none; }
+  .team-track.rolling::-webkit-scrollbar { display: none; }
   .team-arrow { position: absolute; top: 38%; z-index: 2; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--surface); color: var(--text); font-size: 28px; line-height: 1; cursor: pointer; box-shadow: 0 8px 22px var(--shadow); }
   .team-arrow.prev { left: -14px; } .team-arrow.next { right: -14px; }
   .team-arrow:hover { color: var(--link); }
@@ -826,29 +828,77 @@
       card.appendChild(ph); card.appendChild(body);
       return card;
     }
-    // One scrollable row, always Optometrists first (the API already sorts
-    // by group), then Staff, then Technicians.
+    // One continuously rolling row, always starting with the Optometrists
+    // (the API sorts by group; sorted again here to be safe), then Staff,
+    // then Technicians. Pauses on hover, touch and keyboard focus; people
+    // can still swipe or use the arrows. Reduced-motion visitors get a
+    // plain swipeable row with no automatic movement.
+    var order = { optometrist: 0, staff: 1, tech: 2 };
+    var sorted = team.map(function (p, i) { return [p, i]; })
+      .sort(function (a, b) { return (order[a[0].group || 'optometrist'] || 0) - (order[b[0].group || 'optometrist'] || 0) || a[1] - b[1]; })
+      .map(function (x) { return x[0]; });
     var viewport = document.createElement('div'); viewport.className = 'team-carousel';
     var track = document.createElement('div'); track.className = 'team-track'; track.tabIndex = 0;
-    track.setAttribute('aria-label', 'Our team, scroll sideways');
-    var order = { optometrist: 0, staff: 1, tech: 2 };
-    team.map(function (p, i) { return [p, i]; }).sort(function (a, b) { return (order[a[0].group || 'optometrist'] || 0) - (order[b[0].group || 'optometrist'] || 0) || a[1] - b[1]; })
-      .forEach(function (x) { track.appendChild(card(x[0])); });
+    track.setAttribute('aria-label', 'Our team, rolling. Hover or tap to pause.');
+    function fill(copyClass) {
+      sorted.forEach(function (p) {
+        var c = card(p);
+        if (copyClass) { c.setAttribute('aria-hidden', 'true'); c.setAttribute('inert', ''); }
+        track.appendChild(c);
+      });
+    }
+    fill(false);
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var setW = 0, rolling = false;
     function arrow(dir) {
       var bt = document.createElement('button'); bt.type = 'button'; bt.className = 'team-arrow ' + (dir < 0 ? 'prev' : 'next');
       bt.setAttribute('aria-label', dir < 0 ? 'Previous people' : 'Next people'); bt.innerHTML = dir < 0 ? '&#8249;' : '&#8250;';
-      bt.addEventListener('click', function () { track.scrollBy({ left: dir * Math.max(track.clientWidth * 0.85, 280), behavior: 'smooth' }); });
+      bt.addEventListener('click', function () {
+        holdUntil = performance.now() + 2500;
+        track.scrollBy({ left: dir * Math.max(track.clientWidth * 0.8, 280), behavior: 'smooth' });
+      });
       return bt;
     }
     var prev = arrow(-1), next = arrow(1);
-    function sync() {
-      var max = track.scrollWidth - track.clientWidth;
-      prev.hidden = track.scrollLeft < 8; next.hidden = track.scrollLeft > max - 8;
-    }
-    track.addEventListener('scroll', sync, { passive: true }); window.addEventListener('resize', sync);
     viewport.appendChild(prev); viewport.appendChild(track); viewport.appendChild(next);
     wrapEl.insertBefore(viewport, oldGrid);
-    requestAnimationFrame(sync); setTimeout(sync, 400);
+
+    var pos = 0, last = 0, hovering = false, holdUntil = 0, visible = true, SPEED = 38; // px per second
+    function measure() {
+      var overflow = track.scrollWidth - track.clientWidth;
+      if (!rolling) {
+        // Add two more copies once, only when the people don't fit in one screen.
+        if (overflow > 8 && !reduce) {
+          setW = track.scrollWidth + 24; // one set plus the gap that follows it
+          fill(true); fill(true); rolling = true;
+          track.classList.add('rolling');
+          track.scrollLeft = setW; pos = setW;
+          requestAnimationFrame(tick);
+        } else if (overflow <= 8) { prev.hidden = true; next.hidden = true; }
+      }
+    }
+    function wrap() {
+      if (!rolling) return;
+      if (track.scrollLeft >= setW * 2) { track.scrollLeft -= setW; pos = track.scrollLeft; }
+      else if (track.scrollLeft < setW) { track.scrollLeft += setW; pos = track.scrollLeft; }
+    }
+    function tick(now) {
+      var dt = Math.min(now - last, 60) / 1000; last = now;
+      if (rolling && visible && !hovering && now > holdUntil && !document.hidden) {
+        pos = (Math.abs(track.scrollLeft - pos) > 2 ? track.scrollLeft : pos) + SPEED * dt;
+        track.scrollLeft = pos; wrap();
+      } else { pos = track.scrollLeft; }
+      requestAnimationFrame(tick);
+    }
+    track.addEventListener('scroll', wrap, { passive: true });
+    viewport.addEventListener('mouseenter', function () { hovering = true; });
+    viewport.addEventListener('mouseleave', function () { hovering = false; });
+    viewport.addEventListener('focusin', function () { hovering = true; });
+    viewport.addEventListener('focusout', function () { hovering = false; });
+    track.addEventListener('touchstart', function () { holdUntil = performance.now() + 4000; }, { passive: true });
+    track.addEventListener('wheel', function () { holdUntil = performance.now() + 2500; }, { passive: true });
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }).observe(viewport);
+    requestAnimationFrame(function () { measure(); }); setTimeout(measure, 500);
     oldGrid.remove();
     if (multi) {
       document.getElementById('teamKicker').textContent = 'Meet our team';
