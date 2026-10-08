@@ -196,7 +196,20 @@ async function getDashboard(req, res) {
   }
   const out = { ok: true, range: { from, to }, previous: prev };
   const safe = async (key, fn) => { try { out[key] = await fn(); } catch (e) { console.error('dashboard ' + key + ':', e.message); out[key] = null; } };
+  // Per-day activity for the trend chart (only for a bounded period).
+  const spanDays = from && to ? Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1 : 0;
+  const wantDaily = spanDays > 0 && spanDays <= 93;
+  const dayOf = iso => new Date(new Date(iso).getTime() + 8 * 3600000).toISOString().slice(0, 10);
   await Promise.all([
+    safe('daily', async () => {
+      if (!wantDaily) return null;
+      const map = {};
+      for (let i = 0; i < spanDays; i++) map[shiftDate(from, i)] = { day: shiftDate(from, i), intake: 0, ai: 0 };
+      const resp = await supabaseRequest(`intake_submissions?select=created_at&created_at=gte.${encodeURIComponent(from + 'T00:00:00+08:00')}&created_at=lte.${encodeURIComponent(to + 'T23:59:59.999+08:00')}&limit=5000`, { method: 'GET' });
+      if (resp.ok) (await resp.json()).forEach(r => { const d = map[dayOf(r.created_at)]; if (d) d.intake++; });
+      (await usageDaily(from, to)).forEach(r => { const d = map[r.day]; if (d) d.ai += Number(r.messages) || 0; });
+      return Object.values(map);
+    }),
     safe('intake', async () => ({
       count: await countRows('intake_submissions', 'created_at', from, to),
       previous: prev ? await countRows('intake_submissions', 'created_at', prev.from, prev.to) : null,

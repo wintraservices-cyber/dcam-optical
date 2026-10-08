@@ -425,6 +425,33 @@
   .team-empty { border: 1.5px dashed var(--line); border-radius: 14px; padding: 22px; text-align: center; color: var(--charcoal-soft); font-size: 0.88rem; }
   .bio-count { font-size: 0.72rem; color: var(--charcoal-soft); text-align: right; margin-top: 2px; }
   @media (max-width: 760px) { .team-item { grid-template-columns: 1fr; } .team-fields { grid-template-columns: 1fr; } .team-side { flex-direction: row; flex-wrap: wrap; } }
+
+  /* ---- Website dashboard ---- */
+  .dash-sec { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--charcoal-soft); font-weight: 700; margin: 22px 0 10px; }
+  .dash-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .dash-tile { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+  .dash-tile .l { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); font-weight: 700; }
+  .dash-tile .v { font-family: var(--display); font-size: 1.9rem; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .dash-tile .d { font-size: 0.78rem; font-weight: 600; color: #2E7D4F; }
+  .dash-tile .d.down { color: #B26A00; } .dash-tile .d.flat { color: var(--charcoal-soft); font-weight: 400; }
+  .dash-src { display: inline-block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 99px; margin-top: 6px; background: #F1E0EC; color: #8A3F7B; }
+  .dash-src.ga { background: #DCEEF1; color: #2F8798; }
+  .dash-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; }
+  @media (max-width: 820px) { .dash-grid { grid-template-columns: 1fr; } }
+  .dash-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
+  .dash-card h3 { font-family: var(--display); font-size: 0.95rem; margin-bottom: 2px; }
+  .dash-card .sub { font-size: 0.78rem; color: var(--charcoal-soft); }
+  .dash-funnel { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .dash-step { display: flex; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #DCEEF1; font-size: 0.88rem; }
+  .dash-step.o { background: #F1E0EC; } .dash-step b { font-variant-numeric: tabular-nums; }
+  .dash-bars { display: flex; flex-direction: column; gap: 9px; margin-top: 10px; }
+  .dash-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; font-size: 0.86rem; }
+  .dash-bar .t { background: var(--ivory-dim); height: 8px; border-radius: 99px; grid-column: 1 / -1; overflow: hidden; }
+  .dash-bar .t i { display: block; height: 100%; background: #8A3F7B; border-radius: 99px; }
+  .dash-legend { display: flex; gap: 14px; font-size: 0.76rem; color: var(--charcoal-soft); margin-top: 4px; }
+  .dash-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .dash-chart text { fill: #5E5759; font: 11px sans-serif; }
+  .dash-ga { border-style: dashed; background: transparent; }
 </style>
 </head>
 <body>
@@ -595,13 +622,8 @@
     <div class="card">
       <h2>Website dashboard</h2>
       <div class="card-sub">The numbers the system already keeps, in one place. Each number is compared with the previous period of the same length. Admin only.</div>
-      <div id="dashPeriodMount" style="margin-bottom:14px;"></div>
+      <div id="dashPeriodMount" style="margin-bottom:6px;"></div>
       <div id="dashBody"><div class="loading-state">Open this tab to load.</div></div>
-    </div>
-    <div class="card">
-      <h2>Visitors, pages and traffic sources</h2>
-      <div class="card-sub">These come from Google Analytics, which has its own reports for visitors, where they came from, and which pages they read. Showing them on this page would need a read-only link to the Google Analytics property, which has not been set up yet.</div>
-      <div class="save-row"><a class="save-btn" style="text-decoration:none; display:inline-block;" href="https://analytics.google.com/" target="_blank" rel="noopener">Open Google Analytics</a></div>
     </div>
   </div>
   <!-- Website -->
@@ -2627,40 +2649,67 @@
     let loaded = false;
     const usd = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: (Number(n) || 0) < 1 ? 4 : 2 });
     const int = (n) => (Number(n) || 0).toLocaleString('en-US');
+    const OWN = '<span class="dash-src">DCAM SYSTEM (LIVE)</span>';
     function delta(cur, prev, money) {
-      if (prev == null) return '<div class="t-sub">&nbsp;</div>';
+      if (prev == null) return '<div class="d flat">&nbsp;</div>';
       const diff = cur - prev;
-      if (!diff) return '<div class="t-sub">same as before</div>';
-      const up = diff > 0;
+      if (!diff) return '<div class="d flat">same as previous period</div>';
       const amt = money ? usd(Math.abs(diff)) : int(Math.abs(diff));
-      return `<div class="t-sub" style="color:${up ? '#2E7D4F' : '#B26A00'}; font-weight:600;">${up ? '▲' : '▼'} ${amt} vs previous period (${money ? usd(prev) : int(prev)})</div>`;
+      return `<div class="d ${diff > 0 ? '' : 'down'}">${diff > 0 ? '▲' : '▼'} ${amt} vs previous period</div>`;
     }
-    function tile(label, value, sub) { return `<div class="usage-tile"><div class="t-label">${label}</div><div class="t-value">${value}</div>${sub}</div>`; }
+    function tile(label, value, sub) { return `<div class="dash-tile"><div class="l">${label}</div><div class="v">${value}</div>${sub || ''}${OWN}</div>`; }
+    const off = (label, why) => `<div class="dash-tile"><div class="l">${label}</div><div class="v">—</div><div class="d flat">${why}</div></div>`;
+
+    // Two-line chart (intake forms and AI replies per day), drawn to one scale.
+    function chart(days) {
+      const W = 640, H = 200, L = 40, R = 630, T = 16, B = 170;
+      const max = Math.max(4, ...days.map(d => Math.max(d.intake, d.ai)));
+      const top = Math.ceil(max / 4) * 4;
+      const x = i => days.length < 2 ? (L + R) / 2 : L + (R - L) * i / (days.length - 1);
+      const y = v => B - (B - T) * v / top;
+      const line = (key, color) => `<polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${days.map((d, i) => x(i).toFixed(1) + ',' + y(d[key]).toFixed(1)).join(' ')}"/>`;
+      const grid = [0, 1, 2, 3, 4].map(k => { const v = top * k / 4; return `<line x1="${L}" y1="${y(v)}" x2="${R}" y2="${y(v)}" stroke="rgba(56,51,52,.12)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`; }).join('');
+      const lab = d => d.day.slice(5).replace('-', '/');
+      return `<svg class="dash-chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Intake forms and AI replies per day">${grid}${line('ai', '#2F8798')}${line('intake', '#8A3F7B')}<text x="${L}" y="192">${lab(days[0])}</text><text x="${R}" y="192" text-anchor="end">${lab(days[days.length - 1])}</text></svg>
+        <div class="dash-legend"><span><i style="background:#8A3F7B"></i>Intake forms</span><span><i style="background:#2F8798"></i>AI replies</span></div>`;
+    }
     function render(r) {
-      const parts = [];
       const range = r.range.from ? `${escapeHtml(r.range.from)} → ${escapeHtml(r.range.to)}` : 'All time';
-      const intake = r.intake, ai = r.ai, uq = r.unanswered;
+      const intake = r.intake, ai = r.ai, uq = r.unanswered, oc = r.order_checks;
       const cur = ai && ai.current, old = ai && ai.previous;
-      parts.push(`<div class="usage-tiles" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">
-        ${intake ? tile('Intake forms submitted', int(intake.count), delta(intake.count, intake.previous)) : tile('Intake forms submitted', '—', '<div class="t-sub">Could not load</div>')}
-        ${cur ? tile('Website AI replies', int(cur.website.messages), delta(cur.website.messages, old && old.website.messages)) : tile('Website AI replies', '—', '<div class="t-sub">Could not load</div>')}
-        ${cur ? tile('Staff AI replies', int(cur.staff.messages), delta(cur.staff.messages, old && old.staff.messages)) : ''}
-        ${r.order_checks ? tile('Order status checks', int(r.order_checks.checks), delta(r.order_checks.checks, r.order_checks.previous)) : tile('Order status checks', '—', '<div class="t-sub">Needs the database update</div>')}
-        ${cur ? tile('AI cost (estimate)', usd(cur.total.cost_usd), delta(cur.total.cost_usd, old && old.total.cost_usd, true)) : ''}
-      </div><div class="card-sub" style="margin:-4px 0 14px;">Period: ${range}</div>`);
+      const p = [];
+      p.push(`<div class="dash-sec">Activity · ${range}</div><div class="dash-tiles">
+        ${intake ? tile('Intake forms submitted', int(intake.count), delta(intake.count, intake.previous)) : off('Intake forms submitted', 'Could not load')}
+        ${oc ? tile('Order status checks', int(oc.checks), delta(oc.checks, oc.previous)) : off('Order status checks', 'Needs the database update')}
+        ${cur ? tile('Website AI replies', int(cur.website.messages), delta(cur.website.messages, old && old.website.messages)) : off('Website AI replies', 'Could not load')}
+        ${cur ? tile('AI cost (estimate)', usd(cur.total.cost_usd), delta(cur.total.cost_usd, old && old.total.cost_usd, true)) : off('AI cost (estimate)', 'Could not load')}
+      </div>`);
+      const daily = r.daily && r.daily.length > 1 ? r.daily : null;
+      const funnel = `<div class="dash-card"><h3>What the website produced</h3><div class="sub">Counted by the system, not by Google</div>
+        <div class="dash-funnel">
+          <div class="dash-step o"><span>Intake forms submitted</span><b>${intake ? int(intake.count) : '—'}</b></div>
+          <div class="dash-step"><span>Order status checks (calls saved)</span><b>${oc ? int(oc.checks) : '—'}</b></div>
+          <div class="dash-step"><span>Website AI replies</span><b>${cur ? int(cur.website.messages) : '—'}</b></div>
+        </div><div style="margin-top:8px">${OWN}</div></div>`;
+      p.push(`<div class="dash-grid" style="margin-top:12px;">${daily ? `<div class="dash-card"><h3>Activity per day</h3><div class="sub">${range}</div>${chart(daily)}</div>` : `<div class="dash-card"><h3>Activity per day</h3><div class="sub">Pick a period of up to 3 months to see the daily chart.</div></div>`}${funnel}</div>`);
       if (cur) {
         const perMsg = cur.total.messages ? cur.total.cost_usd / cur.total.messages : 0;
-        parts.push(`<table class="usage-split"><thead><tr><th>AI assistant</th><th class="num">Replies</th><th class="num">Tokens in</th><th class="num">Tokens out</th><th class="num">Est. cost</th></tr></thead><tbody>
-          <tr><td>Website chat</td><td class="num">${int(cur.website.messages)}</td><td class="num">${int(cur.website.input_tokens)}</td><td class="num">${int(cur.website.output_tokens)}</td><td class="num">${usd(cur.website.cost_usd)}</td></tr>
-          <tr><td>Staff assistant</td><td class="num">${int(cur.staff.messages)}</td><td class="num">${int(cur.staff.input_tokens)}</td><td class="num">${int(cur.staff.output_tokens)}</td><td class="num">${usd(cur.staff.cost_usd)}</td></tr>
-        </tbody></table><div class="card-sub" style="margin-top:6px;">About ${usd(perMsg)} per reply. Costs are estimates from token counts; the Anthropic Console is the source of truth. Full daily detail is in the AI assistant tab.</div>`);
+        const tot = Math.max(1, cur.total.messages);
+        p.push(`<div class="dash-sec">AI assistant</div><div class="dash-grid">
+          <div class="dash-card"><h3>Usage and estimated cost</h3><div class="sub">About ${usd(perMsg)} per reply. Estimates from token counts; the Anthropic Console is the source of truth.</div>
+            <div class="dash-bars">
+              <div class="dash-bar"><span>Website chat · ${int(cur.website.messages)} replies · ${int(cur.website.input_tokens + cur.website.output_tokens)} tokens</span><b>${usd(cur.website.cost_usd)}</b><div class="t"><i style="width:${(100 * cur.website.messages / tot).toFixed(0)}%"></i></div></div>
+              <div class="dash-bar"><span>Staff assistant · ${int(cur.staff.messages)} replies · ${int(cur.staff.input_tokens + cur.staff.output_tokens)} tokens</span><b>${usd(cur.staff.cost_usd)}</b><div class="t"><i style="width:${(100 * cur.staff.messages / tot).toFixed(0)}%"></i></div></div>
+            </div><div class="sub" style="margin-top:10px">Daily detail is in the AI assistant tab.</div><div style="margin-top:8px">${OWN}</div></div>
+          <div class="dash-card"><h3>Questions the AI couldn't answer</h3><div class="sub">${uq ? int(uq.open_total) + ' open' : ''}. Answer them in the AI assistant tab and they stop coming up.</div>
+            ${uq && uq.top.length ? `<div class="dash-bars">${uq.top.map(q => `<div class="dash-bar"><span>${escapeHtml(q.question)}</span><b>${int(q.times_asked)}×</b></div>`).join('')}</div>` : '<div class="sub" style="margin-top:10px">Nothing open. The AI has answered everything so far.</div>'}
+            <div style="margin-top:8px">${OWN}</div></div></div>`);
       }
-      if (uq) {
-        parts.push(`<h2 style="margin-top:18px; font-size:1rem;">Questions the AI couldn't answer <span style="font-weight:400; color:var(--charcoal-soft); font-size:0.85rem;">(${int(uq.open_total)} open)</span></h2>` + (uq.top.length
-          ? `<table class="usage-split"><thead><tr><th>Question</th><th>Where</th><th class="num">Asked</th></tr></thead><tbody>${uq.top.map(q => `<tr><td>${escapeHtml(q.question)}</td><td>${q.channel === 'staff' ? 'Staff' : 'Website'}</td><td class="num">${int(q.times_asked)}</td></tr>`).join('')}</tbody></table><div class="card-sub" style="margin-top:6px;">Answer these in the AI assistant tab and they stop coming up.</div>`
-          : '<div class="empty-state">Nothing open. The AI has been able to answer everything so far.</div>'));
-      }
-      body.innerHTML = parts.join('');
+      p.push(`<div class="dash-sec">Visitors, pages and traffic sources</div>
+        <div class="dash-card dash-ga"><h3>Coming from Google Analytics</h3>
+          <div class="sub" style="margin-top:4px">Visitors, where they came from, the most viewed pages, phone and directions taps. These are in Google Analytics now. Showing them on this page needs a read-only link to the property, which is not set up yet.</div>
+          <div style="margin-top:10px"><span class="dash-src ga">GOOGLE ANALYTICS</span> <a href="https://analytics.google.com/" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open Google Analytics</a></div></div>`);
+      body.innerHTML = p.join('');
     }
     const period = PeriodFilter.mount(document.getElementById('dashPeriodMount'), { defaultPreset: 'this_month', onChange: load });
     async function load() {
