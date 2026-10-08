@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Finance — DCAM Optical (Staff)</title>
+<title>Sales — DCAM Optical (Staff)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
@@ -276,28 +276,41 @@
   @media (max-width: 640px) { .bod-edit { grid-template-columns: 1fr 1fr; } }
   .bod-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center; }
   .btn-link { background:none; border:0; color:var(--charcoal-soft); text-decoration:underline; cursor:pointer; font:inherit; font-size:0.82rem; padding:4px 2px; }
-  tr.month-total td, tr.grand-total td { font-weight:700; background: var(--ivory); }
-  tr.grand-total td { border-top: 2px solid var(--charcoal); }
+  .ss-top { display:grid; grid-template-columns: 1fr auto; gap:6px 24px; max-width:420px; font-weight:700; margin-bottom:14px; }
+  .ss-top span:nth-child(even) { text-align:right; font-variant-numeric: tabular-nums; }
+  table.ss td:nth-child(n+2), table.ss th:nth-child(n+2) { text-align:right; font-variant-numeric: tabular-nums; }
+  .ss-ctl { display:flex; gap:10px; align-items:center; margin-bottom:12px; font-size:0.85rem; }
 
-  .fin-tabs { display:flex; gap:8px; padding:16px 24px 0; border-bottom:1px solid var(--line); }
-  .fin-tab { font-family: var(--display); font-weight:700; font-size:0.95rem; padding:10px 18px; border:0; background:none; cursor:pointer; color:var(--charcoal-soft); border-bottom:3px solid transparent; }
-  .fin-tab.active { color:var(--purple-deep); border-bottom-color:var(--purple); }
-  .fin-frame { width:100%; border:0; display:block; min-height: calc(100vh - 130px); background: var(--ivory); }
-  .fin-denied { display:none; max-width:520px; margin:60px auto; text-align:center; padding:0 24px; }
+  body.embed .staff-bar { display: none; }
+  .wrap { padding: 24px; }
+  .ctl { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px; }
+  .ctl label { display:block; font-size:0.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--charcoal-soft); font-weight:600; margin-bottom:4px; }
+  .ctl input[type=date] { border:1.5px solid var(--line); border-radius:8px; padding:8px 10px; font-family:var(--body); background:#fff; }
+  .ctl button, .ctl a.dl { border:1px solid var(--line); background:#fff; border-radius:8px; padding:9px 12px; cursor:pointer; font-family:var(--body); font-size:0.82rem; color:var(--charcoal); text-decoration:none; }
+  .tiles { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:10px; margin-bottom:14px; }
+  .tile { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .tile .l { font-size:0.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--charcoal-soft); }
+  .tile .v { font-family:var(--display); font-weight:800; font-size:1.15rem; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .tbl { overflow-x:auto; background:#fff; border:1px solid var(--line); border-radius:12px; }
+  .tbl table { width:100%; border-collapse:collapse; font-size:0.82rem; white-space:nowrap; }
+  .tbl th { text-align:left; padding:9px 12px; background:var(--ivory-dim); font-size:0.72rem; text-transform:uppercase; letter-spacing:.04em; }
+  .tbl td { padding:8px 12px; border-top:1px solid var(--line); }
+  .msg { padding:24px; text-align:center; color:var(--charcoal-soft); }
 </style>
 </head>
 <body>
+<script>if (/[?&]embed=1/.test(location.search)) document.body.classList.add('embed');</script>
 <div class="staff-bar">
   <div class="tag">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-    Staff only — finance
+    Staff only — sales
   </div>
   <div class="actions">
     <a href="staff-dashboard.html" class="btn-light">Dashboard</a>
     <a href="staff-orders.html" class="btn-light">Orders</a>
     <a href="staff-catalog.html" class="btn-light">Catalog</a>
     <a href="staff-reports.html" class="btn-light">Reports</a>
-    <a href="staff-finance.html" class="btn-light nav-admin-only" style="outline:2px solid var(--purple);">Finance</a>
+    <a href="staff-finance.html" class="btn-light nav-admin-only">Finance</a>
     <a href="staff-settings.html" class="btn-light nav-admin-only">Settings</a>
     <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
     <a href="staff-profile.html" class="btn-light">Profile</a>
@@ -305,52 +318,67 @@
   </div>
 </div>
 
-<div class="fin-denied" id="denied"><h2>Admin access only</h2><p style="margin-top:8px;color:var(--charcoal-soft);">Finance is available to admin accounts.</p></div>
-<div id="finMain" style="display:none;">
-  <div class="fin-tabs" role="tablist">
-    <button type="button" class="fin-tab active" id="tabSales" role="tab">Sales</button>
-    <button type="button" class="fin-tab" id="tabExpenses" role="tab">Expenses</button>
-    <button type="button" class="fin-tab" id="tabCash" role="tab">Cash Position</button>
+<div class="wrap" id="main" style="display:none;">
+  <div class="ctl">
+    <div><label for="from">From</label><input type="date" id="from"></div>
+    <div><label for="to">To</label><input type="date" id="to"></div>
+    <button type="button" id="pToday">Today</button>
+    <button type="button" id="pMonth">This month</button>
+    <button type="button" id="pLast">Last month</button>
+    <a class="dl" id="dl" href="#">Download CSV</a>
   </div>
-  <iframe class="fin-frame" id="finFrame" title="Finance"></iframe>
+  <div class="tiles" id="tiles"></div>
+  <div class="tbl" id="tbl"><div class="msg">Loading…</div></div>
 </div>
+<div class="msg" id="denied" style="display:none;">Sales is available to admin accounts.</div>
 <script>
-(function(){
-  var SRC = { sales: 'staff-sales.html?embed=1', expenses: 'staff-expenses.html?embed=1', cash: 'staff-cashflow.html?embed=1' };
-  var frame = document.getElementById('finFrame');
-  function show(tab, push) {
-    document.getElementById('tabSales').classList.toggle('active', tab === 'sales');
-    document.getElementById('tabExpenses').classList.toggle('active', tab === 'expenses');
-    document.getElementById('tabCash').classList.toggle('active', tab === 'cash');
-    frame.src = SRC[tab];
-    if (push) history.replaceState(null, '', '#' + tab);
-  }
-  document.getElementById('tabSales').addEventListener('click', function(){ show('sales', true); });
-  document.getElementById('tabExpenses').addEventListener('click', function(){ show('expenses', true); });
-  document.getElementById('tabCash').addEventListener('click', function(){ show('cash', true); });
-  document.getElementById('logoutBtn').addEventListener('click', async function(){
-    await fetch('/api/staff-auth?action=logout', { method: 'POST' });
-    window.location.href = 'staff-login.html';
-  });
-  setInterval(function(){
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(v) { return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function peso(n) { return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function manilaToday() { return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10); }
+  var MONEY = { 'Total': 1, 'Payment Today': 1, 'Balance': 1 };
+  function setRange(a, b) { $('from').value = a; $('to').value = b; load(); }
+  $('pToday').onclick = function () { var t = manilaToday(); setRange(t, t); };
+  $('pMonth').onclick = function () { var t = manilaToday(); setRange(t.slice(0, 8) + '01', t); };
+  $('pLast').onclick = function () {
+    var t = manilaToday(), y = +t.slice(0, 4), m = +t.slice(5, 7) - 1; if (m === 0) { m = 12; y--; }
+    var last = new Date(Date.UTC(y, m, 0)).getUTCDate(), mm = String(m).padStart(2, '0');
+    setRange(y + '-' + mm + '-01', y + '-' + mm + '-' + String(last).padStart(2, '0'));
+  };
+  $('from').onchange = $('to').onchange = function () { load(); };
+  async function load() {
+    var from = $('from').value, to = $('to').value;
+    var q = 'type=sales&from=' + from + '&to=' + to;
+    $('dl').href = '/api/reports?' + q;
+    $('tbl').innerHTML = '<div class="msg">Loading…</div>';
     try {
-      var d = frame.contentDocument;
-      if (!d || !d.body) return;
-      var h = Math.max(d.documentElement.scrollHeight, d.body.scrollHeight);
-      if (h > 200 && Math.abs(h - frame.offsetHeight) > 4) frame.style.height = h + 'px';
-    } catch (e) {}
-  }, 600);
-  (async function(){
-    var auth;
-    try { auth = await (await fetch('/api/staff-auth')).json(); } catch (e) { auth = null; }
-    if (!auth || !auth.authenticated) { window.location.href = 'staff-login.html?next=staff-finance.html'; return; }
-    if (auth.role !== 'admin') {
-      document.querySelectorAll('.nav-admin-only').forEach(function(el){ el.remove(); });
-      document.getElementById('denied').style.display = 'block';
-      return;
-    }
-    document.getElementById('finMain').style.display = 'block';
-    show(location.hash === '#cash' ? 'cash' : location.hash === '#expenses' ? 'expenses' : 'sales', false);
+      var resp = await fetch('/api/reports?' + q + '&format=json');
+      var r = await resp.json();
+      if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not load sales.');
+      var t = r.totals;
+      $('tiles').innerHTML = [['Total billed', t.amount], ['Deposits', t.deposit], ['Balance payments', t.balance_payments], ['Collected', t.collected], ['Still owed', t.balance]]
+        .map(function (x) { return '<div class="tile"><div class="l">' + x[0] + '</div><div class="v">' + peso(x[1]) + '</div></div>'; }).join('');
+      if (!r.rows.length) { $('tbl').innerHTML = '<div class="msg">No sales in this range.</div>'; return; }
+      var head = '<tr>' + r.columns.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr>';
+      var body = r.rows.map(function (row) {
+        return '<tr>' + row.map(function (v, i) {
+          var c = r.columns[i];
+          if (MONEY[c] && v !== '' && v != null && !isNaN(parseFloat(v))) return '<td style="text-align:right">' + peso(v) + '</td>';
+          if (c === 'Payment Method') v = v === 'gcash_cc' ? 'GCash/CC' : v === 'cash' ? 'Cash' : v;
+          return '<td>' + esc(v) + '</td>';
+        }).join('') + '</tr>';
+      }).join('');
+      $('tbl').innerHTML = '<table><thead>' + head + '</thead><tbody>' + body + '</tbody></table>';
+    } catch (e) { $('tbl').innerHTML = '<div class="msg">' + esc(e.message) + '</div>'; }
+  }
+  $('logoutBtn').addEventListener('click', async function () { await fetch('/api/staff-auth?action=logout', { method: 'POST' }); location.href = 'staff-login.html'; });
+  (async function () {
+    var a; try { a = await (await fetch('/api/staff-auth')).json(); } catch (e) { a = null; }
+    if (!a || !a.authenticated) { location.href = 'staff-login.html?next=staff-sales.html'; return; }
+    if (a.role !== 'admin') { document.querySelectorAll('.nav-admin-only').forEach(function (el) { el.remove(); }); $('denied').style.display = 'block'; return; }
+    $('main').style.display = 'block';
+    $('pMonth').click();
   })();
 })();
 </script>

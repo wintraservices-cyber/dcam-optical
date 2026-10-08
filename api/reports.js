@@ -27,7 +27,7 @@ const { requireAuth } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 
 const STAFF_ALLOWED_TYPES = ['orders', 'patients', 'inventory'];
-const ADMIN_ONLY_TYPES = ['sales', 'expenses', 'withdrawals'];
+const ADMIN_ONLY_TYPES = ['sales', 'sales_summary', 'expenses', 'withdrawals'];
 
 function csvEscape(value) {
   if (value === null || value === undefined) return '';
@@ -421,6 +421,16 @@ async function salesReport(req, res, from, to) {
     const totalBalance = orders.reduce((sum, o) => sum + (parseFloat(o.balance) || 0), 0);
     const totalBalancePayments = paymentRows.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
+    if (req.query && req.query.format === 'json') {
+      res.status(200).json({
+        ok: true,
+        columns: columns.map(c => c.label),
+        rows: rows.map(r => columns.map(c => (typeof c.value === 'function' ? c.value(r) : r[c.value]))),
+        totals: { amount: totalAmount, deposit: totalDeposit, balance: totalBalance, balance_payments: totalBalancePayments, collected: totalDeposit + totalBalancePayments },
+      });
+      return;
+    }
+
     let csvContent = toCsv(rows, columns);
     csvContent += '\r\n\r\n';
     csvContent += `Total Amount,${totalAmount.toFixed(2)}\r\n`;
@@ -432,6 +442,81 @@ async function salesReport(req, res, from, to) {
   } catch (err) {
     console.error('Unexpected error generating sales report:', err);
     res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
+// Monthly gross-sales summary for the Finance > Cash Position block, shaped
+// like the client's own sheet: Total Gross Sales (all time), Total Monthly
+// Sales (current month), then per month "Year to Date" (that month) and a
+// running total through that month, plus everything before the year.
+//   gross     = sum of order Totals placed on that transaction day
+//   collected = order deposits (same day) + balance payments (day received)
+// Pages through PostgREST in chunks since it caps rows per request.
+async function fetchAllRows(path) {
+  const out = [];
+  for (let offset = 0; offset < 50000; offset += 1000) {
+    const resp = await supabaseRequest(`${path}&limit=1000&offset=${offset}`, { method: 'GET' });
+    if (!resp.ok) throw new Error('read failed');
+    const chunk = await resp.json();
+    out.push(...chunk);
+    if (chunk.length < 1000) break;
+  }
+  return out;
+}
+
+async function salesSummary(req, res) {
+  try {
+    const nowManila = manilaDate(new Date().toISOString());
+    const curYear = Number(nowManila.slice(0, 4));
+    const curMonth = Number(nowManila.slice(5, 7));
+    const reqYear = parseInt(req.query && req.query.year, 10);
+    const year = Number.isFinite(reqYear) && reqYear > 2000 && reqYear < 2100 ? reqYear : curYear;
+
+    const [orders, payments] = await Promise.all([
+      fetchAllRows('orders?select=amount,deposit,transaction_date,created_at&deleted_at=is.null&order=created_at.asc')
+        .catch(() => fetchAllRows('orders?select=amount,deposit,created_at&deleted_at=is.null&order=created_at.asc')),
+      fetchAllRows('balance_payments?select=amount,created_at&order=created_at.asc'),
+    ]);
+
+    const byMonth = {}; // 'YYYY-MM' -> { gross, collected }
+    const add = (day, key, v) => {
+      const m = String(day).slice(0, 7);
+      if (!/^\d{4}-\d{2}$/.test(m)) return;
+      (byMonth[m] = byMonth[m] || { gross: 0, collected: 0 })[key] += v;
+    };
+    orders.forEach(o => {
+      const day = o.transaction_date || manilaDate(o.created_at);
+      add(day, 'gross', parseFloat(o.amount) || 0);
+      add(day, 'collected', parseFloat(o.deposit) || 0);
+    });
+    payments.forEach(p => add(manilaDate(p.created_at), 'collected', parseFloat(p.amount) || 0));
+
+    let totalGross = 0, totalCollected = 0, prevGross = 0, prevCollected = 0;
+    Object.keys(byMonth).forEach(k => {
+      totalGross += byMonth[k].gross; totalCollected += byMonth[k].collected;
+      if (Number(k.slice(0, 4)) < year) { prevGross += byMonth[k].gross; prevCollected += byMonth[k].collected; }
+    });
+
+    const months = [];
+    let runG = 0, runC = 0;
+    for (let m = 1; m <= 12; m++) {
+      const key = `${year}-${String(m).padStart(2, '0')}`;
+      const v = byMonth[key] || { gross: 0, collected: 0 };
+      runG += v.gross; runC += v.collected;
+      const future = year > curYear || (year === curYear && m > curMonth);
+      months.push({ month: m, gross: v.gross, collected: v.collected, running_gross: runG, running_collected: runC, future });
+    }
+    const cm = byMonth[nowManila.slice(0, 7)] || { gross: 0, collected: 0 };
+    res.status(200).json({
+      ok: true, year, current_year: curYear,
+      total_gross: totalGross, total_collected: totalCollected,
+      current_month: { label: nowManila.slice(0, 7), gross: cm.gross, collected: cm.collected },
+      previous_years: { gross: prevGross, collected: prevCollected },
+      months,
+    });
+  } catch (err) {
+    console.error('Unexpected error building sales summary:', err);
+    res.status(500).json({ ok: false, error: 'Could not build the sales summary.' });
   }
 }
 
@@ -591,6 +676,7 @@ module.exports = async (req, res) => {
   }
   if (type === 'orders') return ordersReport(req, res, from, to);
   if (type === 'sales') return salesReport(req, res, from, to);
+  if (type === 'sales_summary') return salesSummary(req, res);
   if (type === 'patients') return patientsReport(req, res);
   if (type === 'inventory') return inventoryReport(req, res);
   if (type === 'expenses') return expensesReport(req, res, from, to);

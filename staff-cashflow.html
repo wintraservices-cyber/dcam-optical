@@ -276,8 +276,10 @@
   @media (max-width: 640px) { .bod-edit { grid-template-columns: 1fr 1fr; } }
   .bod-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center; }
   .btn-link { background:none; border:0; color:var(--charcoal-soft); text-decoration:underline; cursor:pointer; font:inherit; font-size:0.82rem; padding:4px 2px; }
-  tr.month-total td, tr.grand-total td { font-weight:700; background: var(--ivory); }
-  tr.grand-total td { border-top: 2px solid var(--charcoal); }
+  .ss-top { display:grid; grid-template-columns: 1fr auto; gap:6px 24px; max-width:420px; font-weight:700; margin-bottom:14px; }
+  .ss-top span:nth-child(even) { text-align:right; font-variant-numeric: tabular-nums; }
+  table.ss td:nth-child(n+2), table.ss th:nth-child(n+2) { text-align:right; font-variant-numeric: tabular-nums; }
+  .ss-ctl { display:flex; gap:10px; align-items:center; margin-bottom:12px; font-size:0.85rem; }
 </style>
 </head>
 <body>
@@ -312,6 +314,9 @@
   <div id="historyContent">
     <div class="loading-state">Loading history…</div>
   </div>
+
+  <div class="section-label">Gross sales summary</div>
+  <div class="card" id="salesSummary"><div class="loading-state">Loading…</div></div>
 </div>
 
 <div class="not-admin-state" id="notAdminState" style="display:none;">
@@ -589,26 +594,13 @@
   let todayDraft = null;
   let historyPositions = null;
 
-  function sumRows(list) {
-    const t = { cash: 0, gcash: 0, exp: 0, wd: 0 };
-    list.forEach(p => {
-      t.cash += Number(p.cash_sales || 0);
-      t.gcash += Number(p.gcash_sales || 0);
-      t.exp += Number(p.total_expenses || 0);
-      t.wd += Number(p.total_withdrawals_cash || 0) + Number(p.total_withdrawals_checking || 0) + Number(p.total_withdrawals_gcash || 0);
-    });
-    return t;
-  }
-
   function dayRow(p, label) {
     const wd = Number(p.total_withdrawals_cash || 0) + Number(p.total_withdrawals_checking || 0) + Number(p.total_withdrawals_gcash || 0);
-    const gross = Number(p.cash_sales || 0) + Number(p.gcash_sales || 0);
     return `
       <tr>
         <td data-label="Date">${label || fmtDate(p.position_date)}</td>
         <td data-label="Cash sales">${fmtPeso(p.cash_sales)}</td>
         <td data-label="Gcash sales">${fmtPeso(p.gcash_sales)}</td>
-        <td data-label="Gross sales">${fmtPeso(gross)}</td>
         <td data-label="Expenses">${fmtPeso(p.total_expenses)}</td>
         <td data-label="Withdrawals">${fmtPeso(wd)}</td>
         <td data-label="Ending cash">${fmtPeso(p.ending_cash)}</td>
@@ -618,27 +610,7 @@
       </tr>`;
   }
 
-  function totalRow(cls, label, t, last) {
-    return `
-      <tr class="${cls}">
-        <td data-label="Date">${label}</td>
-        <td data-label="Cash sales">${fmtPeso(t.cash)}</td>
-        <td data-label="Gcash sales">${fmtPeso(t.gcash)}</td>
-        <td data-label="Gross sales">${fmtPeso(t.cash + t.gcash)}</td>
-        <td data-label="Expenses">${fmtPeso(t.exp)}</td>
-        <td data-label="Withdrawals">${fmtPeso(t.wd)}</td>
-        <td data-label="Ending cash">${last ? fmtPeso(last.ending_cash) : '—'}</td>
-        <td data-label="Ending Gcash">${last ? fmtPeso(last.ending_gcash) : '—'}</td>
-        <td data-label="Ending checking">${last ? fmtPeso(last.ending_checking) : '—'}</td>
-        <td data-label="Outstanding">${last ? fmtPeso(last.ending_outstanding) : '—'}</td>
-      </tr>`;
-  }
-
-  // Closed days plus today's live draft (if still open), grouped by
-  // month, newest first. Each month ends with a Gross total row; the
-  // table ends with a Grand total over everything shown. Gross sales =
-  // cash sales + Gcash sales. Ending balances on total rows are the
-  // balances at the end of the latest day in that group.
+  // Closed days plus today's live draft (if still open), newest first.
   function renderHistory() {
     const closed = historyPositions || [];
     const all = todayDraft ? [Object.assign({ _open: true }, todayDraft)].concat(closed.filter(p => p.position_date !== todayDraft.position_date)) : closed;
@@ -647,31 +619,15 @@
       return;
     }
     all.sort((a, b) => (a.position_date < b.position_date ? 1 : -1));
-    const months = [];
-    all.forEach(p => {
-      const key = String(p.position_date).slice(0, 7);
-      let m = months[months.length - 1];
-      if (!m || m.key !== key) { m = { key, rows: [] }; months.push(m); }
-      m.rows.push(p);
-    });
-    let body = '';
-    months.forEach(m => {
-      const d = new Date(m.key + '-01T00:00:00');
-      const name = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      m.rows.forEach(p => { body += dayRow(p, p._open ? fmtDate(p.position_date) + ' (open)' : null); });
-      const openNote = m.rows.some(p => p._open) ? ' <span style="font-weight:500;">(running)</span>' : '';
-      body += totalRow('month-total', escapeHtml(name) + ' — Gross total' + openNote, sumRows(m.rows), m.rows[0]);
-    });
-    body += totalRow('grand-total', 'Grand total', sumRows(all), all[0]);
+    const body = all.map(p => dayRow(p, p._open ? fmtDate(p.position_date) + ' (open)' : null)).join('');
 
     historyContent.innerHTML = `
       <table>
         <thead>
-          <tr><th>Date</th><th>Cash sales</th><th>Gcash sales</th><th>Gross sales</th><th>Expenses</th><th>Withdrawals</th><th>Ending cash</th><th>Ending Gcash</th><th>Ending checking</th><th>Outstanding</th></tr>
+          <tr><th>Date</th><th>Cash sales</th><th>Gcash sales</th><th>Expenses</th><th>Withdrawals</th><th>Ending cash</th><th>Ending Gcash</th><th>Ending checking</th><th>Outstanding</th></tr>
         </thead>
         <tbody>${body}</tbody>
       </table>
-      <div class="note" style="margin-top:8px;">Gross sales = cash + Gcash sales. Gross total is per month; Grand total covers every day shown. Ending columns on total rows show the balance at the end of the latest day in that group. Today’s open day is included until it is closed.</div>
     `;
   }
 
@@ -685,6 +641,48 @@
       renderHistory();
     } catch (err) {
       historyContent.innerHTML = `<div class="error-state">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  let ssYear = null;
+  async function loadSalesSummary(year) {
+    const box = document.getElementById('salesSummary');
+    try {
+      const resp = await fetch('/api/reports?type=sales_summary' + (year ? '&year=' + year : ''));
+      const r = await resp.json();
+      if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not load the sales summary.');
+      ssYear = r.year;
+      const f = (n) => Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const rows = r.months.slice().reverse().map(m => `
+        <tr>
+          <td>Total Gross Sales - ${MONTHS[m.month - 1]}</td>
+          <td>${m.future ? '' : f(m.gross)}</td>
+          <td>${m.future ? '' : f(m.running_gross)}</td>
+          <td>${m.future ? '' : f(m.collected)}</td>
+        </tr>`).join('');
+      box.innerHTML = `
+        <div class="ss-ctl">
+          <button type="button" class="btn-light" id="ssPrev" style="border:1px solid var(--line);padding:5px 10px;border-radius:8px;cursor:pointer;">‹</button>
+          <strong>${r.year}</strong>
+          <button type="button" class="btn-light" id="ssNext" style="border:1px solid var(--line);padding:5px 10px;border-radius:8px;cursor:pointer;" ${r.year >= r.current_year ? 'disabled' : ''}>›</button>
+        </div>
+        <div class="ss-top">
+          <span>Total Gross Sales</span><span>₱${f(r.total_gross)}</span>
+          <span>Total Monthly Sales</span><span>₱${f(r.current_month.gross)}</span>
+        </div>
+        <div style="overflow-x:auto;">
+        <table class="ss">
+          <thead><tr><th></th><th>Year to Date</th><th>Running total</th><th>Collected</th></tr></thead>
+          <tbody>${rows}
+            <tr><td>Total Gross Sales - Previous years</td><td>${f(r.previous_years.gross)}</td><td>${f(r.previous_years.gross)}</td><td>${f(r.previous_years.collected)}</td></tr>
+          </tbody>
+        </table></div>
+        <div class="note" style="margin-top:8px;">Gross sales = order totals by Transaction date (Manila time). Year to Date is that month’s total; Running total adds up January through that month. Collected = deposits plus balance payments actually received that month. Total Monthly Sales is the current month so far.</div>`;
+      document.getElementById('ssPrev').addEventListener('click', () => loadSalesSummary(ssYear - 1));
+      document.getElementById('ssNext').addEventListener('click', () => loadSalesSummary(ssYear + 1));
+    } catch (err) {
+      box.innerHTML = `<div class="error-state">${escapeHtml(err.message)}</div>`;
     }
   }
 
@@ -706,6 +704,7 @@
 
     loadToday();
     loadHistory();
+    loadSalesSummary();
   })();
 })();
 </script>
