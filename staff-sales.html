@@ -320,36 +320,24 @@
 
 <div class="wrap" id="main" style="display:none;">
   <div class="ctl">
-    <div><label for="from">From</label><input type="date" id="from"></div>
-    <div><label for="to">To</label><input type="date" id="to"></div>
-    <button type="button" id="pToday">Today</button>
-    <button type="button" id="pMonth">This month</button>
-    <button type="button" id="pLast">Last month</button>
+    <div id="periodFilterMount"></div>
     <a class="dl" id="dl" href="#">Download CSV</a>
   </div>
   <div class="tiles" id="tiles"></div>
   <div class="tbl" id="tbl"><div class="msg">Loading…</div></div>
 </div>
 <div class="msg" id="denied" style="display:none;">Sales is available to admin accounts.</div>
+<script src="period-filter.js"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   function esc(v) { return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function peso(n) { return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-  function manilaToday() { return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10); }
   var MONEY = { 'Total': 1, 'Payment Today': 1, 'Balance': 1 };
-  function setRange(a, b) { $('from').value = a; $('to').value = b; load(); }
-  $('pToday').onclick = function () { var t = manilaToday(); setRange(t, t); };
-  $('pMonth').onclick = function () { var t = manilaToday(); setRange(t.slice(0, 8) + '01', t); };
-  $('pLast').onclick = function () {
-    var t = manilaToday(), y = +t.slice(0, 4), m = +t.slice(5, 7) - 1; if (m === 0) { m = 12; y--; }
-    var last = new Date(Date.UTC(y, m, 0)).getUTCDate(), mm = String(m).padStart(2, '0');
-    setRange(y + '-' + mm + '-01', y + '-' + mm + '-' + String(last).padStart(2, '0'));
-  };
-  $('from').onchange = $('to').onchange = function () { load(); };
+  var periodFilter = PeriodFilter.mount($('periodFilterMount'), { defaultPreset: 'this_month', onChange: function () { load(); } });
   async function load() {
-    var from = $('from').value, to = $('to').value;
-    var q = 'type=sales&from=' + from + '&to=' + to;
+    var rg = periodFilter.getRange();
+    var q = 'type=sales' + (rg.from ? '&from=' + rg.from : '') + (rg.to ? '&to=' + rg.to : '');
     $('dl').href = '/api/reports?' + q;
     $('tbl').innerHTML = '<div class="msg">Loading…</div>';
     try {
@@ -359,7 +347,7 @@
       var t = r.totals;
       $('tiles').innerHTML = [['Total billed', t.amount], ['Deposits', t.deposit], ['Balance payments', t.balance_payments], ['Collected', t.collected], ['Still owed', t.balance]]
         .map(function (x) { return '<div class="tile"><div class="l">' + x[0] + '</div><div class="v">' + peso(x[1]) + '</div></div>'; }).join('');
-      if (!r.rows.length) { $('tbl').innerHTML = '<div class="msg">No sales in this range.</div>'; return; }
+      if (!r.rows.length) { $('tbl').innerHTML = '<div class="msg">No sales in this period.</div>'; return; }
       var head = '<tr>' + r.columns.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr>';
       var body = r.rows.map(function (row) {
         return '<tr>' + row.map(function (v, i) {
@@ -378,7 +366,7 @@
     if (!a || !a.authenticated) { location.href = 'staff-login.html?next=staff-sales.html'; return; }
     if (a.role !== 'admin') { document.querySelectorAll('.nav-admin-only').forEach(function (el) { el.remove(); }); $('denied').style.display = 'block'; return; }
     $('main').style.display = 'block';
-    $('pMonth').click();
+    load();
   })();
 })();
 </script>
