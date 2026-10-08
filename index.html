@@ -193,6 +193,14 @@
   .doc .bio { color: var(--muted); font-size: 15px; line-height: 1.65; margin-top: 10px; white-space: pre-line; }
   .doc .bio.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
   .doc .more { align-self: flex-start; background: none; border: none; padding: 0; margin-top: 4px; color: var(--link); font: 600 14px var(--body); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .team-carousel { position: relative; }
+  .team-track { display: flex; gap: 24px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; padding: 4px 2px 18px; scrollbar-width: thin; }
+  .team-track:focus-visible { outline: 2px solid var(--link); outline-offset: 4px; border-radius: 12px; }
+  .team-track .doc { flex: 0 0 min(300px, 78vw); scroll-snap-align: start; }
+  .team-arrow { position: absolute; top: 38%; z-index: 2; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--surface); color: var(--text); font-size: 28px; line-height: 1; cursor: pointer; box-shadow: 0 8px 22px var(--shadow); }
+  .team-arrow.prev { left: -14px; } .team-arrow.next { right: -14px; }
+  .team-arrow:hover { color: var(--link); }
+  @media (max-width: 760px) { .team-arrow { display: none; } }
   .team-group-title { font: 700 22px var(--display); margin: 44px 0 18px; padding-top: 22px; border-top: 1px solid var(--line, rgba(56,51,52,.14)); }
   .team-group-title:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
   .team-grid.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -818,15 +826,29 @@
       card.appendChild(ph); card.appendChild(body);
       return card;
     }
-    GROUPS.forEach(function (g) {
-      var people = team.filter(function (p) { return (p.group || 'optometrist') === g[0]; });
-      if (!people.length) return;
-      if (multi) { var gh = document.createElement('h3'); gh.className = 'team-group-title'; gh.textContent = g[1]; wrapEl.insertBefore(gh, oldGrid); }
-      var grid = document.createElement('div');
-      grid.className = 'team-grid' + (people.length === 1 ? ' solo' : people.length === 2 ? ' n2' : people.length === 4 ? ' n4' : '') + (multi ? ' in-groups' : '');
-      people.forEach(function (p) { grid.appendChild(card(p)); });
-      wrapEl.insertBefore(grid, oldGrid);
-    });
+    // One scrollable row, always Optometrists first (the API already sorts
+    // by group), then Staff, then Technicians.
+    var viewport = document.createElement('div'); viewport.className = 'team-carousel';
+    var track = document.createElement('div'); track.className = 'team-track'; track.tabIndex = 0;
+    track.setAttribute('aria-label', 'Our team, scroll sideways');
+    var order = { optometrist: 0, staff: 1, tech: 2 };
+    team.map(function (p, i) { return [p, i]; }).sort(function (a, b) { return (order[a[0].group || 'optometrist'] || 0) - (order[b[0].group || 'optometrist'] || 0) || a[1] - b[1]; })
+      .forEach(function (x) { track.appendChild(card(x[0])); });
+    function arrow(dir) {
+      var bt = document.createElement('button'); bt.type = 'button'; bt.className = 'team-arrow ' + (dir < 0 ? 'prev' : 'next');
+      bt.setAttribute('aria-label', dir < 0 ? 'Previous people' : 'Next people'); bt.innerHTML = dir < 0 ? '&#8249;' : '&#8250;';
+      bt.addEventListener('click', function () { track.scrollBy({ left: dir * Math.max(track.clientWidth * 0.85, 280), behavior: 'smooth' }); });
+      return bt;
+    }
+    var prev = arrow(-1), next = arrow(1);
+    function sync() {
+      var max = track.scrollWidth - track.clientWidth;
+      prev.hidden = track.scrollLeft < 8; next.hidden = track.scrollLeft > max - 8;
+    }
+    track.addEventListener('scroll', sync, { passive: true }); window.addEventListener('resize', sync);
+    viewport.appendChild(prev); viewport.appendChild(track); viewport.appendChild(next);
+    wrapEl.insertBefore(viewport, oldGrid);
+    requestAnimationFrame(sync); setTimeout(sync, 400);
     oldGrid.remove();
     if (multi) {
       document.getElementById('teamKicker').textContent = 'Meet our team';
