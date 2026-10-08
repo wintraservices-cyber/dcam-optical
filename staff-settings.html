@@ -2673,11 +2673,61 @@
       return `<svg class="dash-chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Intake forms and AI replies per day">${grid}${line('ai', '#2F8798')}${line('intake', '#8A3F7B')}<text x="${L}" y="192">${lab(days[0])}</text><text x="${R}" y="192" text-anchor="end">${lab(days[days.length - 1])}</text></svg>
         <div class="dash-legend"><span><i style="background:#8A3F7B"></i>Intake forms</span><span><i style="background:#2F8798"></i>AI replies</span></div>`;
     }
+    const GA = '<span class="dash-src ga">GOOGLE ANALYTICS</span>';
+    const gaTile = (label, value, sub) => `<div class="dash-tile"><div class="l">${label}</div><div class="v">${value}</div>${sub || ''}${GA}</div>`;
+    const pageName = (p) => p === '/' || p === '/index' || p === '/index.html' ? 'Home page' : p === '/intake' ? 'Intake form' : escapeHtml(p);
+    const barList = (items, labelFn, valFn, fmt) => {
+      const max = Math.max(1, ...items.map(valFn));
+      return '<div class="dash-bars">' + (items.length ? items.map(i => `<div class="dash-bar"><span>${labelFn(i)}</span><b>${fmt ? fmt(i) : int(valFn(i))}</b><div class="t"><i style="width:${(100 * valFn(i) / max).toFixed(0)}%"></i></div></div>`).join('') : '<div class="sub">No data yet.</div>') + '</div>';
+    };
+    function visitors(a, range) {
+      if (!a || !a.configured) return `<div class="dash-sec">Visitors, pages and traffic sources</div>
+        <div class="dash-card dash-ga"><h3>Not connected to Google Analytics yet</h3>
+          <div class="sub" style="margin-top:4px">Visitors, where they came from, the most viewed pages, phone and directions taps will appear here once the connection is set up in Vercel.</div>
+          <div style="margin-top:10px">${GA} <a href="https://analytics.google.com/" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open Google Analytics</a></div></div>`;
+      if (a.error) return `<div class="dash-sec">Visitors, pages and traffic sources</div><div class="dash-card dash-ga"><h3>Google Analytics</h3><div class="sub" style="margin-top:4px">${escapeHtml(a.error)}</div></div>`;
+      const mm = (a.regions || []).find(x => /metro manila|national capital/i.test(x.name));
+      const mmShare = mm && a.users.cur ? Math.round(100 * mm.users / a.users.cur) : null;
+      const totalCh = Math.max(1, (a.channels || []).reduce((n, c) => n + c.sessions, 0));
+      const totalDev = Math.max(1, (a.devices || []).reduce((n, c) => n + c.users, 0));
+      const ev = a.events || {};
+      const daily = a.daily && a.daily.length > 1 ? a.daily : null;
+      const W = 640, H = 200, L = 40, R2 = 630, T = 16, B = 170;
+      let svg = '';
+      if (daily) {
+        const top = Math.ceil(Math.max(4, ...daily.map(d => d.users)) / 4) * 4;
+        const x = i => L + (R2 - L) * i / (daily.length - 1), y = v => B - (B - T) * v / top;
+        const grid = [0, 1, 2, 3, 4].map(k => { const v = top * k / 4; return `<line x1="${L}" y1="${y(v)}" x2="${R2}" y2="${y(v)}" stroke="rgba(56,51,52,.12)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`; }).join('');
+        const lab = d => d.day.slice(5).replace('-', '/');
+        svg = `<svg class="dash-chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Visitors per day">${grid}<polyline fill="none" stroke="#2F8798" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${daily.map((d, i) => x(i).toFixed(1) + ',' + y(d.users).toFixed(1)).join(' ')}"/><text x="${L}" y="192">${lab(daily[0])}</text><text x="${R2}" y="192" text-anchor="end">${lab(daily[daily.length - 1])}</text></svg>`;
+      }
+      return `<div class="dash-sec">Visitors · ${range}</div><div class="dash-tiles">
+          ${gaTile('Visitors', int(a.users.cur), delta(a.users.cur, a.users.prev))}
+          ${gaTile('New visitors', int(a.new_users.cur), delta(a.new_users.cur, a.new_users.prev))}
+          ${gaTile('Page views', int(a.views.cur), delta(a.views.cur, a.views.prev))}
+          ${gaTile('From Metro Manila', mmShare == null ? '—' : mmShare + '%', mm ? `<div class="d flat">${int(mm.users)} people</div>` : '<div class="d flat">Not enough data yet</div>')}
+        </div>
+        <div class="dash-grid" style="margin-top:12px;">
+          <div class="dash-card"><h3>Visitors per day</h3><div class="sub">${range}</div>${svg || '<div class="sub" style="margin-top:8px">Pick a period of more than one day to see the chart.</div>'}</div>
+          <div class="dash-card"><h3>How people found you</h3>${barList(a.channels || [], c => escapeHtml(c.name), c => c.sessions, c => Math.round(100 * c.sessions / totalCh) + '%')}
+            <div class="sub" style="margin-top:10px">${(a.devices || []).map(d => escapeHtml(d.name) + ' ' + Math.round(100 * d.users / totalDev) + '%').join(' · ')}</div><div style="margin-top:8px">${GA}</div></div>
+        </div>
+        <div class="dash-grid" style="margin-top:12px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
+          <div class="dash-card"><h3>Most viewed pages</h3>${barList(a.pages || [], p => pageName(p.path), p => p.views)}<div style="margin-top:8px">${GA}</div></div>
+          <div class="dash-card"><h3>What visitors did</h3><div class="dash-funnel">
+            <div class="dash-step"><span>Clicked “Start intake form”</span><b>${int(ev.start_intake)}</b></div>
+            <div class="dash-step"><span>Opened the AI chat</span><b>${int(ev.chat_open)}</b></div>
+            <div class="dash-step"><span>Checked an order status</span><b>${int(ev.track_order_check)}</b></div>
+            <div class="dash-step"><span>Tapped phone · directions · email</span><b>${int(ev.click_phone)} · ${int(ev.click_directions)} · ${int(ev.click_email)}</b></div>
+          </div><div style="margin-top:8px">${GA}</div></div>
+        </div>`;
+    }
     function render(r) {
       const range = r.range.from ? `${escapeHtml(r.range.from)} → ${escapeHtml(r.range.to)}` : 'All time';
       const intake = r.intake, ai = r.ai, uq = r.unanswered, oc = r.order_checks;
       const cur = ai && ai.current, old = ai && ai.previous;
       const p = [];
+      p.push(visitors(r.analytics, range));
       p.push(`<div class="dash-sec">Activity · ${range}</div><div class="dash-tiles">
         ${intake ? tile('Intake forms submitted', int(intake.count), delta(intake.count, intake.previous)) : off('Intake forms submitted', 'Could not load')}
         ${oc ? tile('Order status checks', int(oc.checks), delta(oc.checks, oc.previous)) : off('Order status checks', 'Needs the database update')}
@@ -2705,10 +2755,6 @@
             ${uq && uq.top.length ? `<div class="dash-bars">${uq.top.map(q => `<div class="dash-bar"><span>${escapeHtml(q.question)}</span><b>${int(q.times_asked)}×</b></div>`).join('')}</div>` : '<div class="sub" style="margin-top:10px">Nothing open. The AI has answered everything so far.</div>'}
             <div style="margin-top:8px">${OWN}</div></div></div>`);
       }
-      p.push(`<div class="dash-sec">Visitors, pages and traffic sources</div>
-        <div class="dash-card dash-ga"><h3>Coming from Google Analytics</h3>
-          <div class="sub" style="margin-top:4px">Visitors, where they came from, the most viewed pages, phone and directions taps. These are in Google Analytics now. Showing them on this page needs a read-only link to the property, which is not set up yet.</div>
-          <div style="margin-top:10px"><span class="dash-src ga">GOOGLE ANALYTICS</span> <a href="https://analytics.google.com/" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open Google Analytics</a></div></div>`);
       body.innerHTML = p.join('');
     }
     const period = PeriodFilter.mount(document.getElementById('dashPeriodMount'), { defaultPreset: 'this_month', onChange: load });

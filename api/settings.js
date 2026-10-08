@@ -12,6 +12,7 @@ const { requireAuth, requireAdmin } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport, usageDaily, summarize } = require('../lib/ai-usage');
+const { analyticsSummary } = require('../lib/ga4');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('../lib/team');
@@ -218,6 +219,10 @@ async function getDashboard(req, res) {
       const cur = summarize(await usageDaily(from, to));
       const old = prev ? summarize(await usageDaily(prev.from, prev.to)) : null;
       return { current: cur, previous: old };
+    }),
+    safe('analytics', async () => {
+      try { return await analyticsSummary(from, to, prev); }
+      catch (e) { console.error('dashboard analytics:', e.message); return { configured: true, error: 'Google Analytics did not answer. Check that the service account is a Viewer on the property.' }; }
     }),
     safe('order_checks', async () => {
       const sum = async (f, t2) => {
