@@ -395,6 +395,27 @@
   .hp-faq .hp-count { font-size: 0.7rem; color: var(--charcoal-soft); text-align: right; }
   @media (max-width: 700px) { .hp-faq { grid-template-columns: 1fr; } .hp-faq .hp-actions { flex-direction: row; } }
 
+  /* ---------- AI service (provider) ---------- */
+  .prov-status { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+  .prov-chip { font-size: 0.76rem; border-radius: 100px; padding: 4px 10px; border: 1px solid var(--line); background: var(--ivory); }
+  .prov-chip strong { font-family: var(--display); }
+  .prov-chip.ok { background: rgba(62,142,90,0.10); border-color: rgba(62,142,90,0.35); color: #2f6e45; }
+  .prov-chip.warn { background: rgba(196,140,30,0.12); border-color: rgba(196,140,30,0.4); color: #8a5d00; }
+  .prov-chip.off { color: var(--charcoal-soft); }
+  .prov-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .prov-row .ai-label { font-family: var(--display); font-weight: 700; font-size: 0.9rem; }
+  .prov-row .ai-help { font-size: 0.8rem; color: var(--charcoal-soft); margin-top: 3px; line-height: 1.45; }
+  .seg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 100px; overflow: hidden; flex-shrink: 0; }
+  .seg label { position: relative; cursor: pointer; }
+  .seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .seg span { display: block; padding: 7px 16px; font-family: var(--display); font-weight: 700; font-size: 0.82rem; color: var(--charcoal-soft); }
+  .seg input:checked + span { background: var(--purple); color: #fff; }
+  .seg input:focus-visible + span { outline: 2px solid var(--blue); outline-offset: -2px; }
+  .prov-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 8px; padding: 9px 11px; font-family: var(--body); font-size: 0.88rem; }
+  .prov-warn { font-size: 0.8rem; line-height: 1.5; border-radius: 10px; padding: 10px 12px; margin-top: 8px; background: rgba(196,140,30,0.10); border: 1px solid rgba(196,140,30,0.35); color: #6b4800; }
+  .prov-warn.bad { background: rgba(176,64,90,0.08); border-color: rgba(176,64,90,0.35); color: #8a2f45; }
+  @media (max-width: 700px) { .prov-row { flex-direction: column; align-items: flex-start; } }
+
   .loading-state, .empty-state { text-align: center; padding: 30px; color: var(--charcoal-soft); font-size: 0.9rem; }
   .not-admin-state { text-align: center; padding: 80px 20px; color: var(--charcoal-soft); }
 
@@ -783,6 +804,43 @@
     </div>
 
     <div class="ai-cards-wrap" id="aiCardsWrap">
+    <div class="card" id="aiProviderCard">
+      <h2>AI service</h2>
+      <div class="card-sub">Choose which company's AI answers each chat. Both use your same Business info, Clinic knowledge and lookups — only the AI behind the replies changes. Keys are added in Vercel (Settings → Environment Variables), never here.</div>
+      <div class="prov-status" id="aiProvStatus"></div>
+      <div class="prov-row">
+        <div><div class="ai-label">Website chat uses</div><div class="ai-help">The customer "Ask us" chat and order check.</div></div>
+        <div class="seg" role="radiogroup" aria-label="Website chat AI service">
+          <label><input type="radio" name="provWebsite" value="claude"><span>Claude</span></label>
+          <label><input type="radio" name="provWebsite" value="gemini"><span>Gemini</span></label>
+        </div>
+      </div>
+      <div class="prov-row">
+        <div><div class="ai-label">Staff assistant uses</div><div class="ai-help">The staff chat bubble (orders, balances, stock, patients).</div></div>
+        <div class="seg" role="radiogroup" aria-label="Staff assistant AI service">
+          <label><input type="radio" name="provStaff" value="claude"><span>Claude</span></label>
+          <label><input type="radio" name="provStaff" value="gemini"><span>Gemini</span></label>
+        </div>
+      </div>
+      <div class="prov-row">
+        <div><div class="ai-label">Gemini model</div><div class="ai-help" id="aiGeminiModelHelp">Leave blank for the default (gemini-3.8-flash). gemini-3.5-flash-lite is cheaper but less capable.</div></div>
+        <div style="min-width:220px;"><input type="text" id="aiGeminiModel" list="aiGeminiModels" placeholder="gemini-3.8-flash" maxlength="60" class="prov-input">
+          <datalist id="aiGeminiModels"><option value="gemini-3.8-flash"><option value="gemini-3.7-flash"><option value="gemini-3.5-flash-lite"></datalist></div>
+      </div>
+      <div class="ai-master" style="border-bottom:none;">
+        <div>
+          <div class="ai-label">Use the other service as a backup</div>
+          <div class="ai-help">If the chosen service is down or its key is missing, answer with the other one instead (when its key is set). Costs are logged under whichever service actually answered.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiProvFallback"><span class="slider"></span></label>
+      </div>
+      <div class="prov-warn" id="aiProvWarn" hidden></div>
+      <div class="save-row" style="margin-top:10px;">
+        <button class="save-btn" id="aiProvSave" type="button">Save AI service</button>
+        <span class="save-status" id="aiProvStatusMsg"></span>
+      </div>
+    </div>
+
     <div class="card">
       <h2>Website assistant</h2>
       <div class="card-sub">The "Ask us anything" chat on the public website. Always uses the details from the Business info tab.</div>
@@ -1547,6 +1605,66 @@
     } },
   };
 
+  // ---- AI service (Claude / Gemini) ----
+  let aiProvStatus = { claude: false, gemini: { configured: false, route: null, envModel: null } };
+
+  function renderAiProvider(v) {
+    const p = (v && v.provider) || {};
+    const pick = (x) => (x === 'gemini' ? 'gemini' : 'claude');
+    document.querySelector(`input[name="provWebsite"][value="${pick(p.website)}"]`).checked = true;
+    document.querySelector(`input[name="provStaff"][value="${pick(p.staff)}"]`).checked = true;
+    document.getElementById('aiGeminiModel').value = p.gemini_model || '';
+    document.getElementById('aiProvFallback').checked = p.fallback !== false;
+    const g = aiProvStatus.gemini || {};
+    const chip = (cls, html) => `<span class="prov-chip ${cls}">${html}</span>`;
+    document.getElementById('aiProvStatus').innerHTML =
+      (aiProvStatus.claude ? chip('ok', '<strong>Claude</strong> · connected') : chip('off', '<strong>Claude</strong> · no key (ANTHROPIC_API_KEY)')) +
+      (g.route === 'vertex' ? chip('ok', '<strong>Gemini</strong> · connected via Google Cloud') :
+       g.route === 'aistudio' ? chip('warn', '<strong>Gemini</strong> · connected via AI Studio (free tier)') :
+       chip('off', '<strong>Gemini</strong> · no key (VERTEX_API_KEY or GEMINI_API_KEY)'));
+    if (g.envModel) {
+      document.getElementById('aiGeminiModel').disabled = true;
+      document.getElementById('aiGeminiModelHelp').textContent = `Set by GEMINI_MODEL in Vercel (${g.envModel}); remove it there to choose here.`;
+    }
+    syncAiProviderWarn();
+  }
+
+  function syncAiProviderWarn() {
+    const site = document.querySelector('input[name="provWebsite"]:checked').value;
+    const staff = document.querySelector('input[name="provStaff"]:checked').value;
+    const g = aiProvStatus.gemini || {};
+    const warn = document.getElementById('aiProvWarn');
+    const msgs = [];
+    let bad = false;
+    const usesGemini = site === 'gemini' || staff === 'gemini';
+    if (usesGemini && !g.configured) {
+      msgs.push(aiProvStatus.claude && document.getElementById('aiProvFallback').checked
+        ? 'Gemini has no key yet, so Claude will answer until VERTEX_API_KEY (or GEMINI_API_KEY) is added in Vercel.'
+        : 'Gemini has no key yet — add VERTEX_API_KEY (or GEMINI_API_KEY) in Vercel, or the chat will be unavailable.');
+    }
+    if (usesGemini && g.route === 'aistudio') {
+      msgs.push('<strong>Free-tier notice:</strong> on Google AI Studio\'s free tier, Google may use chat messages to improve its products. Use a Google Cloud key (VERTEX_API_KEY) or turn on billing in AI Studio before real customers use it.');
+      if (staff === 'gemini') { bad = true; msgs.push('The staff assistant sends order and patient details to the AI — don\'t run it on the free tier.'); }
+    }
+    if (!usesGemini && !aiProvStatus.claude) msgs.push('Claude has no key yet (ANTHROPIC_API_KEY in Vercel).');
+    warn.innerHTML = msgs.join('<br>');
+    warn.hidden = !msgs.length;
+    warn.classList.toggle('bad', bad);
+  }
+  document.getElementById('aiProviderCard').addEventListener('change', syncAiProviderWarn);
+  document.getElementById('aiProvSave').addEventListener('click', () => {
+    const msg = document.getElementById('aiProvStatusMsg');
+    msg.textContent = 'Saving…';
+    msg.className = 'save-status';
+    document.getElementById('saveAiAccess').click();
+    // The main AI save reports in its own status line; mirror it here.
+    setTimeout(() => {
+      const main = document.getElementById('aiAccessStatus');
+      msg.textContent = main.textContent;
+      msg.className = main.className;
+    }, 1200);
+  });
+
   function renderAiAccess(saved) {
     const v = saved || {};
     const pub = Object.assign({}, AI_DEFAULTS.public, v.public || {});
@@ -1554,6 +1672,7 @@
     const areas = (v.staff && v.staff.areas) || {};
     document.getElementById('aiMasterEnabled').checked = v.enabled !== false;
     document.getElementById('aiTestMode').checked = v.test_mode === true;
+    renderAiProvider(v);
     document.getElementById('aiLogUnanswered').checked = v.log_unanswered === true;
     document.getElementById('aiPublicEnabled').checked = pub.enabled !== false;
     document.getElementById('aiPublicStock').checked = pub.stock !== false;
@@ -1624,6 +1743,12 @@
         enabled: document.getElementById('aiMasterEnabled').checked,
         test_mode: document.getElementById('aiTestMode').checked,
         log_unanswered: document.getElementById('aiLogUnanswered').checked,
+        provider: {
+          website: document.querySelector('input[name="provWebsite"]:checked').value,
+          staff: document.querySelector('input[name="provStaff"]:checked').value,
+          gemini_model: document.getElementById('aiGeminiModel').value.trim(),
+          fallback: document.getElementById('aiProvFallback').checked,
+        },
         public: {
           enabled: document.getElementById('aiPublicEnabled').checked,
           stock: document.getElementById('aiPublicStock').checked,
@@ -2623,6 +2748,7 @@
       renderTeamFrom(result.settings.optometrists);
       renderPhoneValidation(result.settings.phone_validation);
       renderPrintPrefs(result.settings.print_prefs);
+      aiProvStatus = result.settings.ai_provider_status || aiProvStatus;
       renderAiAccess(result.settings.ai_access);
       renderSiteMode(result.settings.site_mode);
       hpTextFields = result.settings.homepage_text_fields || [];

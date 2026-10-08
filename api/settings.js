@@ -17,6 +17,7 @@ const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansw
 const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('../lib/team');
 const { normalizeHomepage, TEXT_FIELDS } = require('../lib/homepage');
+const { geminiStatus } = require('../lib/ai-gemini');
 const { PERMISSIONS, normalizePermissions, getPermissions } = require('../lib/staff-permissions');
 
 const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status', 'staff_permissions'];
@@ -68,6 +69,9 @@ async function getSettings(req, res) {
     settings.homepage = normalizeHomepage(settings.homepage);
     // Field list for the Page text editor (labels + original wording).
     settings.homepage_text_fields = TEXT_FIELDS;
+    // Which AI keys are set in Vercel (never the keys themselves), for the
+    // AI service card in Settings -> AI assistant.
+    settings.ai_provider_status = { claude: !!process.env.ANTHROPIC_API_KEY, gemini: geminiStatus() };
     if (settings.optometrists) settings.optometrists = adminTeam(settings.optometrists);
     delete settings.optometrist_photos;
     res.status(200).json({ ok: true, settings });

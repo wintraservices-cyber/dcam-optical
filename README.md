@@ -476,3 +476,38 @@ Claude-app-only capability, so it works for anyone visiting the live site.
   `**bold**`; everything else is escaped, so HTML/scripts can't be injected.
 - To make another block editable: add `data-text="new_key"` to the element
   and a matching entry in `TEXT_FIELDS` with its exact current wording.
+
+## AI service: Claude or Gemini (Settings → AI assistant → AI service)
+
+Each assistant (website chat, staff assistant) can use **Claude** (Anthropic)
+or **Gemini** (Google). Same instructions, Business info, Clinic knowledge,
+order check and staff lookups either way — only the model changes.
+
+**Keys (Vercel → Settings → Environment Variables, then redeploy):**
+
+| Variable | Use |
+|---|---|
+| `ANTHROPIC_API_KEY` | Claude |
+| `VERTEX_API_KEY` | Gemini via **Google Cloud** (Vertex AI / "Gemini Enterprise Agent Platform"). Billed to Google Cloud, so the **$300 free trial credit applies**; Google Cloud terms — prompts not used for training. **Recommended.** |
+| `GEMINI_API_KEY` | Gemini via Google AI Studio. Free tier exists but Google may use free-tier prompts to improve its products; the $300 trial can't pay for AI Studio (accounts opened after Mar 2026). Used only if `VERTEX_API_KEY` isn't set. |
+| `GEMINI_MODEL` | Optional; overrides the model chosen in Settings (default `gemini-3.8-flash`). |
+
+**Google Cloud trial setup (≈10 min):**
+1. Create a Google Cloud account/project at console.cloud.google.com and
+   start the free trial (adds the $300 credit; needs a card for identity).
+2. Enable the Vertex AI ("Gemini Enterprise Agent Platform") API for the project.
+3. Create an API key for it (APIs & Services → Credentials, or the express-mode
+   "Get API key" page) and restrict it to that API.
+4. Add it in Vercel as `VERTEX_API_KEY`, redeploy, then pick Gemini in
+   Settings → AI assistant → AI service. The status chip should read
+   "Gemini · connected via Google Cloud".
+5. Set a budget alert in Google Cloud Billing so the trial can't run over.
+
+**Backup:** "Use the other service as a backup" (on by default) answers with
+the other provider if the chosen one errors or has no key. Usage & cost logs
+each reply under the model that actually answered (Gemini prices added to
+`lib/ai-usage.js`; estimates, Google's billing page is the official figure).
+
+Code: `lib/ai-gemini.js` (translates the Claude-style messages/tools to Gemini
+and back, streaming + function calling, keeps Gemini 3 thought signatures);
+provider routing in `api/chat.js`; setting `ai_access.provider`.

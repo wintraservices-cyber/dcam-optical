@@ -24,9 +24,11 @@
 // live details (it says so rather than inventing them).
 //
 // Env vars:
-//   ANTHROPIC_API_KEY   required unless Test mode is on
+//   ANTHROPIC_API_KEY   for Claude (needed unless Gemini or Test mode is used)
 //   AI_TEST_MODE        optional; "1" forces free Test mode (lib/ai-test-mode.js)
 //   ANTHROPIC_MODEL     optional, defaults to a fast/cheap model
+//   VERTEX_API_KEY / GEMINI_API_KEY / GEMINI_MODEL  for Gemini (lib/ai-gemini.js);
+//                       which assistant uses which is set in Settings -> AI assistant
 //   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY  (already set for the site)
 
 const { supabaseRequest } = require('../lib/supabase');
@@ -35,6 +37,7 @@ const { loadAiAccess, allowedAreas, publicChatOn } = require('../lib/ai-access')
 const { toolsFor, runTool, buildStaffPrompt } = require('../lib/staff-ai');
 const { lookupOrderStatus, describeResult, ORDER_TOOL, extractFromText } = require('../lib/order-status');
 const { logUsage } = require('../lib/ai-usage');
+const { geminiRoute, geminiModel, geminiMessage, geminiStream } = require('../lib/ai-gemini');
 const { isTestMode, publicTestReply, staffTestReply, streamText } = require('../lib/ai-test-mode');
 const {
   loadKnowledge, knowledgePromptBlock, unansweredInstruction, stripMarker, logUnanswered, UNANSWERED_MARKER,
@@ -232,15 +235,14 @@ async function publicChat(req, res) {
     return;
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.error('chat: ANTHROPIC_API_KEY is not set');
+  let provider = pickProvider(access, 'website');
+  if (!provider) {
+    console.error('chat: no AI provider key set for the website chat');
     res.status(503).json({ ok: false, error: 'The assistant isn\'t switched on yet. Please use the intake form or contact the clinic directly.' });
     return;
   }
 
   const [practiceContext, knowledge] = await Promise.all([loadPracticeContext(access.public.stock), loadKnowledge()]);
-  const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
 
   const orderLookupOn = access.public.order_status;
   const system = buildSystemPrompt(practiceContext, knowledgePromptBlock(knowledge, 'website'), access.log_unanswered, access.public && access.public.name)
@@ -268,49 +270,41 @@ async function publicChat(req, res) {
     if (out) { headersSent = true; res.write(out); }
   };
 
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let apiCalls = 0;
+  const usage = makeUsageTracker();
   let toolCalls = 0;
   const convo = messages.slice();
+  const onText = (t) => { fullText += t; pending += t; emit(false); };
 
   // Round 1 may call check_order_status; round 2 (if needed) must answer.
   for (let round = 0; round < 2; round++) {
-    const payload = { model, max_tokens: MAX_OUTPUT_TOKENS, system, messages: convo, stream: true };
-    if (orderLookupOn && round === 0) payload.tools = [ORDER_TOOL];
-
-    let upstream;
+    const tools = orderLookupOn && round === 0 ? [ORDER_TOOL] : undefined;
+    let result;
     try {
-      upstream = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      result = await streamRound({ provider, access, system, convo, tools, maxTokens: MAX_OUTPUT_TOKENS, onText });
     } catch (err) {
-      console.error('chat: network error calling Anthropic', err);
-      upstream = null;
-    }
-    if (!upstream || !upstream.ok || !upstream.body) {
-      const errText = upstream ? await upstream.text().catch(() => '') : '';
-      console.error('chat: Anthropic error', upstream && upstream.status, errText.slice(0, 500));
+      console.error(`chat: ${provider} error`, err.message);
+      // Nothing shown yet? Try the backup service once, transparently.
+      const backup = !headersSent ? backupProvider(access, provider) : null;
+      if (backup) {
+        console.log(`chat: falling back from ${provider} to ${backup}`);
+        provider = backup;
+        round -= 1;
+        continue;
+      }
       if (!headersSent) {
         res.setHeader('Content-Type', 'application/json');
         res.status(502).json({ ok: false, error: 'The assistant is unavailable right now -- please try again shortly.' });
-        await logUsage({ channel: 'website', model, inputTokens, outputTokens, apiCalls, toolCalls });
+        await logAllUsage(usage, { channel: 'website', toolCalls });
         return;
       }
       break;
     }
-    apiCalls += 1;
-
-    const result = await readAnthropicStream(upstream, (t) => { fullText += t; pending += t; emit(false); });
-    inputTokens += result.inputTokens;
-    outputTokens += result.outputTokens;
+    usage.add(result.model, result.inputTokens, result.outputTokens);
 
     if (result.stopReason !== 'tool_use' || !result.toolUses.length) break;
 
     // Run the order lookup(s) and hand the results back for the answer.
-    convo.push({ role: 'assistant', content: result.contentBlocks });
+    convo.push({ role: 'assistant', content: result.contentBlocks, ...(result.geminiParts ? { _geminiParts: result.geminiParts } : {}) });
     const toolResults = [];
     for (const tu of result.toolUses) {
       toolCalls += 1;
@@ -328,7 +322,7 @@ async function publicChat(req, res) {
       toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) });
     }
     convo.push({ role: 'user', content: toolResults });
-    if (pending || fullText) { pending += ' '; }
+    if ((pending || fullText) && !/\s$/.test(fullText)) { pending += ' '; }
   }
 
   emit(true);
@@ -337,8 +331,84 @@ async function publicChat(req, res) {
   }
   // Logged before ending the response so the serverless function isn't
   // frozen mid-write; the visitor has already seen the full reply.
-  await logUsage({ channel: 'website', model, inputTokens, outputTokens, apiCalls, toolCalls });
+  await logAllUsage(usage, { channel: 'website', toolCalls });
   res.end();
+}
+
+// ---------------------------------------------------------------------
+// AI provider plumbing (Claude or Gemini, chosen in Settings -> AI assistant)
+// ---------------------------------------------------------------------
+function providerAvailable(name) {
+  return name === 'gemini' ? !!geminiRoute() : !!process.env.ANTHROPIC_API_KEY;
+}
+
+// The service chosen in Settings if its key is set; otherwise the other one
+// when "use the other as a backup" is on; otherwise null.
+function pickProvider(access, which) {
+  const want = access.provider[which];
+  if (providerAvailable(want)) return want;
+  return backupProvider(access, want);
+}
+
+function backupProvider(access, current) {
+  const other = current === 'gemini' ? 'claude' : 'gemini';
+  return access.provider.fallback && providerAvailable(other) ? other : null;
+}
+
+function modelFor(provider, access) {
+  return provider === 'gemini' ? geminiModel(access.provider.gemini_model) : (process.env.ANTHROPIC_MODEL || DEFAULT_MODEL);
+}
+
+// Claude rejects unknown fields, so drop Gemini's carry-along parts.
+function forClaude(msgs) {
+  return msgs.map(m => (m._geminiParts ? { role: m.role, content: m.content } : m));
+}
+
+// One streamed model turn for the website chat, either provider.
+async function streamRound({ provider, access, system, convo, tools, maxTokens, onText }) {
+  const model = modelFor(provider, access);
+  if (provider === 'gemini') {
+    const r = await geminiStream({ system, messages: convo, tools, maxTokens, model, onText });
+    return { ...r, model };
+  }
+  const payload = { model, max_tokens: maxTokens, system, messages: forClaude(convo), stream: true };
+  if (tools) payload.tools = tools;
+  const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!upstream.ok || !upstream.body) {
+    const errText = await upstream.text().catch(() => '');
+    throw new Error(`Anthropic ${upstream.status}: ${errText.slice(0, 300)}`);
+  }
+  const r = await readAnthropicStream(upstream, onText);
+  return { ...r, model };
+}
+
+// Tokens per model, so a reply that fell back mid-way is costed correctly.
+function makeUsageTracker() {
+  const by = {};
+  return {
+    add(model, input, output) {
+      const u = by[model] || (by[model] = { input: 0, output: 0, calls: 0 });
+      u.input += input || 0;
+      u.output += output || 0;
+      u.calls += 1;
+    },
+    entries() { return Object.entries(by); },
+  };
+}
+
+async function logAllUsage(tracker, { channel, toolCalls, username, role }) {
+  const entries = tracker.entries();
+  for (let i = 0; i < entries.length; i++) {
+    const [model, u] = entries[i];
+    await logUsage({
+      channel, model, inputTokens: u.input, outputTokens: u.output, apiCalls: u.calls,
+      toolCalls: i === 0 ? toolCalls : 0, username, role,
+    });
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -565,43 +635,37 @@ async function staffChat(req, res) {
     return;
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    res.status(503).json({ ok: false, error: 'The assistant needs ANTHROPIC_API_KEY set in Vercel (or turn on Test mode in Settings).' });
+  let provider = pickProvider(access, 'staff');
+  if (!provider) {
+    res.status(503).json({ ok: false, error: 'The assistant needs an AI key in Vercel (ANTHROPIC_API_KEY, or VERTEX_API_KEY / GEMINI_API_KEY for Gemini), or turn on Test mode in Settings.' });
     return;
   }
 
   const tools = toolsFor(areas);
   const messages = history.slice();
   const lookups = [];
-  const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
-  const usage = { input: 0, output: 0, calls: 0 };
-  const logStaff = () => logUsage({
-    channel: 'staff', model, inputTokens: usage.input, outputTokens: usage.output,
-    apiCalls: usage.calls, toolCalls: lookups.length, username: user.username, role: user.role,
-  });
+  const usage = makeUsageTracker();
+  const logStaff = () => logAllUsage(usage, { channel: 'staff', toolCalls: lookups.length, username: user.username, role: user.role });
 
   try {
     for (let round = 0; round <= STAFF_MAX_TOOL_ROUNDS; round++) {
-      const payload = {
-        model,
-        max_tokens: STAFF_MAX_OUTPUT_TOKENS,
-        system: buildStaffPrompt(ctx),
-        messages,
-      };
       // On the last round, withhold tools so the model must answer.
-      if (tools.length && round < STAFF_MAX_TOOL_ROUNDS) payload.tools = tools;
-
-      const data = await callAnthropic(apiKey, payload);
-      usage.calls += 1;
-      if (data.usage) {
-        usage.input += data.usage.input_tokens || 0;
-        usage.output += data.usage.output_tokens || 0;
+      const roundTools = tools.length && round < STAFF_MAX_TOOL_ROUNDS ? tools : undefined;
+      let data;
+      try {
+        data = await callModel({ provider, access, system: buildStaffPrompt(ctx), messages, tools: roundTools, maxTokens: STAFF_MAX_OUTPUT_TOKENS });
+      } catch (err) {
+        const backup = backupProvider(access, provider);
+        if (!backup) throw err;
+        console.error(`staff-ai: ${provider} failed (${err.message}); falling back to ${backup}`);
+        provider = backup;
+        data = await callModel({ provider, access, system: buildStaffPrompt(ctx), messages, tools: roundTools, maxTokens: STAFF_MAX_OUTPUT_TOKENS });
       }
+      usage.add(data.model, data.usage && data.usage.input_tokens, data.usage && data.usage.output_tokens);
       const content = data.content || [];
 
       if (data.stop_reason === 'tool_use') {
-        messages.push({ role: 'assistant', content });
+        messages.push({ role: 'assistant', content, ...(data._geminiParts ? { _geminiParts: data._geminiParts } : {}) });
         const results = [];
         for (const block of content) {
           if (block.type !== 'tool_use') continue;
@@ -620,7 +684,7 @@ async function staffChat(req, res) {
       const rawReply = content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
       if (rawReply.includes(UNANSWERED_MARKER)) await noteGap();
       const reply = stripMarker(rawReply);
-      console.log(`staff-ai: ${user.username} (${user.role}) lookups=[${lookups.join(',')}]`);
+      console.log(`staff-ai: ${user.username} (${user.role}) via ${provider} lookups=[${lookups.join(',')}]`);
       await logStaff();
       res.status(200).json({ ok: true, reply: reply || 'I could not find an answer to that.', lookups });
       return;
@@ -632,6 +696,20 @@ async function staffChat(req, res) {
     await logStaff(); // tokens already spent on earlier rounds still count
     res.status(502).json({ ok: false, error: 'The assistant is unavailable right now -- please try again shortly.' });
   }
+}
+
+// One non-streamed model turn (staff assistant), either provider.
+// Returns a Claude-shaped response plus the model name used.
+async function callModel({ provider, access, system, messages, tools, maxTokens }) {
+  const model = modelFor(provider, access);
+  if (provider === 'gemini') {
+    const r = await geminiMessage({ system, messages, tools, maxTokens, model });
+    return { ...r, model };
+  }
+  const payload = { model, max_tokens: maxTokens, system, messages: forClaude(messages) };
+  if (tools) payload.tools = tools;
+  const r = await callAnthropic(process.env.ANTHROPIC_API_KEY, payload);
+  return { ...r, model };
 }
 
 module.exports = async function handler(req, res) {
