@@ -506,6 +506,9 @@
     letter-spacing: 0.03em;
     color: var(--charcoal-soft);
   }
+  select.contact-select.cs-contacted, select.contact-select.cs-booked { background: rgba(62,142,90,0.12); border-color: #3E8E5A; }
+  select.contact-select.cs-left_message { background: rgba(224,160,60,0.16); border-color: #C58A2B; }
+  select.contact-select.cs-no_response, select.contact-select.cs-declined { background: rgba(176,64,90,0.1); border-color: #B0405A; }
   select.payment-select {
     font-family: var(--body);
     font-size: 0.8rem;
@@ -778,6 +781,12 @@
     }
   }
 
+const CONTACT_OPTS = [['not_contacted','Not contacted'],['contacted','Contacted'],['left_message','Left message'],['no_response','No response'],['booked','Booked'],['declined','Declined']];
+  function contactSelect(kind, id, val) {
+    const v = val || 'not_contacted';
+    return `<select class="payment-select contact-select cs-${v}" data-kind="${kind}" data-id="${id}">${CONTACT_OPTS.map(o => `<option value="${o[0]}" ${o[0] === v ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>`;
+  }
+
   function renderResult({ patient, intakes, orders }) {
     if (!patient) {
       content.innerHTML = '<div class="state-message">No patient found with that phone number yet — they may not have submitted an intake form or had an order placed.</div>';
@@ -791,11 +800,8 @@
             <div class="date-badge">${formatDate(i.created_at)}</div>
             <div class="secondary">${i.patient_type === 'returning' ? 'Returning patient' : 'New patient'}${i.pref_date ? ' · Preferred: ' + escapeHtml(i.pref_date) : ''}${i.notes ? ' · ' + escapeHtml(i.notes) : ''}</div>
             <div class="payment-row">
-              <span class="payment-row-label">Payment:</span>
-              <select class="payment-select" data-kind="intake" data-id="${i.id}">
-                <option value="unpaid" ${i.payment_status !== 'paid' ? 'selected' : ''}>Unpaid</option>
-                <option value="paid" ${i.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
-              </select>
+              <span class="payment-row-label">Contact:</span>
+              ${contactSelect('intake', i.id, i.contact_status)}
               <button type="button" class="move-record-btn" data-kind="intake" data-id="${i.id}">Move to different patient</button>
             </div>
             <div class="move-record-panel" id="movePanel-intake-${i.id}">
@@ -851,12 +857,8 @@
             }${o.balance ? ' · Balance: ₱' + escapeHtml(o.balance) : ''}</div>
             ${o.order_type !== 'non_rx' ? rxSpecTable(o) : ''}
             <div class="payment-row">
-              <span class="payment-row-label">Payment:</span>
-              <select class="payment-select" data-kind="order" data-id="${o.id}">
-                <option value="unpaid" ${(!o.payment_status || o.payment_status === 'unpaid') ? 'selected' : ''}>Unpaid</option>
-                <option value="partial" ${o.payment_status === 'partial' ? 'selected' : ''}>Partial</option>
-                <option value="paid" ${o.payment_status === 'paid' ? 'selected' : ''}>Paid</option>
-              </select>
+              <span class="payment-row-label">Contact:</span>
+              ${contactSelect('order', o.id, o.contact_status)}
               <a href="order-form.html?id=${o.id}" class="move-record-btn" style="text-decoration:underline;">Edit order</a>
               <button type="button" class="move-record-btn" data-kind="order" data-id="${o.id}">Move to different patient</button>
               <button type="button" class="delete-order-record-btn" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">Delete</button>
@@ -921,19 +923,20 @@
       sel.addEventListener('change', async () => {
         const kind = sel.getAttribute('data-kind');
         const id = sel.getAttribute('data-id');
-        const payment_status = sel.value;
+        const contact_status = sel.value;
+        sel.className = 'payment-select contact-select cs-' + contact_status;
         sel.disabled = true;
         try {
           const endpoint = kind === 'intake' ? '/api/intake-payment' : '/api/orders';
           const resp = await fetch(endpoint, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, payment_status }),
+            body: JSON.stringify({ id, contact_status }),
           });
           const result = await resp.json();
-          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not update payment status.');
+          if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not update the contact status.');
         } catch (err) {
-          alert(err.message || 'Could not update payment status.');
+          alert(err.message || 'Could not update the contact status.');
         } finally {
           sel.disabled = false;
         }

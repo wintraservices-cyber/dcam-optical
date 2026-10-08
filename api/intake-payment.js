@@ -13,6 +13,9 @@
 //     body { id, payment_status } -- update an intake's payment_status.
 //     Used by staff-patient-lookup.html's per-intake payment dropdown.
 //
+//   PATCH /api/intake-payment   body { id, contact_status } -- contact touch point
+//     (not_contacted | contacted | left_message | no_response | booked | declined).
+//
 //   GET   /api/intake-payment?resource=intakes&status=new
 //     List intake_submissions, optionally filtered by status ('new' or
 //     'contacted'). Used by the Dashboard's intake queue.
@@ -45,6 +48,11 @@ function num(v) {
 
 function isValidPaymentStatus(status) {
   return ['unpaid', 'paid'].includes(status);
+}
+
+const CONTACT_STATUSES = ['not_contacted', 'contacted', 'left_message', 'no_response', 'booked', 'declined'];
+function isValidContactStatus(v) {
+  return CONTACT_STATUSES.includes(v);
 }
 
 function isValidIntakeStatus(status) {
@@ -81,6 +89,36 @@ async function updateIntakePaymentStatus(req, res, body) {
   }
 }
 
+// Staff-set contact touch point on an intake request (Look up customer).
+// Contacted / Booked / Declined mean the follow-up is done, so the intake
+// leaves the Dashboard's "new" queue; Left message and No response keep it
+// there so the follow-up isn't forgotten.
+async function updateIntakeContactStatus(req, res, body) {
+  const { id, contact_status } = body || {};
+  if (!id || !isValidContactStatus(contact_status)) {
+    res.status(400).json({ ok: false, error: 'A valid intake id and contact_status are required.' });
+    return;
+  }
+  const done = ['contacted', 'booked', 'declined'].includes(contact_status);
+  try {
+    const resp = await supabaseRequest(`intake_submissions?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ contact_status, status: done ? 'contacted' : 'new' }),
+    });
+    if (!resp.ok) {
+      console.error('Supabase intake contact_status update error:', resp.status, await resp.text());
+      res.status(502).json({ ok: false, error: 'Could not update the contact status. (Has the contact_status column been added to the database?)' });
+      return;
+    }
+    const [updated] = await resp.json();
+    res.status(200).json({ ok: true, intake: updated });
+  } catch (err) {
+    console.error('Unexpected error updating intake contact status:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
 async function markIntakeContacted(req, res, body) {
   const { id } = body || {};
   if (!id) {
@@ -89,11 +127,19 @@ async function markIntakeContacted(req, res, body) {
   }
 
   try {
-    const resp = await supabaseRequest(`intake_submissions?id=eq.${encodeURIComponent(id)}`, {
+    let resp = await supabaseRequest(`intake_submissions?id=eq.${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { Prefer: 'return=representation' },
-      body: JSON.stringify({ status: 'contacted' }),
+      body: JSON.stringify({ status: 'contacted', contact_status: 'contacted' }),
     });
+    if (!resp.ok) {
+      // contact_status column not added yet -- fall back to the status-only update.
+      resp = await supabaseRequest(`intake_submissions?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ status: 'contacted' }),
+      });
+    }
 
     if (!resp.ok) {
       const errText = await resp.text();
@@ -157,8 +203,10 @@ async function dashboardSummary(req, res, session) {
     // and waiting at the counter for the patient to pick up.
     const unclaimedFilter = `&status=eq.ready`;
 
+    const intakeQuery = (cols) => supabaseRequest(`intake_submissions?select=${cols}&status=eq.new&order=created_at.desc&limit=50`, { method: 'GET' });
     const [newIntakesResp, todaysOrdersResp, dueOrdersResp, unclaimedOrdersResp] = await Promise.all([
-      supabaseRequest('intake_submissions?select=id,fname,lname,phone,reason,pref_date,pref_time,created_at&status=eq.new&order=created_at.desc&limit=50', { method: 'GET' }),
+      // contact_status is newer; fall back without it until the column exists.
+      intakeQuery('id,fname,lname,phone,reason,pref_date,pref_time,created_at,contact_status').then((r) => (r.ok ? r : intakeQuery('id,fname,lname,phone,reason,pref_date,pref_time,created_at'))),
       supabaseRequest(`orders?select=id,order_no,patient_name,status,balance,amount,payment_status${todayFilter}&deleted_at=is.null&order=created_at.desc&limit=200`, { method: 'GET' }),
       supabaseRequest(`orders?select=id,order_no,patient_name,tel_no,due_date${dueFilter}&deleted_at=is.null&order=due_date.asc&limit=200`, { method: 'GET' }),
       supabaseRequest(`orders?select=id,order_no,patient_name,tel_no,due_date${unclaimedFilter}&deleted_at=is.null&order=due_date.asc&limit=200`, { method: 'GET' }),
@@ -263,6 +311,7 @@ module.exports = async (req, res) => {
     if (resource === 'intakes' && action === 'contacted') {
       return markIntakeContacted(req, res, body);
     }
+    if (body && body.contact_status !== undefined) return updateIntakeContactStatus(req, res, body);
     // Default, unchanged behavior: update payment_status.
     return updateIntakePaymentStatus(req, res, body);
   }

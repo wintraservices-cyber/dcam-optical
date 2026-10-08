@@ -732,3 +732,8 @@ alter table balance_payments add column if not exists balance_after text;
 -- orders saved before this column fall back to their created_at day
 -- (Manila time) in the reports. Plain YYYY-MM-DD text, like order_date.
 alter table orders add column if not exists transaction_date text;
+
+-- Contact touch point shown on Look up customer (Not contacted, Contacted,
+-- Left message, No response, Booked, Declined). Safe to run more than once.
+alter table intake_submissions add column if not exists contact_status text not null default 'not_contacted';
+alter table orders add column if not exists contact_status text not null default 'not_contacted';

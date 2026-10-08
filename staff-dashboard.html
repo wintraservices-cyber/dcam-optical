@@ -150,6 +150,10 @@
   .intake-row .intake-info { min-width: 0; }
   .intake-row .intake-name { font-family: var(--display); font-weight: 700; font-size: 0.94rem; }
   .intake-row .intake-meta { font-size: 0.82rem; color: var(--charcoal-soft); margin-top: 2px; }
+  .pref-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 5px 12px; border-radius: 100px; background: rgba(176,90,158,0.14); color: var(--purple-deep, #8F4680); font-size: 0.84rem; border: 1.5px solid rgba(176,90,158,0.45); }
+  .pref-badge strong { font-weight: 800; }
+  .pref-badge.none { background: transparent; border-style: dashed; border-color: var(--line); color: var(--charcoal-soft); font-size: 0.78rem; }
+  .contact-flag { font-weight: 700; color: #B0405A; }
   .intake-row .intake-actions { display: flex; gap: 8px; flex: none; }
   .btn-pill {
     font-family: var(--display);
@@ -372,6 +376,19 @@
     return `${diffDay}d ago`;
   }
 
+  const CONTACT_LABELS = { contacted: 'Contacted', left_message: 'Left message', no_response: 'No response', booked: 'Booked', declined: 'Declined' };
+  function contactLabel(v) { return CONTACT_LABELS[v] || v; }
+  function prefBadge(i) {
+    if (!i.pref_date && !i.pref_time) return '<div class="pref-badge none">No preferred date or time</div>';
+    let d = '';
+    if (i.pref_date) {
+      const dt = new Date(i.pref_date + 'T00:00:00');
+      d = isNaN(dt) ? escapeHtml(i.pref_date) : dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+    const t = i.pref_time ? i.pref_time.charAt(0).toUpperCase() + i.pref_time.slice(1) : '';
+    return '<div class="pref-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>Preferred: <strong>' + [d, escapeHtml(t)].filter(Boolean).join(' · ') + '</strong></div>';
+  }
+
   function renderIntakes(intakes) {
     const list = document.getElementById('intakeList');
     if (!intakes.length) {
@@ -385,9 +402,10 @@
           <div class="intake-meta">
             ${escapeHtml(i.phone) || '—'}
             ${i.reason ? ' · ' + escapeHtml(i.reason) : ''}
-            ${i.pref_date ? ' · wants ' + escapeHtml(i.pref_date) + (i.pref_time ? ' ' + escapeHtml(i.pref_time) : '') : ''}
             · ${timeAgo(i.created_at)}
+            ${i.contact_status && i.contact_status !== 'not_contacted' ? ' · <span class="contact-flag">' + escapeHtml(contactLabel(i.contact_status)) + '</span>' : ''}
           </div>
+          ${prefBadge(i)}
         </div>
         <div class="intake-actions">
           <a href="staff-patient-lookup.html?phone=${encodeURIComponent(i.phone || '')}" class="btn-pill">Look up</a>

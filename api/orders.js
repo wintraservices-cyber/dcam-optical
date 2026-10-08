@@ -553,10 +553,36 @@ async function updateOrderStatus(req, res, session) {
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch (e) { body = {}; }
   }
-  const { id, status, payment_status } = body || {};
+  const { id, status, payment_status, contact_status } = body || {};
 
   if (!id) {
     res.status(400).json({ ok: false, error: 'A valid order id is required.' });
+    return;
+  }
+
+  // Contact touch point (Look up customer): any signed-in staff, no audit entry.
+  if (contact_status !== undefined && status === undefined && payment_status === undefined) {
+    if (!['not_contacted', 'contacted', 'left_message', 'no_response', 'booked', 'declined'].includes(contact_status)) {
+      res.status(400).json({ ok: false, error: 'Invalid contact_status value.' });
+      return;
+    }
+    try {
+      const r = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}${NOT_DELETED}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ contact_status }),
+      });
+      if (!r.ok) {
+        console.error('Supabase order contact_status error:', r.status, await r.text());
+        res.status(502).json({ ok: false, error: 'Could not update the contact status. (Has the contact_status column been added to the database?)' });
+        return;
+      }
+      const [updated] = await r.json();
+      res.status(200).json({ ok: true, order: updated });
+    } catch (err) {
+      console.error('Unexpected error updating order contact status:', err);
+      res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+    }
     return;
   }
 
