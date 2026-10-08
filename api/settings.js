@@ -206,6 +206,19 @@ async function getDashboard(req, res) {
       const old = prev ? summarize(await usageDaily(prev.from, prev.to)) : null;
       return { current: cur, previous: old };
     }),
+    safe('order_checks', async () => {
+      const sum = async (f, t2) => {
+        let path = 'order_check_daily?select=checks,found&limit=1000';
+        if (f) path += `&day=gte.${f}`;
+        if (t2) path += `&day=lte.${t2}`;
+        const resp = await supabaseRequest(path, { method: 'GET' });
+        if (!resp.ok) throw new Error('order_check_daily ' + resp.status);
+        const rows = await resp.json();
+        return rows.reduce((a, r) => ({ checks: a.checks + (r.checks || 0), found: a.found + (r.found || 0) }), { checks: 0, found: 0 });
+      };
+      const cur = await sum(from, to);
+      return { ...cur, previous: prev ? (await sum(prev.from, prev.to)).checks : null };
+    }),
     safe('unanswered', async () => {
       const resp = await supabaseRequest('ai_unanswered?select=question,times_asked,channel&status=eq.open&order=times_asked.desc,last_asked_at.desc&limit=6', { method: 'GET' });
       if (!resp.ok) throw new Error('unanswered ' + resp.status);

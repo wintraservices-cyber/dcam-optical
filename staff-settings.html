@@ -2645,6 +2645,7 @@
         ${intake ? tile('Intake forms submitted', int(intake.count), delta(intake.count, intake.previous)) : tile('Intake forms submitted', '—', '<div class="t-sub">Could not load</div>')}
         ${cur ? tile('Website AI replies', int(cur.website.messages), delta(cur.website.messages, old && old.website.messages)) : tile('Website AI replies', '—', '<div class="t-sub">Could not load</div>')}
         ${cur ? tile('Staff AI replies', int(cur.staff.messages), delta(cur.staff.messages, old && old.staff.messages)) : ''}
+        ${r.order_checks ? tile('Order status checks', int(r.order_checks.checks), delta(r.order_checks.checks, r.order_checks.previous)) : tile('Order status checks', '—', '<div class="t-sub">Needs the database update</div>')}
         ${cur ? tile('AI cost (estimate)', usd(cur.total.cost_usd), delta(cur.total.cost_usd, old && old.total.cost_usd, true)) : ''}
       </div><div class="card-sub" style="margin:-4px 0 14px;">Period: ${range}</div>`);
       if (cur) {

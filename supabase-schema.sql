@@ -737,3 +737,27 @@ alter table orders add column if not exists transaction_date text;
 -- Left message, No response, Booked, Declined). Safe to run more than once.
 alter table intake_submissions add column if not exists contact_status text not null default 'not_contacted';
 alter table orders add column if not exists contact_status text not null default 'not_contacted';
+
+-- ---------------------------------------------------------------------
+-- Daily count of "Are my glasses ready?" checks (website form and chat).
+-- Only a per-day tally is kept -- no order numbers, phone digits or IPs --
+-- so it can be reported over any period (order_lookup_attempts above is
+-- cleared every day). Written by lib/order-status.js, read by the
+-- Settings > Dashboard tab. Safe to run more than once.
+-- ---------------------------------------------------------------------
+create table if not exists order_check_daily (
+  day date primary key,
+  checks integer not null default 0,
+  found integer not null default 0
+);
+
+create or replace function bump_order_check(p_found boolean)
+returns void
+language sql
+as $$
+  insert into order_check_daily (day, checks, found)
+  values ((now() at time zone 'Asia/Manila')::date, 1, case when p_found then 1 else 0 end)
+  on conflict (day) do update
+    set checks = order_check_daily.checks + 1,
+        found = order_check_daily.found + case when p_found then 1 else 0 end;
+$$;
