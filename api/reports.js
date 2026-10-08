@@ -278,6 +278,7 @@ const ORDERS_COLUMNS = [
 ];
 
 const SALES_COLUMNS = [
+  { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
   { label: 'Order Date', value: (o) => o.order_date || '' },
   { label: 'Order #', value: 'order_no' },
   { label: 'Patient', value: 'patient_name' },
@@ -288,7 +289,6 @@ const SALES_COLUMNS = [
   { label: 'Total', value: (o) => (o.__entry === 'payment' ? '' : o.amount) },
   { label: 'Payment Today', value: (o) => (o.__entry === 'payment' ? o.amount : o.deposit) },
   { label: 'Payment Method', value: 'payment_method' },
-  { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
   { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
   { label: 'Balance', value: rowBalance },
   // -- not on the client's sheet, appended at the end --
