@@ -11,7 +11,7 @@
 const { requireAuth, requireAdmin } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 const { normalizeAiAccess } = require('../lib/ai-access');
-const { usageReport } = require('../lib/ai-usage');
+const { usageReport, usageDaily, summarize } = require('../lib/ai-usage');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('../lib/team');
@@ -157,6 +157,63 @@ async function putSetting(req, res, sessionUser) {
     console.error('Unexpected error saving setting:', err);
     res.status(500).json({ ok: false, error: 'Unexpected server error.' });
   }
+}
+
+
+// ---------------------------------------------------------------------
+// Website dashboard (Settings > Dashboard) -- admin only. One page that
+// pulls the numbers the system already has: intake forms submitted, AI
+// usage and spend, and the questions the AI could not answer. Each is
+// compared with the previous period of the same length. Visitor numbers
+// live in Google Analytics, not here.
+// ---------------------------------------------------------------------
+async function countRows(table, field, from, to, extra) {
+  let path = `${table}?select=id${extra || ''}`;
+  if (from) path += `&${field}=gte.${encodeURIComponent(from + 'T00:00:00+08:00')}`;
+  if (to) path += `&${field}=lte.${encodeURIComponent(to + 'T23:59:59.999+08:00')}`;
+  const resp = await supabaseRequest(path, { method: 'HEAD', headers: { Prefer: 'count=exact', Range: '0-0' } });
+  if (!resp.ok) throw new Error(`count ${table} ${resp.status}`);
+  const total = parseInt((resp.headers.get('content-range') || '').split('/')[1], 10);
+  return Number.isFinite(total) ? total : 0;
+}
+
+function shiftDate(iso, days) {
+  const d = new Date(iso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+async function getDashboard(req, res) {
+  const isDate = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const from = isDate(req.query.from) ? req.query.from : null;
+  const to = isDate(req.query.to) ? req.query.to : null;
+  if (from && to && from > to) { res.status(400).json({ ok: false, error: 'The start date is after the end date.' }); return; }
+  // Previous period of the same length, only when both ends are known.
+  let prev = null;
+  if (from && to) {
+    const len = Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1;
+    prev = { from: shiftDate(from, -len), to: shiftDate(from, -1) };
+  }
+  const out = { ok: true, range: { from, to }, previous: prev };
+  const safe = async (key, fn) => { try { out[key] = await fn(); } catch (e) { console.error('dashboard ' + key + ':', e.message); out[key] = null; } };
+  await Promise.all([
+    safe('intake', async () => ({
+      count: await countRows('intake_submissions', 'created_at', from, to),
+      previous: prev ? await countRows('intake_submissions', 'created_at', prev.from, prev.to) : null,
+    })),
+    safe('ai', async () => {
+      const cur = summarize(await usageDaily(from, to));
+      const old = prev ? summarize(await usageDaily(prev.from, prev.to)) : null;
+      return { current: cur, previous: old };
+    }),
+    safe('unanswered', async () => {
+      const resp = await supabaseRequest('ai_unanswered?select=question,times_asked,channel&status=eq.open&order=times_asked.desc,last_asked_at.desc&limit=6', { method: 'GET' });
+      if (!resp.ok) throw new Error('unanswered ' + resp.status);
+      const total = await countRows('ai_unanswered', 'created_at', null, null, '&status=eq.open');
+      return { top: await resp.json(), open_total: total };
+    }),
+  ]);
+  res.status(200).json(out);
 }
 
 async function getAiUsage(req, res) {
@@ -424,6 +481,11 @@ module.exports = async (req, res) => {
       res.status(400).json({ ok: false, error: 'Could not update that question.' });
     }
     return;
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'dashboard') {
+    if (!requireAdmin(req, res)) return;
+    return getDashboard(req, res);
   }
 
   if (req.method === 'GET' && req.query && req.query.view === 'ai_usage') {

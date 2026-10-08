@@ -451,6 +451,7 @@
     <button class="active" data-tab="rx">Rx ranges</button>
     <button data-tab="business">Business info</button>
     <button data-tab="accounts">Staff accounts</button>
+    <button data-tab="dashboard">Dashboard</button>
     <button data-tab="ai">AI assistant</button>
     <button data-tab="website">Website</button>
     <button data-tab="project-status">Project status</button>
@@ -587,6 +588,20 @@
         <button class="save-btn" id="permSaveBtn" type="button">Save permissions</button>
         <span class="save-status" id="permStatus"></span>
       </div>
+    </div>
+  </div>
+  <!-- Dashboard -->
+  <div class="panel" id="panel-dashboard">
+    <div class="card">
+      <h2>Website dashboard</h2>
+      <div class="card-sub">The numbers the system already keeps, in one place. Each number is compared with the previous period of the same length. Admin only.</div>
+      <div id="dashPeriodMount" style="margin-bottom:14px;"></div>
+      <div id="dashBody"><div class="loading-state">Open this tab to load.</div></div>
+    </div>
+    <div class="card">
+      <h2>Visitors, pages and traffic sources</h2>
+      <div class="card-sub">These come from Google Analytics, which has its own reports for visitors, where they came from, and which pages they read. Showing them on this page would need a read-only link to the Google Analytics property, which has not been set up yet.</div>
+      <div class="save-row"><a class="save-btn" style="text-decoration:none; display:inline-block;" href="https://analytics.google.com/" target="_blank" rel="noopener">Open Google Analytics</a></div>
     </div>
   </div>
   <!-- Website -->
@@ -990,6 +1005,7 @@
   <p>This page requires an admin account.</p>
 </div>
 
+<script src="period-filter.js"></script>
 <script>
 (function() {
   const mainWrap = document.getElementById('mainWrap');
@@ -2602,6 +2618,63 @@
       renderKnowledge();
       loadAccounts();
     }
+  })();
+
+
+  // ---- Website dashboard (admin) ----
+  (function () {
+    const body = document.getElementById('dashBody');
+    let loaded = false;
+    const usd = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: (Number(n) || 0) < 1 ? 4 : 2 });
+    const int = (n) => (Number(n) || 0).toLocaleString('en-US');
+    function delta(cur, prev, money) {
+      if (prev == null) return '<div class="t-sub">&nbsp;</div>';
+      const diff = cur - prev;
+      if (!diff) return '<div class="t-sub">same as before</div>';
+      const up = diff > 0;
+      const amt = money ? usd(Math.abs(diff)) : int(Math.abs(diff));
+      return `<div class="t-sub" style="color:${up ? '#2E7D4F' : '#B26A00'}; font-weight:600;">${up ? '▲' : '▼'} ${amt} vs previous period (${money ? usd(prev) : int(prev)})</div>`;
+    }
+    function tile(label, value, sub) { return `<div class="usage-tile"><div class="t-label">${label}</div><div class="t-value">${value}</div>${sub}</div>`; }
+    function render(r) {
+      const parts = [];
+      const range = r.range.from ? `${escapeHtml(r.range.from)} → ${escapeHtml(r.range.to)}` : 'All time';
+      const intake = r.intake, ai = r.ai, uq = r.unanswered;
+      const cur = ai && ai.current, old = ai && ai.previous;
+      parts.push(`<div class="usage-tiles" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">
+        ${intake ? tile('Intake forms submitted', int(intake.count), delta(intake.count, intake.previous)) : tile('Intake forms submitted', '—', '<div class="t-sub">Could not load</div>')}
+        ${cur ? tile('Website AI replies', int(cur.website.messages), delta(cur.website.messages, old && old.website.messages)) : tile('Website AI replies', '—', '<div class="t-sub">Could not load</div>')}
+        ${cur ? tile('Staff AI replies', int(cur.staff.messages), delta(cur.staff.messages, old && old.staff.messages)) : ''}
+        ${cur ? tile('AI cost (estimate)', usd(cur.total.cost_usd), delta(cur.total.cost_usd, old && old.total.cost_usd, true)) : ''}
+      </div><div class="card-sub" style="margin:-4px 0 14px;">Period: ${range}</div>`);
+      if (cur) {
+        const perMsg = cur.total.messages ? cur.total.cost_usd / cur.total.messages : 0;
+        parts.push(`<table class="usage-split"><thead><tr><th>AI assistant</th><th class="num">Replies</th><th class="num">Tokens in</th><th class="num">Tokens out</th><th class="num">Est. cost</th></tr></thead><tbody>
+          <tr><td>Website chat</td><td class="num">${int(cur.website.messages)}</td><td class="num">${int(cur.website.input_tokens)}</td><td class="num">${int(cur.website.output_tokens)}</td><td class="num">${usd(cur.website.cost_usd)}</td></tr>
+          <tr><td>Staff assistant</td><td class="num">${int(cur.staff.messages)}</td><td class="num">${int(cur.staff.input_tokens)}</td><td class="num">${int(cur.staff.output_tokens)}</td><td class="num">${usd(cur.staff.cost_usd)}</td></tr>
+        </tbody></table><div class="card-sub" style="margin-top:6px;">About ${usd(perMsg)} per reply. Costs are estimates from token counts; the Anthropic Console is the source of truth. Full daily detail is in the AI assistant tab.</div>`);
+      }
+      if (uq) {
+        parts.push(`<h2 style="margin-top:18px; font-size:1rem;">Questions the AI couldn't answer <span style="font-weight:400; color:var(--charcoal-soft); font-size:0.85rem;">(${int(uq.open_total)} open)</span></h2>` + (uq.top.length
+          ? `<table class="usage-split"><thead><tr><th>Question</th><th>Where</th><th class="num">Asked</th></tr></thead><tbody>${uq.top.map(q => `<tr><td>${escapeHtml(q.question)}</td><td>${q.channel === 'staff' ? 'Staff' : 'Website'}</td><td class="num">${int(q.times_asked)}</td></tr>`).join('')}</tbody></table><div class="card-sub" style="margin-top:6px;">Answer these in the AI assistant tab and they stop coming up.</div>`
+          : '<div class="empty-state">Nothing open. The AI has been able to answer everything so far.</div>'));
+      }
+      body.innerHTML = parts.join('');
+    }
+    const period = PeriodFilter.mount(document.getElementById('dashPeriodMount'), { defaultPreset: 'this_month', onChange: load });
+    async function load() {
+      const { from, to } = period.getRange();
+      body.innerHTML = '<div class="loading-state">Loading…</div>';
+      try {
+        const q = 'view=dashboard' + (from ? '&from=' + from : '') + (to ? '&to=' + to : '');
+        const resp = await fetch('/api/settings?' + q);
+        const r = await resp.json();
+        if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not load the dashboard.');
+        loaded = true;
+        render(r);
+      } catch (err) { body.innerHTML = '<div class="empty-state">' + escapeHtml(err.message) + '</div>'; }
+    }
+    document.querySelector('.tabs button[data-tab="dashboard"]').addEventListener('click', () => { if (!loaded) load(); });
   })();
 
   // ---- Staff permissions ----
