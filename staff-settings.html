@@ -687,6 +687,13 @@
           </label>
         </div>
       </div>
+      <div style="border-top:1px solid var(--line); margin-top:18px; padding-top:16px;">
+        <label style="display:flex; align-items:flex-start; gap:8px; text-transform:none; font-size:0.9rem;">
+          <input type="checkbox" id="stubShowTba" checked style="width:auto; margin-top:3px;">
+          <span><strong>Show "TBA" as the due date on the claim stub</strong><br>
+          <span style="color:var(--charcoal-soft); font-size:0.82rem;">When a due date is not a calendar date (TBA), the claim stub prints exactly what was entered. Turn this off to leave the stub's due date blank instead. Real dates always print. The order copy always shows what was entered.</span></span>
+        </label>
+      </div>
       <div class="save-row">
         <button class="save-btn" id="savePrintPrefs">Save</button>
         <span class="save-status" id="printPrefsStatus"></span>
@@ -1239,6 +1246,7 @@
     const paperSize = (setting && setting.paper_size) || 'strip';
     const radio = document.querySelector(`input[name="printPaperSize"][value="${paperSize}"]`);
     if (radio) radio.checked = true;
+    document.getElementById('stubShowTba').checked = !(setting && setting.stub_show_tba === false);
   }
 
   document.getElementById('savePrintPrefs').addEventListener('click', async () => {
@@ -1252,7 +1260,7 @@
       const resp = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'print_prefs', value: { paper_size: paperSize } }),
+        body: JSON.stringify({ key: 'print_prefs', value: { paper_size: paperSize, stub_show_tba: document.getElementById('stubShowTba').checked } }),
       });
       const result = await resp.json();
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');

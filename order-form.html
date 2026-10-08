@@ -1499,7 +1499,7 @@
           <div class="tu-stub-field"><label>Name</label><span data-field="ordName"></span></div>
           <div class="tu-stub-row2">
             <div><label>Date</label><span data-field="ordDate"></span></div>
-            <div><label>Due Date</label><span data-field="ordDue"></span></div>
+            <div><label>Due Date</label><span data-field="ordDueStub"></span></div>
           </div>
           <div class="tu-stub-field"><label>Amount</label><span data-field="amount"></span></div>
           <div class="tu-stub-field"><label>Deposit</label><span data-field="deposit"></span></div>
@@ -1558,6 +1558,8 @@
   // can't hold text, so TBA is a checkbox: when ticked the date box is
   // cleared and disabled and "TBA" is what gets saved and printed.
   const dueTba = document.getElementById('dueTba');
+  // Settings > Print: may the claim stub show a TBA due date? (default yes)
+  let stubShowTba = true;
   function dueDateValue() {
     return dueTba && dueTba.checked ? 'TBA' : (ordDue.value || '');
   }
@@ -1566,6 +1568,7 @@
     if (dueTba) dueTba.checked = tba;
     ordDue.disabled = tba;
     ordDue.value = tba ? '' : (v || '');
+    syncStubDue();
   }
   if (dueTba) dueTba.addEventListener('change', () => {
     ordDue.disabled = dueTba.checked;
@@ -1576,7 +1579,6 @@
     [orderNo, claimNoDisplay],
     [ordName, stubName],
     [ordDate, stubDate],
-    [ordDue, stubDue],
     [ordFrame, stubFrame],
     [ordLensType, stubLens],
     // Amount/Deposit/Balance so the customer's stub shows what they owe
@@ -1607,7 +1609,24 @@
       target.value = source.value;
       autoGrowTextarea(target);
     });
+    syncStubDue();
   }
+  // Claim stub due date. A real date mirrors as usual. "TBA" is not a
+  // calendar date, so the stub box (a date input) is switched to plain text
+  // to show it -- but only when Settings > Print says the stub may show TBA;
+  // otherwise the stub's due date stays blank.
+  function syncStubDue() {
+    const tba = dueDateValue() === 'TBA';
+    if (tba) {
+      stubDue.type = 'text';
+      stubDue.value = stubShowTba ? 'TBA' : '';
+    } else {
+      stubDue.type = 'date';
+      stubDue.value = ordDue.value;
+    }
+  }
+  ordDue.addEventListener('input', syncStubDue);
+  if (dueTba) dueTba.addEventListener('change', syncStubDue);
   mirrorPairs.forEach(([source, target]) => mirror(source, target));
 
   ordLensType.addEventListener('input', () => autoGrowTextarea(ordLensType));
@@ -1656,6 +1675,8 @@
       orderNo: val('orderNo'),
       ordDate: fmtDate(val('ordDate')),
       ordDue: dueDateValue() === 'TBA' ? 'TBA' : fmtDate(val('ordDue')),
+      // Claim stub copy: a TBA due date only prints when Settings allows it.
+      ordDueStub: dueDateValue() === 'TBA' ? (stubShowTba ? 'TBA' : '') : fmtDate(val('ordDue')),
       trayNo: val('trayNo'),
       ordName: val('ordName'),
       ordTel: val('ordTel'),
@@ -1864,6 +1885,7 @@
       el.classList.remove('field-invalid');
     });
     ordDue.disabled = false;
+    syncStubDue();
     document.querySelectorAll('.rx-axis, .rx-base').forEach(el => { el.disabled = true; });
     document.querySelector('input[name="pdMode"][value="split"]').checked = true;
     applyPdMode('split');
@@ -2047,6 +2069,10 @@
       const result = await resp.json();
       if (result.ok && result.value && result.value.paper_size) {
         printPaperSize = result.value.paper_size;
+      }
+      if (result.ok && result.value && result.value.stub_show_tba === false) {
+        stubShowTba = false;
+        syncStubDue();
       }
     } catch (e) {
       // Non-fatal -- falls back to the strip, same as before this setting existed.
