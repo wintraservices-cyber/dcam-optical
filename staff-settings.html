@@ -478,7 +478,6 @@
     <button class="active" data-tab="rx">Rx ranges</button>
     <button data-tab="business">Business info</button>
     <button data-tab="accounts">Staff accounts</button>
-    <button data-tab="dashboard">Dashboard</button>
     <button data-tab="ai">AI assistant</button>
     <button data-tab="website">Website</button>
     <button data-tab="project-status">Project status</button>
@@ -617,17 +616,13 @@
       </div>
     </div>
   </div>
-  <!-- Dashboard -->
-  <div class="panel" id="panel-dashboard">
-    <div class="card">
-      <h2>Website dashboard</h2>
-      <div class="card-sub">The numbers the system already keeps, in one place. Each number is compared with the previous period of the same length. Admin only.</div>
-      <div id="dashPeriodMount" style="margin-bottom:6px;"></div>
-      <div id="dashBody"><div class="loading-state">Open this tab to load.</div></div>
-    </div>
-  </div>
   <!-- Website -->
   <div class="panel" id="panel-website">
+    <div class="subtabs">
+      <button class="active" data-subtab="site">Site settings</button>
+      <button data-subtab="insights">Website insights</button>
+    </div>
+    <div class="subpanel active" id="subpanel-site">
     <div class="card">
       <div class="ai-master kill" style="border-bottom:none; padding:0;">
         <div>
@@ -755,6 +750,15 @@
       <div class="save-row">
         <button class="save-btn" id="savePhoneValidation">Save</button>
         <span class="save-status" id="phoneValidationStatus"></span>
+      </div>
+    </div>
+    </div>
+    <div class="subpanel" id="subpanel-insights">
+      <div class="card">
+        <h2>Website insights</h2>
+        <div class="card-sub">How the public website is doing, plus the numbers the system already keeps. Each number is compared with the previous period of the same length. Admin only.</div>
+        <div id="dashPeriodMount" style="margin-bottom:6px;"></div>
+        <div id="dashBody"><div class="loading-state">Open this tab to load.</div></div>
       </div>
     </div>
   </div>
@@ -2780,7 +2784,7 @@
         render(r);
       } catch (err) { body.innerHTML = '<div class="empty-state">' + escapeHtml(err.message) + '</div>'; }
     }
-    document.querySelector('.tabs button[data-tab="dashboard"]').addEventListener('click', () => { if (!loaded) load(); });
+    document.querySelector('.subtabs button[data-subtab="insights"]').addEventListener('click', () => { if (!loaded) load(); });
   })();
 
   // ---- Staff permissions ----
