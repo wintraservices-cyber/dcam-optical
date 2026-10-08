@@ -399,6 +399,10 @@
   gtag('js', new Date());
   gtag('config', 'G-L7JWKR2HFQ');
 </script>
+<script>
+  // Key events for Google Analytics. Names only: nothing typed into forms or chat is ever sent.
+  window.dcamTrack = function (name, params) { try { if (window.gtag) gtag('event', name, params || {}); } catch (e) {} };
+</script>
 </head>
 <body>
 
@@ -806,6 +810,16 @@
 (function () {
   document.getElementById('yr').textContent = new Date().getFullYear();
 
+  // ---- Analytics key events (no personal data) ----
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a,button');
+    if (!a) return;
+    if (a.id === 'startIntakeLink') dcamTrack('start_intake');
+    else if (a.tagName === 'A' && /^tel:/i.test(a.getAttribute('href') || '')) dcamTrack('click_phone');
+    else if (a.tagName === 'A' && /^mailto:/i.test(a.getAttribute('href') || '')) dcamTrack('click_email');
+    else if (a.tagName === 'A' && /(google\.[a-z.]+\/maps|maps\.app\.goo|goo\.gl\/maps)/i.test(a.getAttribute('href') || '')) dcamTrack('click_directions');
+  });
+
   // ---- Light / dark toggle ----
   document.getElementById('themeBtn').addEventListener('click', function () {
     var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -1082,6 +1096,7 @@
     e.preventDefault();
     var orderNo = tOrder.value.trim(), last4 = tLast4.value.trim();
     if (!orderNo) { showResult('Please enter the order number from your claim stub.', true); tOrder.focus(); return; }
+    dcamTrack('track_order_check');
     if (!/^\d{4}$/.test(last4)) { showResult('Please enter the last 4 digits of the phone number you gave us.', true); tLast4.focus(); return; }
     tBtn.disabled = true; tBtn.textContent = 'Checking…';
     fetch('/api/chat?mode=order', {

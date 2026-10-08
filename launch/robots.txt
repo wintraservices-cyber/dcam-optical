@@ -1,0 +1,10 @@
+# DCAM Optical - LIVE version. Replaces /robots.txt on launch day.
+User-agent: *
+Allow: /
+Disallow: /staff-
+Disallow: /api/
+Disallow: /order-form
+Disallow: /project-updates
+Disallow: /coming-soon
+
+Sitemap: https://dcamoptical.com/sitemap.xml

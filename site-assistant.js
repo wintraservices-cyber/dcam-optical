@@ -302,7 +302,7 @@
       fab.innerHTML = open ? closeIcon : chatIcon + '<span class="dca-fab-label">' + fabLabel + '</span>';
       if (open) { body.scrollTop = body.scrollHeight; input.focus(); }
     }
-    fab.addEventListener('click', () => setOpen(!panel.classList.contains('open')));
+    fab.addEventListener('click', () => { const willOpen = !panel.classList.contains('open'); if (willOpen && window.dcamTrack) window.dcamTrack('chat_open'); setOpen(willOpen); });
     panel.querySelector('.dca-close').addEventListener('click', () => { setOpen(false); fab.focus(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && panel.classList.contains('open')) setOpen(false); });
 
