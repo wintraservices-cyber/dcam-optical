@@ -181,8 +181,6 @@
   .values p { color: var(--muted); }
 
   /* ---------- Optometrists (from Settings) ---------- */
-  .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px; }
-  .team-grid.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 960px; }
   .doc { background: var(--surface); border-radius: 28px; overflow: hidden; display: flex; flex-direction: column; }
   .doc-photo { aspect-ratio: 4 / 5; background: var(--orchid-tint); display: flex; align-items: center; justify-content: center; font: 800 56px var(--display); color: var(--link); }
   .doc-photo img { width: 100%; height: 100%; object-fit: cover; }
@@ -193,33 +191,40 @@
   .doc .bio { color: var(--muted); font-size: 15px; line-height: 1.65; margin-top: 10px; white-space: pre-line; }
   .doc .bio.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
   .doc .more { align-self: flex-start; background: none; border: none; padding: 0; margin-top: 4px; color: var(--link); font: 600 14px var(--body); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-  .team-carousel { position: relative; }
-  .team-track { display: flex; gap: 24px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; padding: 4px 2px 18px; scrollbar-width: thin; }
-  .team-track:focus-visible { outline: 2px solid var(--link); outline-offset: 4px; border-radius: 12px; }
-  .team-track .doc { flex: 0 0 min(300px, 78vw); scroll-snap-align: start; }
-  .team-track.rolling { scroll-snap-type: none; scroll-behavior: auto; scrollbar-width: none; }
-  .team-track.rolling::-webkit-scrollbar { display: none; }
-  .team-arrow { position: absolute; top: 38%; z-index: 2; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--surface); color: var(--text); font-size: 28px; line-height: 1; cursor: pointer; box-shadow: 0 8px 22px var(--shadow); }
-  .team-arrow.prev { left: -14px; } .team-arrow.next { right: -14px; }
-  .team-arrow:hover { color: var(--link); }
-  @media (max-width: 760px) { .team-arrow { display: none; } }
-  .team-group-title { font: 700 22px var(--display); margin: 44px 0 18px; padding-top: 22px; border-top: 1px solid var(--line, rgba(56,51,52,.14)); }
-  .team-group-title:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
-  .team-grid.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .team-grid.in-groups.n2 { max-width: 660px; }
-  @media (max-width: 960px) { .team-grid.n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 560px) { .team-grid.n4 { grid-template-columns: 1fr; } }
-  .team-grid.solo { grid-template-columns: 1fr; }
-  .team-grid.solo .doc { flex-direction: row; max-width: 980px; }
-  .team-grid.solo .doc-photo { width: 380px; flex-shrink: 0; }
-  .team-grid.solo .doc-body { padding: clamp(28px, 4vw, 52px); justify-content: center; }
-  .team-grid.solo .doc h3 { font-size: clamp(28px, 3vw, 38px); }
-  .team-grid.solo .doc .bio.clamp { -webkit-line-clamp: 10; }
-  @media (max-width: 760px) {
-    .team-grid.n2 { grid-template-columns: 1fr; }
-    .team-grid.solo .doc { flex-direction: column; }
-    .team-grid.solo .doc-photo { width: 100%; }
+  .team-stage { position: relative; }
+  .team-track { transition: height .3s ease; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; align-items: flex-start; border-radius: 36px; }
+  .team-track::-webkit-scrollbar { display: none; }
+  .team-track:focus-visible { outline: 3px solid var(--sky); outline-offset: 4px; }
+  .team-slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; box-sizing: border-box; background: var(--sky-tint); border-radius: 36px; padding: clamp(28px, 4.5vw, 56px) clamp(28px, 6vw, 84px); display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: clamp(28px, 4vw, 56px); align-items: center; }
+  .team-slide .intro { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
+  .team-slide .intro h3 { font: 700 clamp(30px, 3.6vw, 46px)/1.08 var(--display); }
+  .team-slide .intro p { color: var(--muted); font-size: 17px; line-height: 1.6; }
+  .team-slide .intro .btn { background: var(--accent); color: var(--on-accent); min-height: 48px; margin-top: 6px; }
+  .team-people { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+  .team-people .doc { flex: 1 1 168px; max-width: 224px; border-radius: 22px; }
+  .team-people .doc-photo { font-size: 40px; }
+  .team-people .doc-body { padding: 16px 16px 18px; gap: 4px; }
+  .team-people .doc h3 { font-size: 18px; line-height: 1.2; }
+  .team-people .doc .role { font-size: 14px; }
+  .team-people .doc .lic { font-size: 12px; }
+  .team-people .doc .bio { font-size: 13.5px; line-height: 1.55; margin-top: 8px; }
+  .team-people .doc .bio.clamp { -webkit-line-clamp: 4; }
+  .team-arrow { position: absolute; top: 50%; z-index: 2; width: 48px; height: 48px; margin-top: -24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 28px; line-height: 1; padding: 0 0 3px; font-family: var(--body); transition: transform .2s, background .2s; }
+  .team-arrow:hover { transform: scale(1.06); }
+  .team-arrow.prev { left: -24px; background: var(--surface); color: var(--text); border: 1.5px solid var(--border); box-shadow: 0 8px 22px var(--shadow); }
+  .team-arrow.next { right: -24px; background: var(--surface); color: var(--accent); border: 2px solid var(--accent); box-shadow: 0 8px 22px var(--shadow); }
+  .team-dots { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 22px; }
+  .team-dot { width: 10px; height: 10px; padding: 0; border-radius: 50%; border: 0; background: var(--border); cursor: pointer; transition: width .25s, background .25s; }
+  .team-dot[aria-current="true"] { width: 28px; border-radius: 999px; background: var(--accent); }
+  .team-dot::after { content: ""; position: absolute; width: 0; height: 0; }
+  .team-pause { width: 30px; height: 30px; margin-left: 8px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  @media (max-width: 1240px) { .team-arrow.prev { left: -10px; } .team-arrow.next { right: -10px; } }
+  @media (max-width: 860px) {
+    .team-slide { grid-template-columns: 1fr; border-radius: 28px; }
+    .team-track { border-radius: 28px; }
+    .team-arrow { display: none; }
   }
+  @media (max-width: 480px) { .team-people .doc { flex-basis: calc(50% - 9px); max-width: none; } }
 
   /* ---------- Chat (carried over) ---------- */
   .ai-section { background: #1C1819; color: #F7F1E8; padding: clamp(72px, 10vw, 112px) 0; }
@@ -828,77 +833,105 @@
       card.appendChild(ph); card.appendChild(body);
       return card;
     }
-    // One continuously rolling row, always starting with the Optometrists
-    // (the API sorts by group; sorted again here to be safe), then Staff,
-    // then Technicians. Pauses on hover, touch and keyboard focus; people
-    // can still swipe or use the arrows. Reduced-motion visitors get a
-    // plain swipeable row with no automatic movement.
-    var order = { optometrist: 0, staff: 1, tech: 2 };
-    var sorted = team.map(function (p, i) { return [p, i]; })
-      .sort(function (a, b) { return (order[a[0].group || 'optometrist'] || 0) - (order[b[0].group || 'optometrist'] || 0) || a[1] - b[1]; })
-      .map(function (x) { return x[0]; });
-    var viewport = document.createElement('div'); viewport.className = 'team-carousel';
+    // Three slides, always in this order: Optometrists, Staff, Technicians
+    // (the API sorts by group; grouped again here to be safe). Arrows, dots,
+    // swipe and the keyboard all move between slides. It advances by itself
+    // until the visitor touches anything (or presses pause); reduced-motion
+    // visitors never get automatic movement.
+    var INTRO = {
+      optometrist: ['Our optometrists', 'Licensed eye doctors who take the time to explain every result, and every choice.', 'Book an eye exam', '#book'],
+      staff: ['Our staff', 'The friendly faces who welcome you, help you choose frames and keep your visit running smoothly.', 'Visit the shop', '#visit'],
+      tech: ['Our technicians', 'The skilled hands who cut, fit and finish your lenses so every pair feels right.', 'Track your order', '#track']
+    };
+    var slides = GROUPS.map(function (g) {
+      return [g[0], team.filter(function (p) { return (p.group || 'optometrist') === g[0]; })];
+    }).filter(function (s) { return s[1].length; });
+    var stage = document.createElement('div'); stage.className = 'team-stage';
     var track = document.createElement('div'); track.className = 'team-track'; track.tabIndex = 0;
-    track.setAttribute('aria-label', 'Our team, rolling. Hover or tap to pause.');
-    function fill(copyClass) {
-      sorted.forEach(function (p) {
-        var c = card(p);
-        if (copyClass) { c.setAttribute('aria-hidden', 'true'); c.setAttribute('inert', ''); }
-        track.appendChild(c);
-      });
+    track.setAttribute('role', 'region'); track.setAttribute('aria-roledescription', 'carousel'); track.setAttribute('aria-label', 'Our team');
+    var slideEls = slides.map(function (s, i) {
+      var info = INTRO[s[0]];
+      var el = document.createElement('section'); el.className = 'team-slide';
+      el.setAttribute('role', 'group'); el.setAttribute('aria-roledescription', 'slide'); el.setAttribute('aria-label', (i + 1) + ' of ' + slides.length + ': ' + info[0]);
+      var intro = document.createElement('div'); intro.className = 'intro';
+      var h = document.createElement('h3'); h.textContent = info[0]; intro.appendChild(h);
+      var p = document.createElement('p'); p.textContent = info[1]; intro.appendChild(p);
+      var a = document.createElement('a'); a.className = 'btn'; a.href = info[3]; a.textContent = info[2]; intro.appendChild(a);
+      var people = document.createElement('div'); people.className = 'team-people';
+      s[1].forEach(function (x) { people.appendChild(card(x)); });
+      el.appendChild(intro); el.appendChild(people);
+      track.appendChild(el);
+      return el;
+    });
+    stage.appendChild(track);
+    var cur = 0, auto = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches), hovering = false, visible = true, timer = null;
+    var dots = [], pauseBtn = null;
+    function setCur(i) {
+      cur = i;
+      slideEls.forEach(function (el, k) { if (k === cur) el.removeAttribute('inert'); else el.setAttribute('inert', ''); });
+      dots.forEach(function (d, k) { if (k === cur) d.setAttribute('aria-current', 'true'); else d.removeAttribute('aria-current'); });
+      fit();
     }
-    fill(false);
-    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var setW = 0, rolling = false;
-    function arrow(dir) {
-      var bt = document.createElement('button'); bt.type = 'button'; bt.className = 'team-arrow ' + (dir < 0 ? 'prev' : 'next');
-      bt.setAttribute('aria-label', dir < 0 ? 'Previous people' : 'Next people'); bt.innerHTML = dir < 0 ? '&#8249;' : '&#8250;';
-      bt.addEventListener('click', function () {
-        holdUntil = performance.now() + 2500;
-        track.scrollBy({ left: dir * Math.max(track.clientWidth * 0.8, 280), behavior: 'smooth' });
-      });
-      return bt;
+    // Track is only as tall as the slide being shown (slides differ in height).
+    function fit() { if (slideEls.length > 1 && slideEls[cur]) track.style.height = slideEls[cur].offsetHeight + 'px'; }
+    if ('ResizeObserver' in window) { var ro = new ResizeObserver(fit); slideEls.forEach(function (el) { ro.observe(el); }); }
+    function go(i, smooth) {
+      i = (i + slideEls.length) % slideEls.length;
+      track.style.scrollBehavior = smooth === false ? 'auto' : '';
+      track.scrollTo({ left: slideEls[i].offsetLeft - track.offsetLeft, behavior: smooth === false ? 'auto' : 'smooth' });
+      setCur(i);
     }
-    var prev = arrow(-1), next = arrow(1);
-    viewport.appendChild(prev); viewport.appendChild(track); viewport.appendChild(next);
-    wrapEl.insertBefore(viewport, oldGrid);
-
-    var pos = 0, last = 0, hovering = false, holdUntil = 0, visible = true, SPEED = 38; // px per second
-    function measure() {
-      var overflow = track.scrollWidth - track.clientWidth;
-      if (!rolling) {
-        // Add two more copies once, only when the people don't fit in one screen.
-        if (overflow > 8 && !reduce) {
-          setW = track.scrollWidth + 24; // one set plus the gap that follows it
-          fill(true); fill(true); rolling = true;
-          track.classList.add('rolling');
-          track.scrollLeft = setW; pos = setW;
-          requestAnimationFrame(tick);
-        } else if (overflow <= 8) { prev.hidden = true; next.hidden = true; }
+    function stopAuto() { auto = false; if (pauseBtn) { pauseBtn.textContent = '▶'; pauseBtn.setAttribute('aria-label', 'Play automatic slide change'); pauseBtn.hidden = false; } }
+    if (slideEls.length > 1) {
+      [-1, 1].forEach(function (dir) {
+        var bt = document.createElement('button'); bt.type = 'button'; bt.className = 'team-arrow ' + (dir < 0 ? 'prev' : 'next');
+        bt.setAttribute('aria-label', dir < 0 ? 'Previous group' : 'Next group'); bt.innerHTML = dir < 0 ? '&#8249;' : '&#8250;';
+        bt.addEventListener('click', function () { stopAuto(); go(cur + dir); });
+        stage.appendChild(bt);
+      });
+      var dotRow = document.createElement('div'); dotRow.className = 'team-dots';
+      slides.forEach(function (s, i) {
+        var d = document.createElement('button'); d.type = 'button'; d.className = 'team-dot';
+        d.setAttribute('aria-label', 'Show ' + INTRO[s[0]][0].toLowerCase());
+        d.addEventListener('click', function () { stopAuto(); go(i); });
+        dots.push(d); dotRow.appendChild(d);
+      });
+      if (auto) {
+        pauseBtn = document.createElement('button'); pauseBtn.type = 'button'; pauseBtn.className = 'team-pause';
+        pauseBtn.textContent = '❚❚'; pauseBtn.setAttribute('aria-label', 'Pause automatic slide change');
+        pauseBtn.addEventListener('click', function () {
+          if (auto) { stopAuto(); } else { auto = true; pauseBtn.textContent = '❚❚'; pauseBtn.setAttribute('aria-label', 'Pause automatic slide change'); }
+        });
+        dotRow.appendChild(pauseBtn);
       }
+      stage.appendChild(dotRow);
+      track.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); stopAuto(); go(cur + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); stopAuto(); go(cur - 1); }
+      });
+      // Follow swipes / trackpad scrolling so dots and focus order stay right.
+      var settle = null;
+      track.addEventListener('scroll', function () {
+        clearTimeout(settle);
+        settle = setTimeout(function () {
+          var w = track.clientWidth || 1, i = Math.round(track.scrollLeft / w);
+          if (i !== cur && i >= 0 && i < slideEls.length) setCur(i);
+        }, 90);
+      }, { passive: true });
+      track.addEventListener('touchstart', stopAuto, { passive: true });
+      track.addEventListener('wheel', function (e) { if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) stopAuto(); }, { passive: true });
+      stage.addEventListener('mouseenter', function () { hovering = true; });
+      stage.addEventListener('mouseleave', function () { hovering = false; });
+      stage.addEventListener('focusin', function () { hovering = true; });
+      stage.addEventListener('focusout', function () { hovering = false; });
+      // Opening a long bio means the visitor is reading: stop moving on them.
+      stage.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.more')) stopAuto(); });
+      if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }).observe(stage);
+      timer = setInterval(function () { if (auto && visible && !hovering && !document.hidden) go(cur + 1); }, 8000);
+      window.addEventListener('resize', function () { go(cur, false); });
     }
-    function wrap() {
-      if (!rolling) return;
-      if (track.scrollLeft >= setW * 2) { track.scrollLeft -= setW; pos = track.scrollLeft; }
-      else if (track.scrollLeft < setW) { track.scrollLeft += setW; pos = track.scrollLeft; }
-    }
-    function tick(now) {
-      var dt = Math.min(now - last, 60) / 1000; last = now;
-      if (rolling && visible && !hovering && now > holdUntil && !document.hidden) {
-        pos = (Math.abs(track.scrollLeft - pos) > 2 ? track.scrollLeft : pos) + SPEED * dt;
-        track.scrollLeft = pos; wrap();
-      } else { pos = track.scrollLeft; }
-      requestAnimationFrame(tick);
-    }
-    track.addEventListener('scroll', wrap, { passive: true });
-    viewport.addEventListener('mouseenter', function () { hovering = true; });
-    viewport.addEventListener('mouseleave', function () { hovering = false; });
-    viewport.addEventListener('focusin', function () { hovering = true; });
-    viewport.addEventListener('focusout', function () { hovering = false; });
-    track.addEventListener('touchstart', function () { holdUntil = performance.now() + 4000; }, { passive: true });
-    track.addEventListener('wheel', function () { holdUntil = performance.now() + 2500; }, { passive: true });
-    if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }).observe(viewport);
-    requestAnimationFrame(function () { measure(); }); setTimeout(measure, 500);
+    setCur(0);
+    wrapEl.insertBefore(stage, oldGrid);
     oldGrid.remove();
     if (multi) {
       document.getElementById('teamKicker').textContent = 'Meet our team';
