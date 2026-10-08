@@ -490,6 +490,9 @@ async function deleteWithdrawal(req, res) {
 //     cash_positions rows exist yet -- once any day has been closed,
 //     every later day's beginning balance comes from the prior day's
 //     ending balance automatically, not from this route.
+//   POST ?resource=cashflow&action=set_beginning
+//     Admin edit of today's beginning balances (open day only), or
+//     { reset: true } to go back to carrying forward from yesterday.
 //   POST ?resource=cashflow&action=close
 //     Locks today's row: computes and stores every activity/ending
 //     field from today's actual data, sets closed_at. Refuses to
@@ -639,7 +642,7 @@ async function cashflowToday(req, res) {
       closed_at: null,
     };
 
-    res.status(200).json({ ok: true, position, closed: false, seeded, isFirstDay: !seeded });
+    res.status(200).json({ ok: true, position, closed: false, seeded, isFirstDay: !seeded, override: !!row });
   } catch (err) {
     console.error('Unexpected error building cashflow today view:', err);
     res.status(500).json({ ok: false, error: 'Unexpected server error.' });
@@ -648,7 +651,7 @@ async function cashflowToday(req, res) {
 
 async function cashflowHistory(req, res) {
   try {
-    const resp = await supabaseRequest('cash_positions?select=*&closed_at=not.is.null&order=position_date.desc&limit=90', { method: 'GET' });
+    const resp = await supabaseRequest('cash_positions?select=*&closed_at=not.is.null&order=position_date.desc&limit=400', { method: 'GET' });
     if (!resp.ok) {
       res.status(502).json({ ok: false, error: 'Could not load cash position history.' });
       return;
@@ -822,6 +825,89 @@ async function cashflowClose(req, res, session) {
   }
 }
 
+// Admin edit/reset of TODAY's beginning-of-day balances (only while the
+// day is still open). body { beginning_cash, beginning_gcash,
+// beginning_checking, beginning_outstanding } saves a manual override;
+// body { reset: true } drops the override so the day goes back to
+// carrying forward from yesterday's closing balances.
+async function cashflowSetBeginning(req, res) {
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) {
+      res.status(400).json({ ok: false, error: 'Invalid JSON body' });
+      return;
+    }
+  }
+  if (!body || typeof body !== 'object') {
+    res.status(400).json({ ok: false, error: 'Missing beginning balance data' });
+    return;
+  }
+
+  try {
+    const today = todayManila();
+    const { ok, row } = await fetchCashPosition(today);
+    if (!ok) {
+      res.status(502).json({ ok: false, error: 'Could not load today’s cash position.' });
+      return;
+    }
+    if (row && row.closed_at) {
+      res.status(409).json({ ok: false, error: 'Today has already been closed, so its beginning balances can no longer be changed.' });
+      return;
+    }
+
+    if (body.reset === true) {
+      if (row) {
+        const del = await supabaseRequest(`cash_positions?id=eq.${encodeURIComponent(row.id)}&closed_at=is.null`, { method: 'DELETE' });
+        if (!del.ok) {
+          console.error('Supabase cash_positions reset error:', del.status, await del.text());
+          res.status(502).json({ ok: false, error: 'Could not reset beginning balances.' });
+          return;
+        }
+      }
+      res.status(200).json({ ok: true, reset: true });
+      return;
+    }
+
+    const fields = {
+      beginning_cash: num(body.beginning_cash),
+      beginning_gcash: num(body.beginning_gcash),
+      beginning_checking: num(body.beginning_checking),
+      beginning_outstanding: num(body.beginning_outstanding),
+    };
+    if (Object.values(fields).some((n) => n < 0)) {
+      res.status(400).json({ ok: false, error: 'Beginning balances cannot be negative.' });
+      return;
+    }
+    const payload = {};
+    Object.keys(fields).forEach((k) => { payload[k] = fields[k].toFixed(2); });
+
+    let resp;
+    if (row) {
+      resp = await supabaseRequest(`cash_positions?id=eq.${encodeURIComponent(row.id)}&closed_at=is.null`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(payload),
+      });
+    } else {
+      resp = await supabaseRequest('cash_positions', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ position_date: today, ...payload }),
+      });
+    }
+    if (!resp.ok) {
+      console.error('Supabase cash_positions set_beginning error:', resp.status, await resp.text());
+      res.status(502).json({ ok: false, error: 'Could not save beginning balances.' });
+      return;
+    }
+    const saved = await resp.json();
+    res.status(200).json({ ok: true, position: saved[0] || null });
+  } catch (err) {
+    console.error('Unexpected error setting beginning balances:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
@@ -862,7 +948,8 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       if (action === 'seed') return cashflowSeed(req, res);
       if (action === 'close') return cashflowClose(req, res, session);
-      res.status(400).json({ ok: false, error: 'Unknown or missing action for POST cashflow (expected "seed" or "close").' });
+      if (action === 'set_beginning') return cashflowSetBeginning(req, res);
+      res.status(400).json({ ok: false, error: 'Unknown or missing action for POST cashflow (expected "seed", "set_beginning" or "close").' });
       return;
     }
 

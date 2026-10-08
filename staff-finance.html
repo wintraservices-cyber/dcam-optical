@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance — DCAM Optical (Staff)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #B05A9E;
+    --purple-deep: #8F4680;
+    --blue: #5BAFC0;
+    --blue-deep: #458F9E;
+    --ivory: #F7F1E8;
+    --ivory-dim: #EFE6D8;
+    --charcoal: #383334;
+    --charcoal-soft: #4A4547;
+    --line: rgba(56,51,52,0.14);
+    --green: #3E8E5A;
+    --red: #B0405A;
+    --display: 'Plus Jakarta Sans', sans-serif;
+    --body: 'Sora', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--charcoal); font-family: var(--body); }
+
+  .staff-bar {
+    background: var(--charcoal);
+    color: var(--ivory);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .staff-bar .tag {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .staff-bar .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .staff-bar a, .staff-bar button {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 18px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-light { background: var(--ivory); color: var(--charcoal); }
+  .btn-ghost { background: transparent; color: var(--ivory); border: 1px solid rgba(247,241,232,0.4) !important; }
+  .btn-ghost:hover { background: rgba(247,241,232,0.1); }
+
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  h1.page-title { font-family: var(--display); font-size: 1.3rem; margin-bottom: 4px; }
+  .page-subtitle { color: var(--charcoal-soft); font-size: 0.88rem; margin-bottom: 22px; }
+
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
+  }
+  .card h2 {
+    font-family: var(--display);
+    font-size: 1rem;
+    margin-bottom: 14px;
+  }
+  .card p.note {
+    font-size: 0.85rem;
+    color: var(--charcoal-soft);
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+
+  .seed-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr auto;
+    gap: 10px;
+    align-items: end;
+  }
+  .field label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--charcoal-soft);
+    margin-bottom: 4px;
+    font-family: var(--display);
+    font-weight: 700;
+  }
+  .field input {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-family: var(--body);
+    font-size: 0.9rem;
+    color: var(--charcoal);
+    outline: none;
+  }
+  .field input:focus { border-color: var(--blue); }
+
+  .btn-primary {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    background: var(--purple);
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-primary.confirm { background: var(--green); }
+
+  .status-msg { font-size: 0.82rem; margin-top: 10px; }
+  .status-msg.error { color: var(--red); }
+  .status-msg.success { color: var(--green); }
+
+  .balance-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .balance-tile {
+    background: var(--ivory-dim);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .balance-tile .label {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    margin-bottom: 6px;
+  }
+  .balance-tile .value {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.15rem;
+  }
+
+  .section-label {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--purple-deep);
+    margin: 18px 0 10px;
+  }
+
+  .activity-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin-bottom: 4px; }
+  .activity-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.9rem;
+  }
+  .activity-row .amt { font-family: var(--display); font-weight: 700; }
+  .activity-row .amt.pos { color: var(--green); }
+  .activity-row .amt.neg { color: var(--red); }
+
+  .close-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1.5px solid var(--line);
+  }
+  .closed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: var(--green);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(56,51,52,0.06);
+  }
+  thead th {
+    text-align: left;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--charcoal-soft);
+    background: var(--ivory-dim);
+    padding: 10px 14px;
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-top: 1px solid var(--line);
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+  tbody tr:hover { background: var(--ivory-dim); }
+
+  .not-admin-state { text-align: center; padding: 80px 20px; color: var(--charcoal-soft); }
+  .empty-state, .loading-state, .error-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--charcoal-soft);
+    font-size: 0.95rem;
+  }
+  .error-state { color: var(--red); }
+
+  @media (max-width: 720px) {
+    .seed-grid { grid-template-columns: 1fr 1fr; }
+    .seed-grid .btn-primary { grid-column: 1 / -1; }
+    .balance-grid { grid-template-columns: 1fr 1fr; }
+    .activity-list { grid-template-columns: 1fr; }
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tbody tr {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      padding: 10px 14px;
+    }
+    tbody td {
+      border: none;
+      padding: 6px 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      white-space: normal;
+    }
+    tbody td::before {
+      content: attr(data-label);
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--charcoal-soft);
+    }
+  }
+  body.embed .staff-bar { display: none; }
+  body.embed .page-title, body.embed .page-subtitle { display: none; }
+  .bod-edit { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 640px) { .bod-edit { grid-template-columns: 1fr 1fr; } }
+  .bod-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center; }
+  .btn-link { background:none; border:0; color:var(--charcoal-soft); text-decoration:underline; cursor:pointer; font:inherit; font-size:0.82rem; padding:4px 2px; }
+  tr.month-total td, tr.grand-total td { font-weight:700; background: var(--ivory); }
+  tr.grand-total td { border-top: 2px solid var(--charcoal); }
+
+  .fin-tabs { display:flex; gap:8px; padding:16px 24px 0; border-bottom:1px solid var(--line); }
+  .fin-tab { font-family: var(--display); font-weight:700; font-size:0.95rem; padding:10px 18px; border:0; background:none; cursor:pointer; color:var(--charcoal-soft); border-bottom:3px solid transparent; }
+  .fin-tab.active { color:var(--purple-deep); border-bottom-color:var(--purple); }
+  .fin-frame { width:100%; border:0; display:block; min-height: calc(100vh - 130px); background: var(--ivory); }
+  .fin-denied { display:none; max-width:520px; margin:60px auto; text-align:center; padding:0 24px; }
+</style>
+</head>
+<body>
+<div class="staff-bar">
+  <div class="tag">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    Staff only — finance
+  </div>
+  <div class="actions">
+    <a href="staff-dashboard.html" class="btn-light">Dashboard</a>
+    <a href="staff-orders.html" class="btn-light">Orders</a>
+    <a href="staff-catalog.html" class="btn-light">Catalog</a>
+    <a href="staff-reports.html" class="btn-light">Reports</a>
+    <a href="staff-finance.html" class="btn-light nav-admin-only" style="outline:2px solid var(--purple);">Finance</a>
+    <a href="staff-settings.html" class="btn-light nav-admin-only">Settings</a>
+    <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
+    <a href="staff-profile.html" class="btn-light">Profile</a>
+    <button class="btn-ghost" id="logoutBtn">Log out</button>
+  </div>
+</div>
+
+<div class="fin-denied" id="denied"><h2>Admin access only</h2><p style="margin-top:8px;color:var(--charcoal-soft);">Finance is available to admin accounts.</p></div>
+<div id="finMain" style="display:none;">
+  <div class="fin-tabs" role="tablist">
+    <button type="button" class="fin-tab active" id="tabExpenses" role="tab">Expenses</button>
+    <button type="button" class="fin-tab" id="tabCash" role="tab">Cash Position</button>
+  </div>
+  <iframe class="fin-frame" id="finFrame" title="Finance"></iframe>
+</div>
+<script>
+(function(){
+  var SRC = { expenses: 'staff-expenses.html?embed=1', cash: 'staff-cashflow.html?embed=1' };
+  var frame = document.getElementById('finFrame');
+  function show(tab, push) {
+    document.getElementById('tabExpenses').classList.toggle('active', tab === 'expenses');
+    document.getElementById('tabCash').classList.toggle('active', tab === 'cash');
+    frame.src = SRC[tab];
+    if (push) history.replaceState(null, '', '#' + tab);
+  }
+  document.getElementById('tabExpenses').addEventListener('click', function(){ show('expenses', true); });
+  document.getElementById('tabCash').addEventListener('click', function(){ show('cash', true); });
+  document.getElementById('logoutBtn').addEventListener('click', async function(){
+    await fetch('/api/staff-auth?action=logout', { method: 'POST' });
+    window.location.href = 'staff-login.html';
+  });
+  setInterval(function(){
+    try {
+      var d = frame.contentDocument;
+      if (!d || !d.body) return;
+      var h = Math.max(d.documentElement.scrollHeight, d.body.scrollHeight);
+      if (h > 200 && Math.abs(h - frame.offsetHeight) > 4) frame.style.height = h + 'px';
+    } catch (e) {}
+  }, 600);
+  (async function(){
+    var auth;
+    try { auth = await (await fetch('/api/staff-auth')).json(); } catch (e) { auth = null; }
+    if (!auth || !auth.authenticated) { window.location.href = 'staff-login.html?next=staff-finance.html'; return; }
+    if (auth.role !== 'admin') {
+      document.querySelectorAll('.nav-admin-only').forEach(function(el){ el.remove(); });
+      document.getElementById('denied').style.display = 'block';
+      return;
+    }
+    document.getElementById('finMain').style.display = 'block';
+    show(location.hash === '#cash' ? 'cash' : 'expenses', false);
+  })();
+})();
+</script>
+</body>
+</html>

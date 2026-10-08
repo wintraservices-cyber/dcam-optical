@@ -295,9 +295,11 @@
       color: var(--charcoal-soft);
     }
   }
+  body.embed .staff-bar { display: none; }
 </style>
 </head>
 <body>
+<script>if (/[?&]embed=1/.test(location.search)) document.body.classList.add('embed');</script>
 
 <div class="staff-bar">
   <div class="tag">
@@ -309,7 +311,7 @@
     <a href="staff-orders.html" class="btn-light">Orders</a>
     <a href="staff-catalog.html" class="btn-light">Catalog</a>
     <a href="staff-reports.html" class="btn-light">Reports</a>
-    <a href="staff-cashflow.html" class="btn-light nav-admin-only">Cash Position</a>
+    <a href="staff-finance.html" class="btn-light nav-admin-only">Finance</a>
     <a href="staff-settings.html" class="btn-light nav-admin-only">Settings</a>
     <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
     <a href="staff-profile.html" class="btn-light">Profile</a>

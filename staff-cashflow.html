@@ -270,9 +270,18 @@
       color: var(--charcoal-soft);
     }
   }
+  body.embed .staff-bar { display: none; }
+  body.embed .page-title, body.embed .page-subtitle { display: none; }
+  .bod-edit { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 640px) { .bod-edit { grid-template-columns: 1fr 1fr; } }
+  .bod-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center; }
+  .btn-link { background:none; border:0; color:var(--charcoal-soft); text-decoration:underline; cursor:pointer; font:inherit; font-size:0.82rem; padding:4px 2px; }
+  tr.month-total td, tr.grand-total td { font-weight:700; background: var(--ivory); }
+  tr.grand-total td { border-top: 2px solid var(--charcoal); }
 </style>
 </head>
 <body>
+<script>if (/[?&]embed=1/.test(location.search)) document.body.classList.add('embed');</script>
 
 <div class="staff-bar">
   <div class="tag">
@@ -284,7 +293,7 @@
     <a href="staff-orders.html" class="btn-light">Orders</a>
     <a href="staff-catalog.html" class="btn-light">Catalog</a>
     <a href="staff-reports.html" class="btn-light">Reports</a>
-    <a href="staff-expenses.html" class="btn-light nav-admin-only">Expenses</a>
+    <a href="staff-finance.html" class="btn-light nav-admin-only">Finance</a>
     <a href="staff-settings.html" class="btn-light nav-admin-only">Settings</a>
     <a href="staff-patient-lookup.html" class="btn-light">Patient lookup</a>
     <a href="staff-profile.html" class="btn-light">Profile</a>
@@ -419,12 +428,32 @@
       <div class="card">
         <h2>Today — ${fmtDate(position.position_date)} <span style="font-weight:500;color:var(--charcoal-soft);font-size:0.8rem;">(draft, updates live)</span></h2>
 
-        <div class="section-label" style="margin-top:0;">Beginning of day</div>
-        <div class="balance-grid">
-          <div class="balance-tile"><div class="label">Cash</div><div class="value">${fmtPeso(position.beginning_cash)}</div></div>
-          <div class="balance-tile"><div class="label">Gcash</div><div class="value">${fmtPeso(position.beginning_gcash)}</div></div>
-          <div class="balance-tile"><div class="label">Checking</div><div class="value">${fmtPeso(position.beginning_checking)}</div></div>
-          <div class="balance-tile"><div class="label">Outstanding owed</div><div class="value">${fmtPeso(position.beginning_outstanding)}</div></div>
+        <div class="section-label" style="margin-top:0;">Beginning of day${position._override ? ' <span style="font-weight:500;color:var(--charcoal-soft);font-size:0.78rem;">(manually set)</span>' : ''}</div>
+        <div id="bodView">
+          <div class="balance-grid">
+            <div class="balance-tile"><div class="label">Cash</div><div class="value">${fmtPeso(position.beginning_cash)}</div></div>
+            <div class="balance-tile"><div class="label">Gcash</div><div class="value">${fmtPeso(position.beginning_gcash)}</div></div>
+            <div class="balance-tile"><div class="label">Checking</div><div class="value">${fmtPeso(position.beginning_checking)}</div></div>
+            <div class="balance-tile"><div class="label">Outstanding owed</div><div class="value">${fmtPeso(position.beginning_outstanding)}</div></div>
+          </div>
+          <div class="bod-actions">
+            <button type="button" class="btn-light" id="bodEditBtn" style="border:1px solid var(--border,#ddd);padding:6px 12px;border-radius:8px;cursor:pointer;">Edit beginning of day</button>
+            <button type="button" class="btn-link" id="bodResetBtn">Reset to yesterday’s closing</button>
+            <span class="status-msg" id="bodStatus"></span>
+          </div>
+        </div>
+        <div id="bodEdit" style="display:none;">
+          <div class="bod-edit">
+            <div class="field"><label>Cash ₱</label><input type="text" id="bodCash" inputmode="decimal" value="${Number(position.beginning_cash || 0).toFixed(2)}"></div>
+            <div class="field"><label>Gcash ₱</label><input type="text" id="bodGcash" inputmode="decimal" value="${Number(position.beginning_gcash || 0).toFixed(2)}"></div>
+            <div class="field"><label>Checking ₱</label><input type="text" id="bodChecking" inputmode="decimal" value="${Number(position.beginning_checking || 0).toFixed(2)}"></div>
+            <div class="field"><label>Outstanding owed ₱</label><input type="text" id="bodOutstanding" inputmode="decimal" value="${Number(position.beginning_outstanding || 0).toFixed(2)}"></div>
+          </div>
+          <div class="bod-actions">
+            <button type="button" class="btn-primary" id="bodSaveBtn">Save</button>
+            <button type="button" class="btn-link" id="bodCancelBtn">Cancel</button>
+            <span class="status-msg" id="bodEditStatus"></span>
+          </div>
         </div>
 
         <div class="section-label">Today's activity</div>
@@ -452,6 +481,38 @@
         <div class="status-msg" id="closeStatus"></div>
       </div>
     `;
+
+    const bodView = document.getElementById('bodView');
+    const bodEdit = document.getElementById('bodEdit');
+    document.getElementById('bodEditBtn').addEventListener('click', () => { bodView.style.display = 'none'; bodEdit.style.display = 'block'; });
+    document.getElementById('bodCancelBtn').addEventListener('click', () => { bodEdit.style.display = 'none'; bodView.style.display = 'block'; });
+    document.getElementById('bodSaveBtn').addEventListener('click', async () => {
+      const st = document.getElementById('bodEditStatus');
+      const val = (id) => parseFloat(document.getElementById(id).value) || 0;
+      const payload = {
+        beginning_cash: val('bodCash'), beginning_gcash: val('bodGcash'),
+        beginning_checking: val('bodChecking'), beginning_outstanding: val('bodOutstanding'),
+      };
+      if (Object.values(payload).some(n => n < 0)) { st.textContent = 'Balances cannot be negative.'; st.className = 'status-msg error'; return; }
+      st.textContent = 'Saving…'; st.className = 'status-msg';
+      try {
+        const resp = await fetch('/api/expenses?resource=cashflow&action=set_beginning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+        loadToday();
+      } catch (err) { st.textContent = err.message || 'Could not save.'; st.className = 'status-msg error'; }
+    });
+    document.getElementById('bodResetBtn').addEventListener('click', async () => {
+      const st = document.getElementById('bodStatus');
+      if (!confirm('Reset today’s beginning of day back to yesterday’s closing balances?')) return;
+      st.textContent = 'Resetting…'; st.className = 'status-msg';
+      try {
+        const resp = await fetch('/api/expenses?resource=cashflow&action=set_beginning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reset: true }) });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not reset.');
+        loadToday();
+      } catch (err) { st.textContent = err.message || 'Could not reset.'; st.className = 'status-msg error'; }
+    });
 
     document.getElementById('closeDayBtn').addEventListener('click', async () => {
       if (!confirm('Close today’s cash position? This locks in today’s numbers permanently and cannot be reopened.')) return;
@@ -512,14 +573,106 @@
         seedCard.innerHTML = '';
       }
 
+      todayDraft = result.closed ? null : result.position;
       if (result.closed) {
         renderTodayClosed(result.position);
       } else {
+        result.position._override = !!result.override;
         renderTodayDraft(result.position);
       }
+      if (historyPositions) renderHistory();
     } catch (err) {
       todayCard.innerHTML = `<div class="card"><div class="error-state">${escapeHtml(err.message)}</div></div>`;
     }
+  }
+
+  let todayDraft = null;
+  let historyPositions = null;
+
+  function sumRows(list) {
+    const t = { cash: 0, gcash: 0, exp: 0, wd: 0 };
+    list.forEach(p => {
+      t.cash += Number(p.cash_sales || 0);
+      t.gcash += Number(p.gcash_sales || 0);
+      t.exp += Number(p.total_expenses || 0);
+      t.wd += Number(p.total_withdrawals_cash || 0) + Number(p.total_withdrawals_checking || 0) + Number(p.total_withdrawals_gcash || 0);
+    });
+    return t;
+  }
+
+  function dayRow(p, label) {
+    const wd = Number(p.total_withdrawals_cash || 0) + Number(p.total_withdrawals_checking || 0) + Number(p.total_withdrawals_gcash || 0);
+    const gross = Number(p.cash_sales || 0) + Number(p.gcash_sales || 0);
+    return `
+      <tr>
+        <td data-label="Date">${label || fmtDate(p.position_date)}</td>
+        <td data-label="Cash sales">${fmtPeso(p.cash_sales)}</td>
+        <td data-label="Gcash sales">${fmtPeso(p.gcash_sales)}</td>
+        <td data-label="Gross sales">${fmtPeso(gross)}</td>
+        <td data-label="Expenses">${fmtPeso(p.total_expenses)}</td>
+        <td data-label="Withdrawals">${fmtPeso(wd)}</td>
+        <td data-label="Ending cash">${fmtPeso(p.ending_cash)}</td>
+        <td data-label="Ending Gcash">${fmtPeso(p.ending_gcash)}</td>
+        <td data-label="Ending checking">${fmtPeso(p.ending_checking)}</td>
+        <td data-label="Outstanding">${fmtPeso(p.ending_outstanding)}</td>
+      </tr>`;
+  }
+
+  function totalRow(cls, label, t, last) {
+    return `
+      <tr class="${cls}">
+        <td data-label="Date">${label}</td>
+        <td data-label="Cash sales">${fmtPeso(t.cash)}</td>
+        <td data-label="Gcash sales">${fmtPeso(t.gcash)}</td>
+        <td data-label="Gross sales">${fmtPeso(t.cash + t.gcash)}</td>
+        <td data-label="Expenses">${fmtPeso(t.exp)}</td>
+        <td data-label="Withdrawals">${fmtPeso(t.wd)}</td>
+        <td data-label="Ending cash">${last ? fmtPeso(last.ending_cash) : '—'}</td>
+        <td data-label="Ending Gcash">${last ? fmtPeso(last.ending_gcash) : '—'}</td>
+        <td data-label="Ending checking">${last ? fmtPeso(last.ending_checking) : '—'}</td>
+        <td data-label="Outstanding">${last ? fmtPeso(last.ending_outstanding) : '—'}</td>
+      </tr>`;
+  }
+
+  // Closed days plus today's live draft (if still open), grouped by
+  // month, newest first. Each month ends with a Gross total row; the
+  // table ends with a Grand total over everything shown. Gross sales =
+  // cash sales + Gcash sales. Ending balances on total rows are the
+  // balances at the end of the latest day in that group.
+  function renderHistory() {
+    const closed = historyPositions || [];
+    const all = todayDraft ? [Object.assign({ _open: true }, todayDraft)].concat(closed.filter(p => p.position_date !== todayDraft.position_date)) : closed;
+    if (!all.length) {
+      historyContent.innerHTML = '<div class="empty-state">No closed days yet.</div>';
+      return;
+    }
+    all.sort((a, b) => (a.position_date < b.position_date ? 1 : -1));
+    const months = [];
+    all.forEach(p => {
+      const key = String(p.position_date).slice(0, 7);
+      let m = months[months.length - 1];
+      if (!m || m.key !== key) { m = { key, rows: [] }; months.push(m); }
+      m.rows.push(p);
+    });
+    let body = '';
+    months.forEach(m => {
+      const d = new Date(m.key + '-01T00:00:00');
+      const name = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      m.rows.forEach(p => { body += dayRow(p, p._open ? fmtDate(p.position_date) + ' (open)' : null); });
+      const openNote = m.rows.some(p => p._open) ? ' <span style="font-weight:500;">(running)</span>' : '';
+      body += totalRow('month-total', escapeHtml(name) + ' — Gross total' + openNote, sumRows(m.rows), m.rows[0]);
+    });
+    body += totalRow('grand-total', 'Grand total', sumRows(all), all[0]);
+
+    historyContent.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Cash sales</th><th>Gcash sales</th><th>Gross sales</th><th>Expenses</th><th>Withdrawals</th><th>Ending cash</th><th>Ending Gcash</th><th>Ending checking</th><th>Outstanding</th></tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+      <div class="note" style="margin-top:8px;">Gross sales = cash + Gcash sales. Gross total is per month; Grand total covers every day shown. Ending columns on total rows show the balance at the end of the latest day in that group. Today’s open day is included until it is closed.</div>
+    `;
   }
 
   async function loadHistory() {
@@ -528,35 +681,8 @@
       const resp = await fetch('/api/expenses?resource=cashflow&action=history');
       const result = await resp.json();
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load history.');
-
-      const positions = result.positions || [];
-      if (!positions.length) {
-        historyContent.innerHTML = '<div class="empty-state">No closed days yet.</div>';
-        return;
-      }
-
-      const rows = positions.map(p => `
-        <tr>
-          <td data-label="Date">${fmtDate(p.position_date)}</td>
-          <td data-label="Cash sales">${fmtPeso(p.cash_sales)}</td>
-          <td data-label="Gcash sales">${fmtPeso(p.gcash_sales)}</td>
-          <td data-label="Expenses">${fmtPeso(p.total_expenses)}</td>
-          <td data-label="Withdrawals">${fmtPeso(Number(p.total_withdrawals_cash || 0) + Number(p.total_withdrawals_checking || 0))}</td>
-          <td data-label="Ending cash">${fmtPeso(p.ending_cash)}</td>
-          <td data-label="Ending Gcash">${fmtPeso(p.ending_gcash)}</td>
-          <td data-label="Ending checking">${fmtPeso(p.ending_checking)}</td>
-          <td data-label="Outstanding">${fmtPeso(p.ending_outstanding)}</td>
-        </tr>
-      `).join('');
-
-      historyContent.innerHTML = `
-        <table>
-          <thead>
-            <tr><th>Date</th><th>Cash sales</th><th>Gcash sales</th><th>Expenses</th><th>Withdrawals</th><th>Ending cash</th><th>Ending Gcash</th><th>Ending checking</th><th>Outstanding</th></tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
+      historyPositions = result.positions || [];
+      renderHistory();
     } catch (err) {
       historyContent.innerHTML = `<div class="error-state">${escapeHtml(err.message)}</div>`;
     }
