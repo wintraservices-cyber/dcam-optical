@@ -14,7 +14,7 @@ const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport, usageDaily, summarize } = require('../lib/ai-usage');
 const { analyticsSummary } = require('../lib/ga4');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
-const { normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
+const { tidyFacebookUrl, DEFAULT_FACEBOOK_URL, normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('../lib/team');
 const { normalizeHomepage, TEXT_FIELDS } = require('../lib/homepage');
 const { geminiStatus } = require('../lib/ai-gemini');
@@ -377,7 +377,7 @@ module.exports = async (req, res) => {
       res.status(200).json({ ok: true, ...publicSiteMode(value) });
     } catch (err) {
       console.error('site_mode read error:', err.message);
-      res.status(200).json({ ok: true, mode: 'live', message: '', facebook_url: '', pin_set: false });
+      res.status(200).json({ ok: true, mode: 'live', message: '', facebook_url: DEFAULT_FACEBOOK_URL, pin_set: false });
     }
     return;
   }
@@ -394,7 +394,7 @@ module.exports = async (req, res) => {
         const v = biz && typeof biz[f] === 'string' ? biz[f].trim() : '';
         if (v) info[f] = v.slice(0, 400);
       });
-      if (site && site.facebook_url) info.facebook_url = site.facebook_url;
+      info.facebook_url = tidyFacebookUrl(site && site.facebook_url) || DEFAULT_FACEBOOK_URL;
       // Custom display name for the public chat widget (Settings > AI
       // assistant > Website assistant). Falls back to the default label
       // client-side if this is blank/unset.
