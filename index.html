@@ -817,6 +817,7 @@
     if (a.id === 'startIntakeLink') dcamTrack('start_intake');
     else if (a.tagName === 'A' && /^tel:/i.test(a.getAttribute('href') || '')) dcamTrack('click_phone');
     else if (a.tagName === 'A' && /^mailto:/i.test(a.getAttribute('href') || '')) dcamTrack('click_email');
+    else if (a.tagName === 'A' && /^https?:\/\/([a-z0-9-]+\.)*(facebook\.com|fb\.com|fb\.me|m\.me)\//i.test(a.getAttribute('href') || '')) dcamTrack('click_facebook');
     else if (a.tagName === 'A' && /(google\.[a-z.]+\/maps|maps\.app\.goo|goo\.gl\/maps)/i.test(a.getAttribute('href') || '')) dcamTrack('click_directions');
   });
 

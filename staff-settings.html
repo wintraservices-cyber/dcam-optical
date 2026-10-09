@@ -2898,6 +2898,20 @@
       const mm = (a.regions || []).find(x => /metro manila|national capital/i.test(x.name));
       const mmShare = mm && a.users.cur ? Math.round(100 * mm.users / a.users.cur) : null;
       const totalCh = Math.max(1, (a.channels || []).reduce((n, c) => n + c.sessions, 0));
+      // Group Google's raw source names (l.facebook.com, m.facebook.com ...) into friendly names.
+      const srcMap = {};
+      (a.sources || []).forEach(x => {
+        const n = String(x.name || '');
+        let k = n;
+        if (/facebook|^fb$|fb\.com|^m\.me$/i.test(n)) k = 'Facebook';
+        else if (/instagram/i.test(n)) k = 'Instagram';
+        else if (/^google$/i.test(n)) k = 'Google search';
+        else if (/messenger/i.test(n)) k = 'Messenger';
+        else if (n === '(direct)') k = 'Direct (typed or bookmarked)';
+        else if (n === '(not set)' || !n) k = 'Not identified by Google';
+        srcMap[k] = (srcMap[k] || 0) + x.sessions;
+      });
+      const sources = Object.keys(srcMap).map(k => ({ name: k, sessions: srcMap[k] })).sort((p, q) => q.sessions - p.sessions).slice(0, 6);
       const totalDev = Math.max(1, (a.devices || []).reduce((n, c) => n + c.users, 0));
       const ev = a.events || {};
       // Google only lists days that had visitors; fill the quiet days with 0 so the chart spans the whole period.
@@ -2929,6 +2943,7 @@
         <div class="dash-grid" style="margin-top:12px;">
           <div class="dash-card"><h3>Visitors per day</h3><div class="sub">${range}</div>${svg || '<div class="sub" style="margin-top:8px">Pick a period of more than one day to see the chart.</div>'}</div>
           <div class="dash-card"><h3>How people found you</h3>${barList(a.channels || [], c => escapeHtml(c.name === 'Unassigned' ? 'Not identified by Google' : c.name), c => c.sessions, c => Math.round(100 * c.sessions / totalCh) + '%')}
+            <div class="sub" style="margin-top:12px"><b>Top sources</b></div>${barList(sources, c => escapeHtml(c.name), c => c.sessions, c => Math.round(100 * c.sessions / totalCh) + '%')}
             <div class="sub" style="margin-top:10px">${(a.devices || []).map(d => escapeHtml(d.name) + ' ' + Math.round(100 * d.users / totalDev) + '%').join(' · ')}</div><div style="margin-top:8px">${GA}</div></div>
         </div>
         <div class="dash-grid" style="margin-top:12px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
@@ -2937,6 +2952,7 @@
             <div class="dash-step"><span>Clicked “Start intake form”</span><b>${int(ev.start_intake)}</b></div>
             <div class="dash-step"><span>Opened the AI chat</span><b>${int(ev.chat_open)}</b></div>
             <div class="dash-step"><span>Checked an order status</span><b>${int(ev.track_order_check)}</b></div>
+            <div class="dash-step"><span>Tapped the Facebook link</span><b>${int(ev.click_facebook)}</b></div>
             <div class="dash-step"><span>Tapped phone · directions · email</span><b>${int(ev.click_phone)} · ${int(ev.click_directions)} · ${int(ev.click_email)}</b></div>
           </div><div style="margin-top:8px">${GA}</div></div>
         </div>`;

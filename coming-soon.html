@@ -172,6 +172,7 @@
   }
   document.getElementById('fbLink').addEventListener('click', function (e) {
     if (this.getAttribute('aria-disabled') === 'true') e.preventDefault();
+    else if (window.gtag) { try { window.gtag('event', 'click_facebook'); } catch (x) {} }
   });
 
   fetch('/api/settings?view=site_mode').then(function (r) { return r.json(); }).then(function (d) {
