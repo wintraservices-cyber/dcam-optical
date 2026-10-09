@@ -287,7 +287,11 @@ async function checkAuth() {
       return false;
     }
     currentRole = result.role;
-    if (currentRole !== 'admin') {
+    if (currentRole === 'tech') {
+      document.querySelectorAll('.staff-bar .actions a').forEach(a => {
+        if (a.getAttribute('href') !== 'staff-settings.html') a.remove();
+      });
+    } else if (currentRole !== 'admin') {
       document.querySelectorAll('.nav-admin-only').forEach(el => el.remove());
     }
     return true;

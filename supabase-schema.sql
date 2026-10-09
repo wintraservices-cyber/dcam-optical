@@ -794,3 +794,22 @@ as $$
     set checks = order_check_daily.checks + 1,
         found = order_check_daily.found + case when p_found then 1 else 0 end;
 $$;
+
+-- ---------------------------------------------------------------------
+-- Tech role: a staff account that can only use Settings > AI assistant
+-- and Website. Widens the role check on staff_users to allow 'tech'.
+-- Safe to re-run.
+-- ---------------------------------------------------------------------
+do $$
+declare c text;
+begin
+  for c in
+    select conname from pg_constraint
+    where conrelid = 'staff_users'::regclass and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%role%'
+  loop
+    execute format('alter table staff_users drop constraint %I', c);
+  end loop;
+  alter table staff_users add constraint staff_users_role_check
+    check (role in ('admin', 'staff', 'tech'));
+end $$;

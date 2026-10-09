@@ -172,6 +172,7 @@
     border-radius: 100px;
   }
   .role-pill.admin { background: rgba(176,90,158,0.14); color: var(--purple-deep); }
+  .role-pill.tech { background: rgba(47,135,152,0.14); color: #1f6a79; }
   .role-pill.staff { background: rgba(56,51,52,0.08); color: var(--charcoal-soft); }
   .inactive-row { opacity: 0.45; }
   .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -637,6 +638,7 @@
           <select id="newRole">
             <option value="staff">Staff</option>
             <option value="admin">Admin</option>
+            <option value="tech">Tech (AI assistant + Website only)</option>
           </select>
         </div>
         <div>
@@ -1182,6 +1184,23 @@
     });
   }
 
+  // Tech accounts: only the AI assistant and Website tabs, no other pages.
+  let isTech = false;
+  function applyTechMode() {
+    isTech = true;
+    ['rx', 'business', 'accounts', 'project-status', 'trash'].forEach(t => {
+      const b = document.querySelector('.tabs button[data-tab="' + t + '"]');
+      if (b) b.remove();
+      const p = document.getElementById('panel-' + t);
+      if (p) p.remove();
+    });
+    document.querySelectorAll('.staff-bar .actions a').forEach(a => {
+      if (a.getAttribute('href') !== 'staff-profile.html') a.remove();
+    });
+    const first = document.querySelector('.tabs button[data-tab="ai"]');
+    if (first) first.click();
+  }
+
   async function checkAuth() {
     try {
       const resp = await fetch('/api/staff-auth');
@@ -1189,6 +1208,10 @@
       if (!result.authenticated) {
         window.location.href = 'staff-login.html?next=staff-settings.html';
         return false;
+      }
+      if (result.role === 'tech') {
+        applyTechMode();
+        return true;
       }
       if (result.role !== 'admin') {
         mainWrap.style.display = 'none';
@@ -2856,13 +2879,15 @@
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not load settings.');
 
       mainWrap.style.display = 'block';
-      renderRxRangesForm(result.settings.rx_ranges);
-      renderBusinessInfo(result.settings.business_info);
-      renderProjectStatus(result.settings.project_status);
+      if (!isTech) {
+        renderRxRangesForm(result.settings.rx_ranges);
+        renderBusinessInfo(result.settings.business_info);
+        renderProjectStatus(result.settings.project_status);
+        renderPhoneValidation(result.settings.phone_validation);
+        renderPrintPrefs(result.settings.print_prefs);
+      }
       window.renderTechCosts(result.settings.tech_costs);
-      renderTeamFrom(result.settings.optometrists);
-      renderPhoneValidation(result.settings.phone_validation);
-      renderPrintPrefs(result.settings.print_prefs);
+      if (!isTech) renderTeamFrom(result.settings.optometrists);
       aiProvStatus = result.settings.ai_provider_status || aiProvStatus;
       aiSpendToday = result.settings.ai_spend_today || null;
       renderAiAccess(result.settings.ai_access);
@@ -2871,20 +2896,22 @@
       renderHomepage(result.settings.homepage);
       kbEntries = (result.settings.ai_knowledge && result.settings.ai_knowledge.entries) || [];
       renderKnowledge();
-      loadAccounts();
+      if (!isTech) loadAccounts();
     } catch (err) {
       mainWrap.style.display = 'block';
-      renderRxRangesForm(null);
-      renderBusinessInfo(null);
-      renderProjectStatus(null);
-      renderTeamFrom(null);
-      renderPhoneValidation(null);
-      renderPrintPrefs(null);
+      if (!isTech) {
+        renderRxRangesForm(null);
+        renderBusinessInfo(null);
+        renderProjectStatus(null);
+        renderPhoneValidation(null);
+        renderPrintPrefs(null);
+      }
+      if (!isTech) renderTeamFrom(null);
       renderAiAccess(null);
       renderSiteMode(null);
       renderHomepage(null);
       renderKnowledge();
-      loadAccounts();
+      if (!isTech) loadAccounts();
     }
   })();
 

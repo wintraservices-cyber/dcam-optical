@@ -8,7 +8,7 @@
 // GET with ?key=X returns just that key's value.
 // PATCH { key, value } upserts one key.
 
-const { requireAuth, requireAdmin } = require('../lib/auth');
+const { requireAuth, requireAdmin, requireAdminOrTech } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport, usageDaily, summarize, websiteSpendToday } = require('../lib/ai-usage');
@@ -39,8 +39,18 @@ async function writeSetting(key, value, username) {
   if (!resp.ok) throw new Error(`app_settings write ${resp.status}: ${await resp.text()}`);
 }
 
-async function getSettings(req, res) {
+// What the 'tech' role may read/edit: the AI assistant + Website tabs only.
+// business_info is read-only for tech (the Website tab shows hours/contact).
+const TECH_READ_KEYS = ['ai_access', 'ai_knowledge', 'site_mode', 'homepage', 'tech_costs', 'business_info'];
+const TECH_WRITE_KEYS = ['ai_access', 'ai_knowledge', 'site_mode', 'homepage', 'tech_costs'];
+
+async function getSettings(req, res, sessionUser) {
   const { key } = req.query || {};
+  const isTech = !!(sessionUser && sessionUser.role === 'tech');
+  if (isTech && key && !TECH_READ_KEYS.includes(key)) {
+    res.status(403).json({ ok: false, error: 'This account can only use Settings > AI assistant and Website.' });
+    return;
+  }
 
   try {
     const path = key
@@ -82,6 +92,11 @@ async function getSettings(req, res) {
     }
     if (settings.optometrists) settings.optometrists = adminTeam(settings.optometrists);
     delete settings.optometrist_photos;
+    if (isTech) {
+      Object.keys(settings).forEach(k => {
+        if (!TECH_READ_KEYS.includes(k) && !['homepage_text_fields', 'ai_provider_status', 'ai_spend_today'].includes(k)) delete settings[k];
+      });
+    }
     res.status(200).json({ ok: true, settings });
   } catch (err) {
     console.error('Unexpected error reading settings:', err);
@@ -99,6 +114,7 @@ async function saveTeamPhotos(value, sessionUser) {
 }
 
 async function putSetting(req, res, sessionUser) {
+  const techBlocked = sessionUser.role === 'tech';
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch (e) {
@@ -108,6 +124,10 @@ async function putSetting(req, res, sessionUser) {
   }
   const { key, value } = body || {};
 
+  if (techBlocked && ALLOWED_KEYS.includes(key) && !TECH_WRITE_KEYS.includes(key)) {
+    res.status(403).json({ ok: false, error: 'This account can only change the AI assistant and Website settings.' });
+    return;
+  }
   if (!ALLOWED_KEYS.includes(key)) {
     res.status(400).json({ ok: false, error: `key must be one of: ${ALLOWED_KEYS.join(', ')}` });
     return;
@@ -431,7 +451,7 @@ module.exports = async (req, res) => {
   // Staff permissions (what a non-admin may do with orders), readable by
   // any logged-in user so the order form and Orders list can lock themselves.
   if (req.method === 'GET' && req.query && req.query.view === 'permissions') {
-    const sessionUser = requireAuth(req, res);
+    const sessionUser = requireAuth(req, res, { allowTech: true });
     if (!sessionUser) return;
     const permissions = await getPermissions();
     const labels = {};
@@ -500,8 +520,8 @@ module.exports = async (req, res) => {
   }
 
   if (req.method === 'GET' && req.query && req.query.view === 'ai_unanswered') {
-    // Questions the assistants couldn't answer -- admin only.
-    if (!requireAdmin(req, res)) return;
+    // Questions the assistants couldn't answer -- admin or tech.
+    if (!requireAdminOrTech(req, res)) return;
     try {
       const rows = await listUnanswered(req.query.status || 'open');
       res.status(200).json({ ok: true, questions: rows });
@@ -513,8 +533,8 @@ module.exports = async (req, res) => {
   }
 
   if (req.method === 'POST' && req.query && req.query.action === 'ai_unanswered') {
-    // Mark a question resolved / dismissed / open again -- admin only.
-    const sessionUser = requireAdmin(req, res);
+    // Mark a question resolved / dismissed / open again -- admin or tech.
+    const sessionUser = requireAdminOrTech(req, res);
     if (!sessionUser) return;
     let body = req.body;
     if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
@@ -528,13 +548,13 @@ module.exports = async (req, res) => {
   }
 
   if (req.method === 'GET' && req.query && req.query.view === 'dashboard') {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdminOrTech(req, res)) return;
     return getDashboard(req, res);
   }
 
   if (req.method === 'GET' && req.query && req.query.view === 'ai_usage') {
-    // AI usage + estimated cost -- admin only.
-    if (!requireAdmin(req, res)) return;
+    // AI usage + estimated cost -- admin or tech.
+    if (!requireAdminOrTech(req, res)) return;
     return getAiUsage(req, res);
   }
 
@@ -543,7 +563,7 @@ module.exports = async (req, res) => {
     // index.html so hours/FAQ text stays crawlable and in sync with
     // Settings. See buildAeoSnippet() above for why this can't just be
     // rendered live.
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdminOrTech(req, res)) return;
     try {
       const [biz, knowledge] = await Promise.all([readSetting('business_info'), loadKnowledge()]);
       const snippet = buildAeoSnippet(biz, knowledge);
@@ -558,13 +578,14 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     // Any logged-in staff member can read settings -- the order form
     // needs the Rx ranges regardless of who's using it.
-    if (!requireAuth(req, res)) return;
-    return getSettings(req, res);
+    const sessionUser = requireAuth(req, res, { allowTech: true });
+    if (!sessionUser) return;
+    return getSettings(req, res, sessionUser);
   }
 
   if (req.method === 'PATCH') {
     // Changing settings (Rx ranges, business info) is admin-only.
-    const sessionUser = requireAdmin(req, res);
+    const sessionUser = requireAdminOrTech(req, res);
     if (!sessionUser) return;
     return putSetting(req, res, sessionUser);
   }

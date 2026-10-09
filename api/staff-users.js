@@ -45,7 +45,7 @@ async function createUser(req, res) {
   const username = sanitizeUsername(body && body.username);
   const password = (body && body.password) || '';
   const displayName = (body && body.display_name || '').trim().slice(0, 100) || null;
-  const role = body && body.role === 'admin' ? 'admin' : 'staff';
+  const role = body && ['admin', 'tech'].includes(body.role) ? body.role : 'staff';
   const email = sanitizeEmail(body && body.email || '');
   const phone = sanitizePhone(body && body.phone || '');
 
@@ -127,8 +127,8 @@ async function updateUser(req, res) {
   const patch = {};
   if (body.active !== undefined) patch.active = !!body.active;
   if (body.role !== undefined) {
-    if (!['admin', 'staff'].includes(body.role)) {
-      res.status(400).json({ ok: false, error: 'role must be "admin" or "staff".' });
+    if (!['admin', 'staff', 'tech'].includes(body.role)) {
+      res.status(400).json({ ok: false, error: 'role must be "admin", "staff" or "tech".' });
       return;
     }
     patch.role = body.role;

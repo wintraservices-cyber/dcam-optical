@@ -77,7 +77,7 @@ function isBootstrapSession(sessionUser) {
 }
 
 async function handleMe(req, res) {
-  const sessionUser = requireAuth(req, res);
+  const sessionUser = requireAuth(req, res, { allowTech: true });
   if (!sessionUser) return;
   if (isBootstrapSession(sessionUser)) {
     res.status(200).json({ ok: true, user: { username: sessionUser.username, role: sessionUser.role, display_name: null, email: null, phone: null, bio: null, avatar_data_url: null, bootstrap: true } });
@@ -128,7 +128,7 @@ async function handleMe(req, res) {
 }
 
 async function handleUpdateProfile(req, res) {
-  const sessionUser = requireAuth(req, res);
+  const sessionUser = requireAuth(req, res, { allowTech: true });
   if (!sessionUser) return;
   if (isBootstrapSession(sessionUser)) {
     res.status(400).json({ ok: false, error: 'Create a real staff account first (Settings > Staff accounts) -- the bootstrap login has no profile to edit.' });
@@ -232,7 +232,7 @@ async function handleUpdateProfile(req, res) {
 }
 
 async function handleChangePassword(req, res) {
-  const sessionUser = requireAuth(req, res);
+  const sessionUser = requireAuth(req, res, { allowTech: true });
   if (!sessionUser) return;
   if (isBootstrapSession(sessionUser)) {
     res.status(400).json({ ok: false, error: 'Create a real staff account first (Settings > Staff accounts) -- the bootstrap login has no password of its own to change.' });
@@ -354,7 +354,7 @@ async function handleLogin(req, res) {
       });
     } catch (e) { /* non-fatal */ }
 
-    res.status(200).json({ ok: true });
+    res.status(200).json({ ok: true, role: user.role });
   } catch (err) {
     console.error('Unexpected error during staff login:', err);
     res.status(500).json({ ok: false, error: 'Unexpected server error.' });

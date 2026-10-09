@@ -168,7 +168,7 @@
         throw new Error(result.error || 'Login failed.');
       }
 
-      window.location.href = next;
+      window.location.href = result.role === 'tech' ? 'staff-settings.html' : next;
     } catch (err) {
       errorEl.textContent = err.message || 'Incorrect password.';
       errorEl.style.display = 'block';
