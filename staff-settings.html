@@ -3057,19 +3057,21 @@
     const money = n => sym() + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     function totals() {
       let m = 0, y = 0, once = 0, ph = 0;
+      let tbd = 0;
       items.forEach(it => {
+        if (it.label) { tbd += 1; if (it.status !== 'actual') ph += 1; return; }
         const a = Number(it.amount) || 0;
         if (it.period === 'month') { m += a; y += a * 12; }
         else if (it.period === 'year') { m += a / 12; y += a; }
         else once += a;
         if (it.status !== 'actual') ph += 1;
       });
-      return { m, y, once, ph };
+      return { m, y, once, ph, tbd };
     }
     function drawTiles() {
       const t = totals();
       tiles.innerHTML = `<div class="tc-tile"><div class="k">Per month</div><div class="v">${money(t.m)}</div><div class="s">yearly costs spread over 12 months</div></div>
-        <div class="tc-tile"><div class="k">Per year</div><div class="v">${money(t.y)}</div><div class="s">recurring costs only</div></div>
+        <div class="tc-tile"><div class="k">Per year</div><div class="v">${money(t.y)}</div><div class="s">recurring costs only${t.tbd ? ' · ' + t.tbd + ' not priced yet' : ''}</div></div>
         <div class="tc-tile"><div class="k">One-time</div><div class="v">${money(t.once)}</div><div class="s">not included above</div></div>
         <div class="tc-tile"><div class="k">Still estimates</div><div class="v">${t.ph} of ${items.length}</div><div class="s">marked Placeholder</div></div>`;
     }
@@ -3078,7 +3080,7 @@
       return `<tr data-i="${i}" class="${it.status === 'actual' ? '' : 'ph'}">
         <td><input data-f="name" value="${escapeHtml(it.name).replace(/"/g, '&quot;')}" maxlength="80" aria-label="What"></td>
         <td><input data-f="provider" value="${escapeHtml(it.provider).replace(/"/g, '&quot;')}" maxlength="80" aria-label="Provider"></td>
-        <td><input class="amt" data-f="amount" type="number" min="0" step="0.01" value="${Number(it.amount) || 0}" aria-label="Amount"></td>
+        <td><input class="amt" data-f="amount" type="text" inputmode="decimal" maxlength="12" value="${it.label ? escapeHtml(it.label).replace(/"/g, '&quot;') : (Number(it.amount) || 0)}" aria-label="Amount (a number, or text such as $$$)" title="A number, or text such as $$$ or TBD (text is left out of the totals)"></td>
         <td><select data-f="period" aria-label="How often">${sel([['month', 'Per month'], ['year', 'Per year'], ['once', 'One-time']], it.period)}</select></td>
         <td><select data-f="status" aria-label="Status">${sel([['placeholder', 'Placeholder'], ['actual', 'Actual']], it.status)}</select></td>
         <td><input data-f="note" value="${escapeHtml(it.note).replace(/"/g, '&quot;')}" maxlength="200" aria-label="Note"></td>
@@ -3088,7 +3090,12 @@
     body.addEventListener('input', e => {
       const tr = e.target.closest('tr'); if (!tr) return;
       const f = e.target.getAttribute('data-f'); if (!f) return;
-      items[+tr.dataset.i][f] = f === 'amount' ? e.target.value : e.target.value;
+      const it = items[+tr.dataset.i];
+      if (f === 'amount') {
+        const v = e.target.value.trim();
+        if (v === '' || (Number.isFinite(Number(v)) && Number(v) >= 0)) { it.amount = v === '' ? 0 : Number(v); it.label = ''; }
+        else { it.amount = 0; it.label = v.slice(0, 12); }
+      } else it[f] = e.target.value;
       if (f === 'status') tr.classList.toggle('ph', e.target.value !== 'actual');
       drawTiles();
     });
@@ -3106,7 +3113,7 @@
       const btn = document.getElementById('tcSave');
       btn.disabled = true; statusEl.textContent = 'Saving…'; statusEl.className = 'save-status';
       try {
-        const value = { currency: cur.value, items: items.filter(it => String(it.name).trim()).map(it => ({ ...it, amount: Number(it.amount) || 0 })) };
+        const value = { currency: cur.value, items: items.filter(it => String(it.name).trim()).map(it => ({ ...it, amount: it.label ? it.label : (Number(it.amount) || 0) })) };
         const resp = await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'tech_costs', value }) });
         const result = await resp.json();
         if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
