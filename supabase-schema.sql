@@ -813,3 +813,11 @@ begin
   alter table staff_users add constraint staff_users_role_check
     check (role in ('admin', 'staff', 'tech'));
 end $$;
+
+-- ---------------------------------------------------------------------
+-- Sign-in lockout: 5 wrong passwords in a row lock the account until an
+-- admin unlocks it (Settings > Staff accounts); the lock also lapses
+-- after 30 minutes. Safe to re-run.
+-- ---------------------------------------------------------------------
+alter table staff_users add column if not exists failed_attempts integer not null default 0;
+alter table staff_users add column if not exists locked_at timestamptz;

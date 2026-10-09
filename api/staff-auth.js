@@ -23,6 +23,12 @@ const { sanitizeEmail, sanitizePhone, isUniqueViolation } = require('../lib/staf
 
 const DEMO_STAFF_PASSWORD = 'dcam-optical';
 const MAX_BIO_CHARS = 500;
+// Sign-in lockout: after this many wrong passwords in a row the account is
+// locked until an admin unlocks it (Settings > Staff accounts). As a safety
+// net so the only admin can't be stuck forever, the lock also lapses on its
+// own after LOCK_MINUTES.
+const MAX_FAILED_LOGINS = 5;
+const LOCK_MINUTES = 30;
 // Keeps avatar_data_url (and the Supabase row carrying it) small -- this
 // is a profile picture stored as a base64 data: URL directly in the
 // database (no Storage bucket set up for this project), not a full
@@ -339,7 +345,37 @@ async function handleLogin(req, res) {
 
     // Same error for "no such user" and "wrong password" -- don't leak
     // which usernames exist.
+    // Locked? (columns added by the lockout migration; absent until it is run)
+    if (user && user.active && user.locked_at) {
+      const lockedFor = Date.now() - new Date(user.locked_at).getTime();
+      if (lockedFor < LOCK_MINUTES * 60 * 1000) {
+        res.status(423).json({ ok: false, locked: true, error: 'This account is locked after too many incorrect passwords. Ask an admin to unlock it, or try again in about ' + Math.max(1, Math.ceil(LOCK_MINUTES - lockedFor / 60000)) + ' minutes.' });
+        return;
+      }
+    }
+
     if (!user || !user.active || !verifyPassword(password, user.password_hash, user.password_salt)) {
+      if (user && user.active && 'failed_attempts' in user) {
+        // Count the miss; lock on the Nth. A lapsed lock starts a fresh count.
+        const prior = user.locked_at ? 0 : (user.failed_attempts || 0);
+        const attempts = prior + 1;
+        const lock = attempts >= MAX_FAILED_LOGINS;
+        try {
+          await supabaseRequest(`staff_users?id=eq.${encodeURIComponent(user.id)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ failed_attempts: attempts, locked_at: lock ? new Date().toISOString() : null }),
+          });
+        } catch (e) { /* non-fatal */ }
+        if (lock) {
+          res.status(423).json({ ok: false, locked: true, error: 'Too many incorrect passwords. This account is now locked -- ask an admin to unlock it, or try again in ' + LOCK_MINUTES + ' minutes.' });
+          return;
+        }
+        const left = MAX_FAILED_LOGINS - attempts;
+        if (left <= 2) {
+          res.status(401).json({ ok: false, error: 'Incorrect username or password. ' + left + ' attempt' + (left === 1 ? '' : 's') + ' left before this account is locked.' });
+          return;
+        }
+      }
       res.status(401).json({ ok: false, error: 'Incorrect username or password.' });
       return;
     }
@@ -350,7 +386,7 @@ async function handleLogin(req, res) {
     try {
       await supabaseRequest(`staff_users?id=eq.${encodeURIComponent(user.id)}`, {
         method: 'PATCH',
-        body: JSON.stringify({ last_login_at: new Date().toISOString() }),
+        body: JSON.stringify(Object.assign({ last_login_at: new Date().toISOString() }, 'failed_attempts' in user ? { failed_attempts: 0, locked_at: null } : {})),
       });
     } catch (e) { /* non-fatal */ }
 

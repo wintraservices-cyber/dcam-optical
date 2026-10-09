@@ -132,6 +132,25 @@ async function updateUser(req, res) {
       return;
     }
     patch.role = body.role;
+    if (body.role !== 'admin') {
+      // Never leave the system without an active admin.
+      try {
+        const cur = await supabaseRequest(`staff_users?id=eq.${encodeURIComponent(id)}&select=role&limit=1`, { method: 'GET' });
+        const [row] = cur.ok ? await cur.json() : [];
+        if (row && row.role === 'admin') {
+          const others = await supabaseRequest(`staff_users?role=eq.admin&active=eq.true&id=neq.${encodeURIComponent(id)}&select=id&limit=1`, { method: 'GET' });
+          const list = others.ok ? await others.json() : [];
+          if (!list.length) {
+            res.status(400).json({ ok: false, error: 'This is the only active admin. Make someone else an admin first.' });
+            return;
+          }
+        }
+      } catch (e) { /* fall through; DB still validates the role */ }
+    }
+  }
+  if (body.unlock) {
+    patch.failed_attempts = 0;
+    patch.locked_at = null;
   }
   if (body.display_name !== undefined) {
     patch.display_name = String(body.display_name).trim().slice(0, 100) || null;
@@ -168,6 +187,9 @@ async function updateUser(req, res) {
     const { hash, salt } = hashPassword(String(body.new_password));
     patch.password_hash = hash;
     patch.password_salt = salt;
+    // A reset also clears any lockout.
+    patch.failed_attempts = 0;
+    patch.locked_at = null;
   }
 
   if (Object.keys(patch).length === 0) {
@@ -177,14 +199,29 @@ async function updateUser(req, res) {
   patch.updated_at = new Date().toISOString();
 
   try {
-    const resp = await supabaseRequest(`staff_users?id=eq.${encodeURIComponent(id)}`, {
+    const send = () => supabaseRequest(`staff_users?id=eq.${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { Prefer: 'return=representation' },
       body: JSON.stringify(patch),
     });
+    let resp = await send();
+    let errText = '';
+    if (!resp.ok) {
+      errText = await resp.text();
+      // Lockout columns not created yet (migration not run): retry without them.
+      if (/failed_attempts|locked_at/.test(errText)) {
+        const onlyUnlock = body.unlock && Object.keys(patch).every(k => ['failed_attempts', 'locked_at', 'updated_at'].includes(k));
+        delete patch.failed_attempts; delete patch.locked_at;
+        if (onlyUnlock) {
+          res.status(502).json({ ok: false, error: 'Account locking is not set up yet -- run the latest supabase-schema.sql.' });
+          return;
+        }
+        resp = await send();
+        errText = resp.ok ? '' : await resp.text();
+      }
+    }
 
     if (!resp.ok) {
-      const errText = await resp.text();
       console.error('Supabase staff_users update error:', resp.status, errText);
       if (isUniqueViolation(errText)) {
         let field = 'That value is';

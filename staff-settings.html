@@ -503,6 +503,7 @@
   .dash-chart text { fill: #5E5759; font: 11px sans-serif; }
   .dash-ga { border-style: dashed; background: transparent; }
 </style>
+<script src="password-toggle.js" defer></script>
 </head>
 <body>
 
@@ -1483,6 +1484,11 @@
     }
   }
 
+  // Locked after 5 wrong passwords; the lock lapses by itself after 30 min.
+  function isLocked(u) {
+    return !!(u && u.locked_at && Date.now() - new Date(u.locked_at).getTime() < 30 * 60 * 1000);
+  }
+
   function renderAccounts() {
     const container = document.getElementById('accountsList');
     if (accounts.length === 0) {
@@ -1500,13 +1506,14 @@
               <td>${escapeHtml(u.email) || '—'}</td>
               <td>${escapeHtml(u.phone) || '—'}</td>
               <td><span class="role-pill ${u.role}">${escapeHtml(u.role)}</span></td>
-              <td>${u.active === false ? 'Deactivated' : 'Active'}</td>
+              <td>${u.active === false ? 'Deactivated' : (isLocked(u) ? '<strong style="color:#B3261E;">Locked</strong>' : 'Active')}</td>
               <td>${escapeHtml(fmtLastLogin(u.last_login_at))}</td>
               <td>
                 <div class="row-actions">
                   <button class="icon-btn edit" data-id="${u.id}" data-action="edit">Edit</button>
                   <button class="icon-btn toggle" data-id="${u.id}" data-action="toggle">${u.active === false ? 'Reactivate' : 'Deactivate'}</button>
                   <button class="icon-btn reset" data-id="${u.id}" data-action="reset">Reset password</button>
+                  ${isLocked(u) ? `<button class="icon-btn" data-id="${u.id}" data-action="unlock">Unlock</button>` : ''}
                 </div>
               </td>
             </tr>
@@ -1520,6 +1527,14 @@
                   <div>
                     <label>Display name</label>
                     <input type="text" id="editDisplayName-${u.id}" value="${escapeHtml(u.display_name) || ''}">
+                  </div>
+                  <div>
+                    <label>Role</label>
+                    <select id="editRole-${u.id}">
+                      <option value="staff" ${u.role === 'staff' ? 'selected' : ''}>Staff</option>
+                      <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+                      <option value="tech" ${u.role === 'tech' ? 'selected' : ''}>Tech (AI assistant + Website only)</option>
+                    </select>
                   </div>
                   <div>
                     <label>Email <span style="font-weight:400;color:var(--charcoal-soft);">(optional)</span></label>
@@ -1566,6 +1581,7 @@
           const displayName = document.getElementById(`editDisplayName-${id}`).value.trim();
           const email = document.getElementById(`editEmail-${id}`).value.trim();
           const phone = document.getElementById(`editPhone-${id}`).value.trim();
+          const role = document.getElementById(`editRole-${id}`).value;
           const statusEl = document.getElementById(`editStatus-${id}`);
           statusEl.textContent = 'Saving…';
           statusEl.className = 'save-status';
@@ -1573,7 +1589,7 @@
             const resp = await fetch('/api/staff-users', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id, username, display_name: displayName, email, phone }),
+              body: JSON.stringify({ id, username, display_name: displayName, email, phone, role }),
             });
             const result = await resp.json();
             if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save changes.');
@@ -1581,6 +1597,22 @@
           } catch (err) {
             statusEl.textContent = err.message;
             statusEl.className = 'save-status error';
+          }
+          return;
+        }
+
+        if (action === 'unlock') {
+          try {
+            const resp = await fetch('/api/staff-users', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, unlock: true }),
+            });
+            const result = await resp.json();
+            if (!resp.ok || !result.ok) throw new Error(result.error);
+            loadAccounts();
+          } catch (err) {
+            alert('Could not unlock: ' + err.message);
           }
           return;
         }
