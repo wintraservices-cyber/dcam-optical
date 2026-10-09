@@ -214,7 +214,7 @@
   .tc-tile .v { font-size:1.4rem; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums; }
   .tc-tile .s { font-size:0.78rem; color:var(--charcoal-soft, #6B6465); margin-top:2px; }
   .tc-wrap { overflow-x:auto; }
-  .tc-table { width:100%; border-collapse:collapse; min-width:760px; }
+  .tc-table { width:100%; border-collapse:collapse; min-width:900px; }
   .tc-table th { text-align:left; font-size:0.74rem; text-transform:uppercase; letter-spacing:.05em; color:var(--charcoal-soft, #6B6465); padding:6px 6px; }
   .tc-table td { padding:4px 4px; vertical-align:top; }
   .tc-table input, .tc-table select { width:100%; box-sizing:border-box; padding:7px 8px; border:1.5px solid var(--line, #E5DED2); border-radius:8px; font:inherit; font-size:0.86rem; background:#fff; }
@@ -813,7 +813,7 @@
         </div>
         <div class="tc-tiles" id="tcTiles"></div>
         <div class="tc-wrap"><table class="tc-table">
-          <thead><tr><th>What</th><th>Provider</th><th>Amount</th><th>How often</th><th>Status</th><th>Note</th><th></th></tr></thead>
+          <thead><tr><th>What</th><th>Provider</th><th>Amount</th><th>How often</th><th>Status</th><th>Paid on</th><th>Note</th><th></th></tr></thead>
           <tbody id="tcBody"></tbody>
         </table></div>
         <div class="save-row">
@@ -3083,6 +3083,7 @@
         <td><input class="amt" data-f="amount" type="text" inputmode="decimal" maxlength="12" value="${it.label ? escapeHtml(it.label).replace(/"/g, '&quot;') : (Number(it.amount) || 0)}" aria-label="Amount (a number, or text such as $$$)" title="A number, or text such as $$$ or TBD (text is left out of the totals)"></td>
         <td><select data-f="period" aria-label="How often">${sel([['month', 'Per month'], ['year', 'Per year'], ['once', 'One-time']], it.period)}</select></td>
         <td><select data-f="status" aria-label="Status">${sel([['placeholder', 'Placeholder'], ['actual', 'Actual']], it.status)}</select></td>
+        <td><input data-f="paid_on" type="date" value="${escapeHtml(it.paid_on || '')}" aria-label="Date paid" title="When this was last paid (leave empty if not paid yet)"></td>
         <td><input data-f="note" value="${escapeHtml(it.note).replace(/"/g, '&quot;')}" maxlength="200" aria-label="Note"></td>
         <td><button type="button" class="tc-del" data-del="${i}" title="Remove" aria-label="Remove this cost">&times;</button></td></tr>`;
     }
@@ -3106,7 +3107,7 @@
     cur.addEventListener('change', drawTiles);
     document.getElementById('tcAdd').addEventListener('click', () => {
       if (items.length >= 30) return;
-      items.push({ name: '', provider: '', amount: 0, period: 'month', status: 'placeholder', note: '' }); draw();
+      items.push({ name: '', provider: '', amount: 0, period: 'month', status: 'placeholder', paid_on: '', note: '' }); draw();
       const last = body.querySelector('tr:last-child input'); if (last) last.focus();
     });
     document.getElementById('tcSave').addEventListener('click', async () => {
