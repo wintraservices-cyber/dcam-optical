@@ -36,7 +36,7 @@ const { requireAuth } = require('../lib/auth');
 const { loadAiAccess, allowedAreas, publicChatOn } = require('../lib/ai-access');
 const { toolsFor, runTool, buildStaffPrompt } = require('../lib/staff-ai');
 const { lookupOrderStatus, describeResult, ORDER_TOOL, extractFromText } = require('../lib/order-status');
-const { logUsage } = require('../lib/ai-usage');
+const { logUsage, dailyCapStatus } = require('../lib/ai-usage');
 const { geminiRoute, geminiModel, geminiMessage, geminiStream } = require('../lib/ai-gemini');
 const { isTestMode, publicTestReply, staffTestReply, streamText } = require('../lib/ai-test-mode');
 const {
@@ -181,8 +181,11 @@ async function publicChat(req, res) {
   // decide whether to show the chat at all. No AI call, no cost.
   if (req.method === 'GET') {
     const access = await loadAiAccess();
+    const on = publicChatOn(access);
+    // Daily spending limit reached -> the chat answers in Test mode.
+    const capped = on && !isTestMode(access) && (await dailyCapStatus(access)).reached;
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ ok: true, enabled: publicChatOn(access), testMode: isTestMode(access), orderStatus: publicChatOn(access) && access.public.order_status });
+    res.status(200).json({ ok: true, enabled: on, testMode: isTestMode(access) || capped, orderStatus: on && access.public.order_status });
     return;
   }
   if (req.method !== 'POST') {
@@ -216,20 +219,26 @@ async function publicChat(req, res) {
     return;
   }
 
-  // Test mode: free sample reply, no Anthropic call.
-  if (isTestMode(access)) {
+  // Daily spending limit (Settings -> AI assistant): once today's
+  // estimated website-chat cost reaches it, answer in Test mode (free)
+  // until midnight Manila time.
+  const capped = !isTestMode(access) && (await dailyCapStatus(access)).reached;
+  const freeModel = capped ? 'daily-cap' : 'test-mode';
+
+  // Test mode: free sample reply, no AI call.
+  if (isTestMode(access) || capped) {
     const question = messages[messages.length - 1].content;
     const orderReply = await testModeOrderReply(messages, access, req);
     if (orderReply) {
       await streamText(res, orderReply);
-      await logUsage({ channel: 'website', model: 'test-mode', test: true });
+      await logUsage({ channel: 'website', model: freeModel, test: true });
       res.end();
       return;
     }
     const knowledge = await loadKnowledge();
     const { text, unanswered } = await publicTestReply(question, access, knowledge);
     await streamText(res, text);
-    await logUsage({ channel: 'website', model: 'test-mode', test: true });
+    await logUsage({ channel: 'website', model: freeModel, test: true });
     if (unanswered && access.log_unanswered) await logUnanswered({ channel: 'website', question });
     res.end();
     return;

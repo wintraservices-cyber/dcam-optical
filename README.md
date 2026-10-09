@@ -384,6 +384,22 @@ Claude-app-only capability, so it works for anyone visiting the live site.
   and its nav links are hidden.
 - Any element with `data-open-chat` opens the bubble.
 
+## AI daily spending limit (website chat)
+
+- **Settings → AI assistant → Daily spending limit** (default **$2**,
+  saves on change; 0 = no limit).
+- Before each website-chat reply, today's estimated website cost (Manila
+  day, from `ai_usage_daily()`) is checked. Once it reaches the limit the
+  chat answers in **Test mode** (free sample answers, logged as
+  `model = 'daily-cap'`, `test = true`) until midnight Manila time, then
+  resumes by itself. Raising the limit resumes it within ~15 seconds.
+- The staff assistant is not limited. Spend is cached ~15 s per server,
+  so a few cents can slip past the limit during a burst; keep the
+  provider-side caps (Anthropic Console spend limit, Google Cloud budget)
+  as the hard backstop.
+- If today's spend can't be read (e.g. Supabase down), the chat keeps
+  working rather than switching off.
+
 ## AI Test mode (free)
 
 - **Turn on:** Settings → AI assistant → **Test mode** (saves instantly),

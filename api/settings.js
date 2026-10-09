@@ -11,7 +11,7 @@
 const { requireAuth, requireAdmin } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 const { normalizeAiAccess } = require('../lib/ai-access');
-const { usageReport, usageDaily, summarize } = require('../lib/ai-usage');
+const { usageReport, usageDaily, summarize, websiteSpendToday } = require('../lib/ai-usage');
 const { analyticsSummary } = require('../lib/ga4');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { tidyFacebookUrl, DEFAULT_FACEBOOK_URL, normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
@@ -72,6 +72,12 @@ async function getSettings(req, res) {
     // Which AI keys are set in Vercel (never the keys themselves), for the
     // AI service card in Settings -> AI assistant.
     settings.ai_provider_status = { claude: !!process.env.ANTHROPIC_API_KEY, gemini: geminiStatus() };
+    // Today's website-chat spend vs the daily limit, for the AI assistant tab.
+    {
+      const cap = normalizeAiAccess(settings.ai_access).daily_cap_usd;
+      const spent = await websiteSpendToday({ fresh: true });
+      settings.ai_spend_today = { cap, spent, reached: cap > 0 && spent !== null && spent >= cap };
+    }
     if (settings.optometrists) settings.optometrists = adminTeam(settings.optometrists);
     delete settings.optometrist_photos;
     res.status(200).json({ ok: true, settings });

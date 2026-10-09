@@ -322,6 +322,10 @@
     border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; font-size: 0.86rem;
   }
   .usage-alltime strong { font-family: var(--display); }
+  .cap-input { display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-weight: 700; }
+  .cap-input input { width: 84px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-variant-numeric: tabular-nums; text-align: right; }
+  .cap-status { font-size: 0.8rem; margin-top: 8px; color: var(--charcoal-soft); font-variant-numeric: tabular-nums; }
+  .cap-status.reached { color: #9a3b2a; font-weight: 600; }
   .usage-models { width: 100%; margin-bottom: 14px; }
   .usage-models td, .usage-models th { font-variant-numeric: tabular-nums; }
   .usage-models td.num, .usage-models th.num { text-align: right; }
@@ -809,6 +813,14 @@
           <div class="ai-help">Saves as soon as you flip it. Both chats give sample answers instead of calling the AI, so there's no cost and no API key needed. The website chat uses your real Business info and stock; the staff assistant runs its real lookups using simple keywords and still follows the switches below. Chats show a "Test mode" label while it's on. It's also forced on if <code>AI_TEST_MODE=1</code> is set in Vercel.</div>
         </div>
         <label class="switch"><input type="checkbox" id="aiTestMode"><span class="slider"></span></label>
+      </div>
+      <div class="ai-master" style="border-top:1px solid var(--line); border-bottom:none; margin-top:14px; padding:14px 0 0;">
+        <div>
+          <div class="ai-label">Daily spending limit (website chat)</div>
+          <div class="ai-help">Saves when you change it. Once today's estimated website-chat cost reaches this amount, the website chat switches to Test mode (free sample answers) until midnight Manila time, then goes back to normal by itself. Stops a flood of messages from draining your AI credit. Set 0 for no limit. The staff assistant isn't affected.</div>
+          <div class="cap-status" id="aiCapStatus"></div>
+        </div>
+        <div class="cap-input"><span>$</span><input type="number" id="aiDailyCap" min="0" max="100" step="0.5" inputmode="decimal" aria-label="Daily spending limit in US dollars"></div>
       </div>
     </div>
 
@@ -1681,6 +1693,8 @@
     const areas = (v.staff && v.staff.areas) || {};
     document.getElementById('aiMasterEnabled').checked = v.enabled !== false;
     document.getElementById('aiTestMode').checked = v.test_mode === true;
+    document.getElementById('aiDailyCap').value = typeof v.daily_cap_usd === 'number' ? v.daily_cap_usd : 2;
+    renderCapStatus();
     renderAiProvider(v);
     document.getElementById('aiLogUnanswered').checked = v.log_unanswered === true;
     document.getElementById('aiPublicEnabled').checked = pub.enabled !== false;
@@ -1713,6 +1727,37 @@
     document.getElementById('saveAiAccess').click();
   });
   document.getElementById('aiTestMode').addEventListener('change', () => {
+    document.getElementById('saveAiAccess').click();
+  });
+
+  // Daily spending limit: today's spend comes from the settings load
+  // (ai_spend_today); the line updates as the limit is edited.
+  let aiSpendToday = null;
+  function readCap() {
+    const n = parseFloat(document.getElementById('aiDailyCap').value);
+    return Number.isFinite(n) ? Math.min(Math.max(n, 0), 100) : 2;
+  }
+  function renderCapStatus() {
+    const el = document.getElementById('aiCapStatus');
+    const cap = readCap();
+    const money = (n) => '$' + (Number(n) || 0).toFixed(2);
+    const spent = aiSpendToday && typeof aiSpendToday.spent === 'number' ? aiSpendToday.spent : null;
+    el.classList.remove('reached');
+    if (cap <= 0) {
+      el.textContent = 'No limit set.' + (spent !== null ? ` Today so far: ${money(spent)}.` : '');
+    } else if (spent === null) {
+      el.textContent = `Limit ${money(cap)} a day.`;
+    } else if (spent >= cap) {
+      el.textContent = `Limit reached: ${money(spent)} of ${money(cap)} today. The website chat is in Test mode until midnight Manila time — raise the limit to resume now.`;
+      el.classList.add('reached');
+    } else {
+      el.textContent = `Today so far: ${money(spent)} of ${money(cap)}.`;
+    }
+  }
+  document.getElementById('aiDailyCap').addEventListener('input', renderCapStatus);
+  document.getElementById('aiDailyCap').addEventListener('change', () => {
+    document.getElementById('aiDailyCap').value = readCap();
+    renderCapStatus();
     document.getElementById('saveAiAccess').click();
   });
 
@@ -1752,6 +1797,7 @@
         enabled: document.getElementById('aiMasterEnabled').checked,
         test_mode: document.getElementById('aiTestMode').checked,
         log_unanswered: document.getElementById('aiLogUnanswered').checked,
+        daily_cap_usd: readCap(),
         provider: {
           website: document.querySelector('input[name="provWebsite"]:checked').value,
           staff: document.querySelector('input[name="provStaff"]:checked').value,
@@ -2781,6 +2827,7 @@
       renderPhoneValidation(result.settings.phone_validation);
       renderPrintPrefs(result.settings.print_prefs);
       aiProvStatus = result.settings.ai_provider_status || aiProvStatus;
+      aiSpendToday = result.settings.ai_spend_today || null;
       renderAiAccess(result.settings.ai_access);
       renderSiteMode(result.settings.site_mode);
       hpTextFields = result.settings.homepage_text_fields || [];
