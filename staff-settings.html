@@ -322,6 +322,15 @@
     border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; font-size: 0.86rem;
   }
   .usage-alltime strong { font-family: var(--display); }
+  .usage-models { width: 100%; margin-bottom: 14px; }
+  .usage-models td, .usage-models th { font-variant-numeric: tabular-nums; }
+  .usage-models td.num, .usage-models th.num { text-align: right; }
+  .usage-models .m-name { font-size: 0.74rem; color: var(--charcoal-soft); }
+  .usage-models .prov-tag { display: inline-block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px; padding: 2px 8px; margin-right: 6px; }
+  .usage-models .prov-tag.claude { background: rgba(204,120,92,0.15); color: #9a4f35; }
+  .usage-models .prov-tag.gemini { background: rgba(66,133,244,0.13); color: #2a5db0; }
+  .usage-models .prov-tag.other { background: var(--line); color: var(--charcoal-soft); }
+  .usage-section-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); margin: 4px 0 6px; }
   .usage-days-wrap { max-height: 320px; overflow-y: auto; margin-top: 14px; }
   .usage-days td { font-variant-numeric: tabular-nums; }
   .usage-days thead th { position: sticky; top: 0; background: #fff; }
@@ -1620,7 +1629,7 @@
     document.getElementById('aiProvStatus').innerHTML =
       (aiProvStatus.claude ? chip('ok', '<strong>Claude</strong> · connected') : chip('off', '<strong>Claude</strong> · no key (ANTHROPIC_API_KEY)')) +
       (g.route === 'vertex' ? chip('ok', '<strong>Gemini</strong> · connected via Google Cloud') :
-       g.route === 'aistudio' ? chip('warn', '<strong>Gemini</strong> · connected via AI Studio (free tier)') :
+       g.route === 'aistudio' ? chip('ok', '<strong>Gemini</strong> · connected via AI Studio') :
        chip('off', '<strong>Gemini</strong> · no key (VERTEX_API_KEY or GEMINI_API_KEY)'));
     if (g.envModel) {
       document.getElementById('aiGeminiModel').disabled = true;
@@ -1643,8 +1652,8 @@
         : 'Gemini has no key yet — add VERTEX_API_KEY (or GEMINI_API_KEY) in Vercel, or the chat will be unavailable.');
     }
     if (usesGemini && g.route === 'aistudio') {
-      msgs.push('<strong>Free-tier notice:</strong> on Google AI Studio\'s free tier, Google may use chat messages to improve its products. Use a Google Cloud key (VERTEX_API_KEY) or turn on billing in AI Studio before real customers use it.');
-      if (staff === 'gemini') { bad = true; msgs.push('The staff assistant sends order and patient details to the AI — don\'t run it on the free tier.'); }
+      msgs.push('<strong>Using Google AI Studio:</strong> make sure billing (prepaid credit) is on for this key in AI Studio. Paid usage isn\'t used by Google for training; on the free tier, Google may use chat messages to improve its products.' +
+        (staff === 'gemini' ? ' This matters most for the staff assistant, which sends order and patient details.' : ''));
     }
     if (!usesGemini && !aiProvStatus.claude) msgs.push('Claude has no key yet (ANTHROPIC_API_KEY in Vercel).');
     warn.innerHTML = msgs.join('<br>');
@@ -2277,6 +2286,27 @@
         }</tbody></table></div>`
       : '<div class="empty-state">No AI usage in this period.</div>';
 
+    const provName = { claude: 'Claude', gemini: 'Gemini', other: 'Other' };
+    const bm = r.range.by_model;
+    let models;
+    if (!bm) {
+      models = '<div class="usage-test-note">To see Claude vs Gemini costs, run the latest <code>supabase-schema.sql</code> in Supabase (adds <code>ai_usage_by_model</code>).</div>';
+    } else if (!bm.models.length) {
+      models = '';
+    } else {
+      models = `<div class="usage-section-label">By AI service</div>
+      <table class="usage-models">
+        <thead><tr><th>Service / model</th><th class="num">Replies</th><th class="num">Input tokens</th><th class="num">Output tokens</th><th class="num">Est. cost</th><th class="num">Per reply</th></tr></thead>
+        <tbody>${bm.models.map(m => `<tr>
+          <td><span class="prov-tag ${escapeHtml(m.provider)}">${provName[m.provider] || 'Other'}</span><span class="m-name">${escapeHtml(m.model)}</span></td>
+          <td class="num" title="Website ${int(m.website_messages)} · Staff ${int(m.staff_messages)}">${int(m.messages)}</td>
+          <td class="num">${int(m.input_tokens)}</td><td class="num">${int(m.output_tokens)}</td>
+          <td class="num">${usd(m.cost_usd)}</td><td class="num">${usd(m.messages ? m.cost_usd / m.messages : 0)}</td></tr>`).join('')}</tbody>
+      </table>`;
+    }
+    const abm = r.all_time.by_model;
+    const allProv = abm ? Object.entries(abm.providers).map(([k, v]) => `<span>${provName[k] || 'Other'} ${usd(v.cost_usd)}</span>`).join('') : '';
+
     document.getElementById('usageBody').innerHTML = `
       <div class="usage-tiles">
         <div class="usage-tile"><div class="t-label">Est. cost</div><div class="t-value">${usd(t.total.cost_usd)}</div><div class="t-sub">${escapeHtml(r.range.from)} → ${escapeHtml(r.range.to)}</div></div>
@@ -2288,12 +2318,14 @@
         <thead><tr><th>Assistant</th><th class="num">Replies</th><th class="num">Input tokens</th><th class="num">Output tokens</th><th class="num">Est. cost</th></tr></thead>
         <tbody>${row('Website chat', t.website)}${row('Staff assistant', t.staff)}</tbody>
       </table>
+      ${models}
       <div class="usage-alltime">
         <span><strong>All time</strong>${r.all_time.since ? ' (since ' + escapeHtml(r.all_time.since) + ')' : ''}:</span>
         <span>${usd(all.total.cost_usd)} total</span>
         <span>${int(all.total.messages)} replies</span>
         <span>Website ${usd(all.website.cost_usd)}</span>
         <span>Staff ${usd(all.staff.cost_usd)}</span>
+        ${allProv}
         ${r.all_time.test_replies ? `<span>Test mode ${int(r.all_time.test_replies)} free</span>` : ''}
       </div>
       ${days}`;

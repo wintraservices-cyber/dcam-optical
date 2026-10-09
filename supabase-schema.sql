@@ -462,6 +462,39 @@ as $$
   order by 1 desc, 2;
 $$;
 
+-- Totals per AI model (Claude vs Gemini) and channel for a Manila date
+-- range, real AI usage only. Powers "By AI service" in Settings ->
+-- AI assistant -> Usage & cost. A reply that fell back to the backup
+-- service has one row per model, so each provider's cost is counted.
+create or replace function ai_usage_by_model(p_from date default null, p_to date default null)
+returns table (
+  model text,
+  channel text,
+  messages bigint,
+  api_calls bigint,
+  input_tokens bigint,
+  output_tokens bigint,
+  cost_usd numeric
+)
+language sql
+stable
+as $$
+  select
+    coalesce(model, 'unknown') as model,
+    channel,
+    count(*) as messages,
+    coalesce(sum(api_calls), 0) as api_calls,
+    coalesce(sum(input_tokens), 0) as input_tokens,
+    coalesce(sum(output_tokens), 0) as output_tokens,
+    coalesce(sum(cost_usd), 0) as cost_usd
+  from ai_usage_log
+  where not test
+    and (p_from is null or (created_at at time zone 'Asia/Manila')::date >= p_from)
+    and (p_to is null or (created_at at time zone 'Asia/Manila')::date <= p_to)
+  group by 1, 2
+  order by 7 desc;
+$$;
+
 -- ---------------------------------------------------------------------
 -- Questions the AI assistants couldn't answer from the clinic's info.
 -- Only written when Settings -> AI assistant -> "Log questions it

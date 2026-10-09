@@ -363,6 +363,12 @@ Claude-app-only capability, so it works for anyone visiting the live site.
   per-day table, and all-time totals. Served by
   `GET /api/settings?view=ai_usage&from=YYYY-MM-DD&to=YYYY-MM-DD`, which
   sums in SQL via `ai_usage_daily()` (Manila calendar days).
+  A **By AI service** table splits the same period by model (Claude vs
+  Gemini: replies, tokens, estimated cost, cost per reply) via
+  `ai_usage_by_model()`; until that SQL function is added the card shows
+  a one-line "run the schema" note instead. Costs are estimates from list
+  prices -- the Anthropic Console and Google Cloud Billing / AI Studio
+  are the official figures.
 - **Setup:** run the new block at the bottom of `supabase-schema.sql`
   (safe to re-run).
 
