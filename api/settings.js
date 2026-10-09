@@ -14,13 +14,14 @@ const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport, usageDaily, summarize, websiteSpendToday } = require('../lib/ai-usage');
 const { analyticsSummary } = require('../lib/ga4');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
+const { normalizeTechCosts } = require('../lib/tech-costs');
 const { tidyFacebookUrl, DEFAULT_FACEBOOK_URL, normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
 const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('../lib/team');
 const { normalizeHomepage, TEXT_FIELDS } = require('../lib/homepage');
 const { geminiStatus } = require('../lib/ai-gemini');
 const { PERMISSIONS, normalizePermissions, getPermissions } = require('../lib/staff-permissions');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status', 'staff_permissions'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status', 'staff_permissions', 'tech_costs'];
 
 async function readSetting(key) {
   const resp = await supabaseRequest(`app_settings?key=eq.${encodeURIComponent(key)}&limit=1`, { method: 'GET' });
@@ -67,6 +68,7 @@ async function getSettings(req, res) {
     // Always send the homepage settings in full (defaults = the page's
     // original content) so the editor shows what the site shows today.
     settings.homepage = normalizeHomepage(settings.homepage);
+    settings.tech_costs = normalizeTechCosts(settings.tech_costs);
     // Field list for the Page text editor (labels + original wording).
     settings.homepage_text_fields = TEXT_FIELDS;
     // Which AI keys are set in Vercel (never the keys themselves), for the
@@ -125,6 +127,7 @@ async function putSetting(req, res, sessionUser) {
       : key === 'site_mode' ? normalizeSiteMode(value, await readSetting('site_mode'))
       : key === 'homepage' ? normalizeHomepage(value)
       : key === 'staff_permissions' ? normalizePermissions(value)
+      : key === 'tech_costs' ? normalizeTechCosts(value)
       : key === 'optometrists' ? await saveTeamPhotos(value, sessionUser)
       : value;
   } catch (err) {

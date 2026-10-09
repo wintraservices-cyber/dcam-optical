@@ -206,6 +206,21 @@
     cursor: pointer;
   }
   .subtabs button.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+  .tc-top { display:flex; align-items:center; gap:10px; margin:14px 0 6px; flex-wrap:wrap; }
+  .tc-top select { padding:8px 10px; border:1.5px solid var(--line, #E5DED2); border-radius:8px; font:inherit; }
+  .tc-tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin:12px 0; }
+  .tc-tile { border:1px solid var(--line, #E5DED2); border-radius:12px; padding:12px 14px; background:#fff; }
+  .tc-tile .k { font-size:0.74rem; text-transform:uppercase; letter-spacing:.06em; color:var(--charcoal-soft, #6B6465); }
+  .tc-tile .v { font-size:1.4rem; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums; }
+  .tc-tile .s { font-size:0.78rem; color:var(--charcoal-soft, #6B6465); margin-top:2px; }
+  .tc-wrap { overflow-x:auto; }
+  .tc-table { width:100%; border-collapse:collapse; min-width:760px; }
+  .tc-table th { text-align:left; font-size:0.74rem; text-transform:uppercase; letter-spacing:.05em; color:var(--charcoal-soft, #6B6465); padding:6px 6px; }
+  .tc-table td { padding:4px 4px; vertical-align:top; }
+  .tc-table input, .tc-table select { width:100%; box-sizing:border-box; padding:7px 8px; border:1.5px solid var(--line, #E5DED2); border-radius:8px; font:inherit; font-size:0.86rem; background:#fff; }
+  .tc-table input.amt { text-align:right; font-variant-numeric:tabular-nums; min-width:90px; }
+  .tc-table tr.ph input.amt { background:#FFF9D6; }
+  .tc-del { border:none; background:none; font-size:1.2rem; cursor:pointer; color:#B0405A; padding:4px 8px; }
   .subpanel { display: none; }
   .subpanel.active { display: block; }
   .deleted-meta { font-size: 0.78rem; color: var(--charcoal-soft); }
@@ -655,6 +670,7 @@
     <div class="subtabs">
       <button class="active" data-subtab="site">Site settings</button>
       <button data-subtab="insights">Website insights</button>
+      <button data-subtab="techcosts">Tech costs</button>
     </div>
     <div class="subpanel active" id="subpanel-site">
     <div class="card">
@@ -786,6 +802,26 @@
         <span class="save-status" id="phoneValidationStatus"></span>
       </div>
     </div>
+    </div>
+    <div class="subpanel" id="subpanel-techcosts">
+      <div class="card">
+        <h2>Tech costs</h2>
+        <div class="card-sub">What it costs to keep the website, portal and AI running. Amounts marked <b>Placeholder</b> are estimates, not real bills; change them to the real figure and set the status to <b>Actual</b> once known. Nothing here is charged or billed by this page.</div>
+        <div class="tc-top">
+          <label for="tcCurrency">Amounts below are entered in</label>
+          <select id="tcCurrency"><option value="USD">US dollars ($)</option><option value="PHP">Philippine pesos (₱)</option></select>
+        </div>
+        <div class="tc-tiles" id="tcTiles"></div>
+        <div class="tc-wrap"><table class="tc-table">
+          <thead><tr><th>What</th><th>Provider</th><th>Amount</th><th>How often</th><th>Status</th><th>Note</th><th></th></tr></thead>
+          <tbody id="tcBody"></tbody>
+        </table></div>
+        <div class="save-row">
+          <button class="save-btn" id="tcAdd" type="button" style="background:#fff; color:var(--purple-deep, #8F4680); border:1.5px solid var(--purple, #B05A9E);">+ Add a cost</button>
+          <button class="save-btn" id="tcSave" type="button">Save</button>
+          <span class="save-status" id="tcStatus"></span>
+        </div>
+      </div>
     </div>
     <div class="subpanel" id="subpanel-insights">
       <div class="card">
@@ -2823,6 +2859,7 @@
       renderRxRangesForm(result.settings.rx_ranges);
       renderBusinessInfo(result.settings.business_info);
       renderProjectStatus(result.settings.project_status);
+      window.renderTechCosts(result.settings.tech_costs);
       renderTeamFrom(result.settings.optometrists);
       renderPhoneValidation(result.settings.phone_validation);
       renderPrintPrefs(result.settings.print_prefs);
@@ -3006,6 +3043,84 @@
       } catch (err) { body.innerHTML = '<div class="empty-state">' + escapeHtml(err.message) + '</div>'; }
     }
     document.querySelector('.subtabs button[data-subtab="insights"]').addEventListener('click', () => { if (!loaded) load(); });
+  })();
+
+
+  // ---- Tech costs (Settings > Website > Tech costs) ----
+  (function () {
+    const body = document.getElementById('tcBody');
+    const tiles = document.getElementById('tcTiles');
+    const cur = document.getElementById('tcCurrency');
+    const statusEl = document.getElementById('tcStatus');
+    let items = [];
+    const sym = () => cur.value === 'PHP' ? '₱' : '$';
+    const money = n => sym() + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    function totals() {
+      let m = 0, y = 0, once = 0, ph = 0;
+      items.forEach(it => {
+        const a = Number(it.amount) || 0;
+        if (it.period === 'month') { m += a; y += a * 12; }
+        else if (it.period === 'year') { m += a / 12; y += a; }
+        else once += a;
+        if (it.status !== 'actual') ph += 1;
+      });
+      return { m, y, once, ph };
+    }
+    function drawTiles() {
+      const t = totals();
+      tiles.innerHTML = `<div class="tc-tile"><div class="k">Per month</div><div class="v">${money(t.m)}</div><div class="s">yearly costs spread over 12 months</div></div>
+        <div class="tc-tile"><div class="k">Per year</div><div class="v">${money(t.y)}</div><div class="s">recurring costs only</div></div>
+        <div class="tc-tile"><div class="k">One-time</div><div class="v">${money(t.once)}</div><div class="s">not included above</div></div>
+        <div class="tc-tile"><div class="k">Still estimates</div><div class="v">${t.ph} of ${items.length}</div><div class="s">marked Placeholder</div></div>`;
+    }
+    function row(it, i) {
+      const sel = (opts, v) => opts.map(o => `<option value="${o[0]}" ${o[0] === v ? 'selected' : ''}>${o[1]}</option>`).join('');
+      return `<tr data-i="${i}" class="${it.status === 'actual' ? '' : 'ph'}">
+        <td><input data-f="name" value="${escapeHtml(it.name).replace(/"/g, '&quot;')}" maxlength="80" aria-label="What"></td>
+        <td><input data-f="provider" value="${escapeHtml(it.provider).replace(/"/g, '&quot;')}" maxlength="80" aria-label="Provider"></td>
+        <td><input class="amt" data-f="amount" type="number" min="0" step="0.01" value="${Number(it.amount) || 0}" aria-label="Amount"></td>
+        <td><select data-f="period" aria-label="How often">${sel([['month', 'Per month'], ['year', 'Per year'], ['once', 'One-time']], it.period)}</select></td>
+        <td><select data-f="status" aria-label="Status">${sel([['placeholder', 'Placeholder'], ['actual', 'Actual']], it.status)}</select></td>
+        <td><input data-f="note" value="${escapeHtml(it.note).replace(/"/g, '&quot;')}" maxlength="200" aria-label="Note"></td>
+        <td><button type="button" class="tc-del" data-del="${i}" title="Remove" aria-label="Remove this cost">&times;</button></td></tr>`;
+    }
+    function draw() { body.innerHTML = items.map(row).join(''); drawTiles(); }
+    body.addEventListener('input', e => {
+      const tr = e.target.closest('tr'); if (!tr) return;
+      const f = e.target.getAttribute('data-f'); if (!f) return;
+      items[+tr.dataset.i][f] = f === 'amount' ? e.target.value : e.target.value;
+      if (f === 'status') tr.classList.toggle('ph', e.target.value !== 'actual');
+      drawTiles();
+    });
+    body.addEventListener('click', e => {
+      const b = e.target.closest('[data-del]'); if (!b) return;
+      items.splice(+b.dataset.del, 1); draw();
+    });
+    cur.addEventListener('change', drawTiles);
+    document.getElementById('tcAdd').addEventListener('click', () => {
+      if (items.length >= 30) return;
+      items.push({ name: '', provider: '', amount: 0, period: 'month', status: 'placeholder', note: '' }); draw();
+      const last = body.querySelector('tr:last-child input'); if (last) last.focus();
+    });
+    document.getElementById('tcSave').addEventListener('click', async () => {
+      const btn = document.getElementById('tcSave');
+      btn.disabled = true; statusEl.textContent = 'Saving…'; statusEl.className = 'save-status';
+      try {
+        const value = { currency: cur.value, items: items.filter(it => String(it.name).trim()).map(it => ({ ...it, amount: Number(it.amount) || 0 })) };
+        const resp = await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'tech_costs', value }) });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+        items = result.setting.value.items; cur.value = result.setting.value.currency; draw();
+        statusEl.textContent = 'Saved.'; statusEl.className = 'save-status success';
+      } catch (err) { statusEl.textContent = err.message; statusEl.className = 'save-status error'; }
+      finally { btn.disabled = false; }
+    });
+    window.renderTechCosts = function (setting) {
+      const v = setting || { currency: 'USD', items: [] };
+      cur.value = v.currency === 'PHP' ? 'PHP' : 'USD';
+      items = (v.items || []).map(x => ({ ...x }));
+      draw();
+    };
   })();
 
   // ---- Staff permissions ----
