@@ -99,6 +99,17 @@
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
   gtag('config', 'G-L7JWKR2HFQ');
+  // Tidy the address bar: once analytics has had time to read the campaign
+  // tags (utm_*), drop them from the visible URL. Reloads/shares stay clean.
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      try {
+        var u = new URL(location.href), had = false;
+        Array.from(u.searchParams.keys()).forEach(function (k) { if (/^utm_/i.test(k)) { u.searchParams.delete(k); had = true; } });
+        if (had) history.replaceState(history.state, '', u.pathname + (u.search || '') + u.hash);
+      } catch (e) {}
+    }, 3000);
+  });
 </script>
 </head>
 <body>
