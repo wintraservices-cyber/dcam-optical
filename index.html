@@ -195,17 +195,14 @@
   .team-track { transition: height .3s ease; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; align-items: flex-start; border-radius: 36px; }
   .team-track::-webkit-scrollbar { display: none; }
   .team-track:focus-visible { outline: 3px solid var(--sky); outline-offset: 4px; }
-  .team-slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; box-sizing: border-box; background: var(--sky-tint); border-radius: 36px; padding: clamp(28px, 4.5vw, 56px) clamp(28px, 6vw, 84px); display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: clamp(28px, 4vw, 56px); align-items: center; }
-  .team-slide .intro { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
-  .team-slide .intro h3 { font: 700 clamp(30px, 3.6vw, 46px)/1.08 var(--display); }
-  .team-slide .intro p { color: var(--muted); font-size: 17px; line-height: 1.6; }
-  .team-slide .intro .btn { background: var(--accent); color: var(--on-accent); min-height: 48px; margin-top: 6px; }
-  .team-people { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
-  .team-people .doc { flex: 1 1 168px; max-width: 224px; border-radius: 22px; }
-  .team-people .doc-photo { font-size: 40px; }
-  .team-people .doc-body { padding: 16px 16px 18px; gap: 4px; }
-  .team-people .doc h3 { font-size: 18px; line-height: 1.2; }
-  .team-people .doc .role { font-size: 14px; }
+  .team-slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; box-sizing: border-box; background: var(--sky-tint); border-radius: 36px; padding: clamp(26px, 3.5vw, 44px) clamp(24px, 3.5vw, 48px); display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: center; }
+  .team-label { font: 700 13px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .team-people { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; align-items: flex-start; }
+  .team-people .doc { flex: 1 1 210px; max-width: 300px; border-radius: 24px; }
+  .team-people .doc-photo { font-size: 52px; }
+  .team-people .doc-body { padding: 18px 18px 20px; gap: 5px; }
+  .team-people .doc h3 { font-size: 20px; line-height: 1.2; }
+  .team-people .doc .role { font-size: 15px; }
   .team-people .doc .lic { font-size: 12px; }
   .team-people .doc .bio { font-size: 13.5px; line-height: 1.55; margin-top: 8px; }
   .team-people .doc .bio.clamp { -webkit-line-clamp: 4; }
@@ -224,7 +221,7 @@
     .team-track { border-radius: 28px; }
     .team-arrow { display: none; }
   }
-  @media (max-width: 480px) { .team-people .doc { flex-basis: calc(50% - 9px); max-width: none; } }
+  @media (max-width: 480px) { .team-people { gap: 12px; } .team-people .doc { flex-basis: calc(50% - 6px); max-width: none; } .team-people .doc-photo { font-size: 40px; } }
 
   /* ---------- Chat (carried over) ---------- */
   .ai-section { background: #1C1819; color: #F7F1E8; padding: clamp(72px, 10vw, 112px) 0; }
@@ -887,10 +884,7 @@
       var info = INTRO[s[0]];
       var el = document.createElement('section'); el.className = 'team-slide';
       el.setAttribute('role', 'group'); el.setAttribute('aria-roledescription', 'slide'); el.setAttribute('aria-label', (i + 1) + ' of ' + slides.length + ': ' + info[0]);
-      var intro = document.createElement('div'); intro.className = 'intro';
-      var h = document.createElement('h3'); h.textContent = info[0]; intro.appendChild(h);
-      var p = document.createElement('p'); p.textContent = info[1]; intro.appendChild(p);
-      var a = document.createElement('a'); a.className = 'btn'; a.href = info[3]; a.textContent = info[2]; intro.appendChild(a);
+      var intro = document.createElement('div'); intro.className = 'team-label'; intro.textContent = info[0];
       var people = document.createElement('div'); people.className = 'team-people';
       s[1].forEach(function (x) { people.appendChild(card(x)); });
       el.appendChild(intro); el.appendChild(people);
