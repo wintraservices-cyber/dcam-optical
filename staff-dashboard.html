@@ -273,7 +273,7 @@
       <div class="stat-card accent-green">
         <div class="stat-label">Collected today</div>
         <div class="stat-value" id="statCollected">—</div>
-        <div class="stat-note">Deposits taken today</div>
+        <div class="stat-note" id="statCollectedNote">Deposits + balance payments</div>
       </div>
       <div class="stat-card accent-amber">
         <div class="stat-label">Expenses today</div>
@@ -576,7 +576,8 @@
 
       if (s.money) {
         document.getElementById('statSales').textContent = peso(s.money.totalAmount);
-        document.getElementById('statSalesNote').textContent = `across ${s.money.todaysOrderCount} order(s)`;
+        document.getElementById('statSalesNote').textContent = `${s.money.todaysOrderCount} order(s) · ${peso(s.money.totalOutstanding)} still owed`;
+        document.getElementById('statCollectedNote').textContent = `Deposits ${peso(s.money.depositsToday)} + balance payments ${peso(s.money.balancePaymentsToday)}`;
         document.getElementById('statCollected').textContent = peso(s.money.totalCollectedToday);
         document.getElementById('statExpenses').textContent = peso(s.money.totalExpensesToday);
 

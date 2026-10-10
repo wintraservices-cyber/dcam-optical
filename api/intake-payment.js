@@ -247,15 +247,25 @@ async function dashboardSummary(req, res, session) {
     };
 
     if (session.role === 'admin') {
-      const [salesResp, expensesResp] = await Promise.all([
+      // Balance payments logged today (on any order) count as money collected
+      // today too -- Manila-day window.
+      const dayStart = `${today}T00:00:00+08:00`;
+      const dayEnd = new Date(new Date(dayStart).getTime() + 24 * 60 * 60 * 1000).toISOString();
+      const [salesResp, expensesResp, balPayResp] = await Promise.all([
         supabaseRequest(`orders?select=amount,deposit,balance,payment_status,created_at${todayFilter}&deleted_at=is.null`, { method: 'GET' }),
         supabaseRequest(`expenses?select=amount&expense_date=eq.${encodeURIComponent(today)}`, { method: 'GET' }),
+        supabaseRequest(`balance_payments?select=amount&created_at=gte.${encodeURIComponent(dayStart)}&created_at=lt.${encodeURIComponent(dayEnd)}`, { method: 'GET' }),
       ]);
       if (salesResp.ok) {
         const salesOrders = await salesResp.json();
         const totalAmount = salesOrders.reduce((sum, o) => sum + num(o.amount), 0);
         const totalDeposit = salesOrders.reduce((sum, o) => sum + num(o.deposit), 0);
         const totalOutstanding = salesOrders.reduce((sum, o) => sum + num(o.balance), 0);
+        let balancePaymentsToday = 0;
+        if (balPayResp.ok) {
+          const bp = await balPayResp.json();
+          balancePaymentsToday = bp.reduce((sum, r) => sum + num(r.amount), 0);
+        }
         let totalExpenses = 0;
         if (expensesResp.ok) {
           const todaysExpenses = await expensesResp.json();
@@ -264,7 +274,9 @@ async function dashboardSummary(req, res, session) {
         summary.money = {
           todaysOrderCount: salesOrders.length,
           totalAmount,
-          totalCollectedToday: totalDeposit,
+          totalCollectedToday: totalDeposit + balancePaymentsToday,
+          depositsToday: totalDeposit,
+          balancePaymentsToday,
           totalOutstanding,
           totalExpensesToday: totalExpenses,
           // Net today = today's total sales value minus today's expenses
