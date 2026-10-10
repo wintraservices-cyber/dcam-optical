@@ -273,7 +273,7 @@
       <div class="stat-card accent-green">
         <div class="stat-label">Collected today</div>
         <div class="stat-value" id="statCollected">—</div>
-        <div class="stat-note" id="statCollectedNote">Deposits + balance payments</div>
+        <div class="stat-note" id="statCollectedNote">Paid at order + later balance payments</div>
       </div>
       <div class="stat-card accent-amber">
         <div class="stat-label">Expenses today</div>
@@ -577,7 +577,7 @@
       if (s.money) {
         document.getElementById('statSales').textContent = peso(s.money.totalAmount);
         document.getElementById('statSalesNote').textContent = `Rx ${peso(s.money.rx.amount)} (${s.money.rx.count}) · Non-Rx ${peso(s.money.nonRx.amount)} (${s.money.nonRx.count})`;
-        document.getElementById('statCollectedNote').textContent = `Deposits ${peso(s.money.depositsToday)} + balance payments ${peso(s.money.balancePaymentsToday)}`;
+        document.getElementById('statCollectedNote').textContent = `Paid at order ${peso(s.money.depositsToday)} + later balance payments ${peso(s.money.balancePaymentsToday)}`;
         document.getElementById('statCollected').textContent = peso(s.money.totalCollectedToday);
         document.getElementById('statExpenses').textContent = peso(s.money.totalExpensesToday);
 
