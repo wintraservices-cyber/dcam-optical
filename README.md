@@ -533,3 +533,18 @@ each reply under the model that actually answered (Gemini prices added to
 Code: `lib/ai-gemini.js` (translates the Claude-style messages/tools to Gemini
 and back, streaming + function calling, keeps Gemini 3 thought signatures);
 provider routing in `api/chat.js`; setting `ai_access.provider`.
+
+## Social media insights (Settings → Website → Website insights → Social media)
+
+Facebook Page and Instagram numbers next to the Google Analytics ones: followers, views, post engagements, new follows, Instagram reach / interactions, a views-per-day chart for each, and the 5 latest posts with their reactions or likes. Admin and tech only. Read-only: nothing is posted or changed on Meta.
+
+- **Code:** `lib/meta-insights.js` (Graph API over plain HTTPS), served by `GET /api/settings?view=social&from=&to=` (no new function file). Loaded separately from the rest of Website insights so a slow Meta answer never holds up the page. Results are cached 10 minutes per period.
+- **Metrics:** Page `page_media_view`, `page_post_engagements`, `page_daily_follows_unique` plus `followers_count`; Instagram `views`, `reach`, `accounts_engaged`, `total_interactions`, `profile_links_taps` (`metric_type=total_value`) plus `followers_count` / `media_count`. If Meta renames or drops a metric, only that number shows "Not available from Meta"; the rest still load. Meta needs a bounded range, so "All time" shows the last 28 days. Instagram reach over more than 30 days is added up across 30-day windows and marked approximate.
+- **Vercel environment variables (Production), then redeploy:**
+  - `META_PAGE_ID` — the Page's numeric ID (Page → About → Page transparency, or Meta Business Suite → Settings).
+  - `META_PAGE_ACCESS_TOKEN` — a long-lived Page token with `pages_read_engagement`, `read_insights`, `instagram_basic`, `instagram_manage_insights`, `pages_show_list`. Best made from a **system user** in Business Manager (Business settings → Users → System users → add the Page and Instagram account as assets → Generate token for your Meta app), so it does not expire.
+  - `META_APP_SECRET` — recommended; every call is signed with `appsecret_proof`.
+  - Optional: `META_IG_USER_ID` (otherwise found from the Page's linked Instagram account), `META_GRAPH_VERSION` (default `v26.0`).
+- **Instagram** must be a professional (Business or Creator) account linked to the Facebook Page.
+- The Meta app only needs to be in Development mode with the business's own admins; no App Review is needed to read your own Page.
+- If the token is revoked or expires, the section says so; create a new one and replace the Vercel variable.

@@ -13,6 +13,7 @@ const { supabaseRequest } = require('../lib/supabase');
 const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport, usageDaily, summarize, websiteSpendToday } = require('../lib/ai-usage');
 const { analyticsSummary } = require('../lib/ga4');
+const { socialSummary } = require('../lib/meta-insights');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeTechCosts } = require('../lib/tech-costs');
 const { tidyFacebookUrl, DEFAULT_FACEBOOK_URL, normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
@@ -550,6 +551,29 @@ module.exports = async (req, res) => {
   if (req.method === 'GET' && req.query && req.query.view === 'dashboard') {
     if (!requireAdminOrTech(req, res)) return;
     return getDashboard(req, res);
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'social') {
+    // Facebook Page + Instagram numbers for Website insights -- admin or tech.
+    // Loaded separately from view=dashboard so a slow Meta answer never holds
+    // up the rest of the page.
+    if (!requireAdminOrTech(req, res)) return;
+    const isDate = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+    const from = isDate(req.query.from) ? req.query.from : null;
+    const to = isDate(req.query.to) ? req.query.to : null;
+    if (from && to && from > to) { res.status(400).json({ ok: false, error: 'The start date is after the end date.' }); return; }
+    let prev = null;
+    if (from && to) {
+      const len = Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1;
+      prev = { from: shiftDate(from, -len), to: shiftDate(from, -1) };
+    }
+    try {
+      res.status(200).json({ ok: true, social: await socialSummary(from, to, prev) });
+    } catch (err) {
+      console.error('social insights:', err.message);
+      res.status(200).json({ ok: true, social: { configured: true, error: 'Could not load Facebook / Instagram right now.' } });
+    }
+    return;
   }
 
   if (req.method === 'GET' && req.query && req.query.view === 'ai_usage') {

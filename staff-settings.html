@@ -502,6 +502,13 @@
   .dash-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
   .dash-chart text { fill: #5E5759; font: 11px sans-serif; }
   .dash-ga { border-style: dashed; background: transparent; }
+  .dash-src.fb { background: #E3EAF7; color: #2D4F8E; } .dash-src.ig { background: #F6E3EC; color: #A23D6B; }
+  .dash-posts { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  .dash-post { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; align-items: start; text-decoration: none; color: inherit; padding: 6px; border-radius: 10px; }
+  .dash-post:hover { background: var(--ivory-dim); }
+  .dash-post .thumb { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; background: var(--ivory-dim); display: block; }
+  .dash-post .txt { font-size: 0.84rem; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+  .dash-post .meta { font-size: 0.74rem; color: var(--charcoal-soft); margin-top: 3px; font-variant-numeric: tabular-nums; }
 </style>
 <script src="password-toggle.js" defer></script>
 </head>
@@ -3059,6 +3066,7 @@
       const cur = ai && ai.current, old = ai && ai.previous;
       const p = [];
       p.push(visitors(r.analytics, range, r.range.from, r.range.to));
+      p.push('<div id="dashSocial"><div class="dash-sec">Social media</div><div class="loading-state">Loading Facebook and Instagram…</div></div>');
       p.push(`<div class="dash-sec">Activity · ${range}</div><div class="dash-tiles">
         ${intake ? tile('Intake forms submitted', int(intake.count), delta(intake.count, intake.previous)) : off('Intake forms submitted', 'Could not load')}
         ${oc ? tile('Order status checks', int(oc.checks), delta(oc.checks, oc.previous)) : off('Order status checks', 'Needs the database update')}
@@ -3088,6 +3096,95 @@
       }
       body.innerHTML = p.join('');
     }
+    // ---- Social media (Facebook Page + Instagram, via Meta's API) ----
+    const FB = '<span class="dash-src fb">FACEBOOK</span>';
+    const IG = '<span class="dash-src ig">INSTAGRAM</span>';
+    const sTile = (badge, label, value, sub) => `<div class="dash-tile"><div class="l">${label}</div><div class="v">${value}</div>${sub || ''}${badge}</div>`;
+    const sNum = (v) => v == null ? '—' : int(v);
+    const sDelta = (cur, prev) => cur == null ? '<div class="d flat">Not available from Meta</div>' : delta(cur, prev == null ? null : prev);
+    const when = (iso) => { const t = Date.parse(iso); return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }) : ''; };
+    const safeHref = (u) => (typeof u === 'string' && /^https:\/\//i.test(u)) ? escapeHtml(u) : '';
+    function postList(posts, metaFn) {
+      if (!posts || !posts.length) return '<div class="sub" style="margin-top:10px">No posts yet.</div>';
+      return '<div class="dash-posts">' + posts.map(x => {
+        const href = safeHref(x.url), img = safeHref(x.image);
+        const inner = `${img ? `<img class="thumb" src="${img}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="thumb"></span>'}<div><div class="txt">${escapeHtml(x.text || '(no caption)')}</div><div class="meta">${escapeHtml(when(x.at))} · ${metaFn(x)}</div></div>`;
+        return href ? `<a class="dash-post" href="${href}" target="_blank" rel="noopener noreferrer">${inner}</a>` : `<div class="dash-post">${inner}</div>`;
+      }).join('') + '</div>';
+    }
+    function lineChart(map, from, to, color, label) {
+      if (!map || !from || !to || from >= to) return '';
+      const days = [];
+      for (let t = Date.parse(from); t <= Date.parse(to) && days.length < 400; t += 86400000) { const day = new Date(t).toISOString().slice(0, 10); days.push({ day, v: map[day] || 0 }); }
+      if (days.length < 2) return '';
+      const W = 640, H = 200, L = 40, R2 = 630, T = 16, B = 170;
+      const top = Math.ceil(Math.max(4, ...days.map(d => d.v)) / 4) * 4;
+      const x = i => L + (R2 - L) * i / (days.length - 1), y = v => B - (B - T) * v / top;
+      const grid = [0, 1, 2, 3, 4].map(k => { const v = top * k / 4; return `<line x1="${L}" y1="${y(v)}" x2="${R2}" y2="${y(v)}" stroke="rgba(56,51,52,.12)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${int(Math.round(v))}</text>`; }).join('');
+      const lab = d => d.day.slice(5).replace('-', '/');
+      return `<svg class="dash-chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${escapeHtml(label)}">${grid}<polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${days.map((d, i) => x(i).toFixed(1) + ',' + y(d.v).toFixed(1)).join(' ')}"/><text x="${L}" y="192">${lab(days[0])}</text><text x="${R2}" y="192" text-anchor="end">${lab(days[days.length - 1])}</text></svg>`;
+    }
+    function social(s) {
+      const head = '<div class="dash-sec">Social media</div>';
+      if (!s || !s.configured) return head + `<div class="dash-card dash-ga"><h3>Not connected to Facebook / Instagram yet</h3>
+        <div class="sub" style="margin-top:4px">Page views, followers, engagement and your latest posts on Facebook and Instagram will appear here once a Meta Page token is added in Vercel (<code>META_PAGE_ID</code> and <code>META_PAGE_ACCESS_TOKEN</code>). Instagram needs to be a professional account linked to the Facebook Page.</div>
+        <div style="margin-top:10px">${FB} ${IG} <a href="https://business.facebook.com/latest/insights" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open Meta Business Suite</a></div></div>`;
+      if (s.error) return head + `<div class="dash-card dash-ga"><h3>Facebook / Instagram</h3><div class="sub" style="margin-top:4px">${escapeHtml(s.error)}</div></div>`;
+      const rg = s.range || {};
+      const label = rg.defaulted ? 'Last 28 days' : `${escapeHtml(rg.from)} → ${escapeHtml(rg.to)}`;
+      const f = s.facebook || {}, fm = f.metrics || {}, fp = f.previous || {};
+      const g = s.instagram || {}, gm = g.metrics || {}, gp = g.previous || {};
+      const out = [head.replace('Social media', 'Social media · ' + label)];
+      if (rg.defaulted) out.push('<div style="margin:-4px 0 10px; font-size:0.78rem; color:var(--charcoal-soft)">Meta needs a date range, so “All time” shows the last 28 days.</div>');
+      // Facebook
+      out.push(`<div class="dash-tiles">
+        ${sTile(FB, 'Facebook followers', sNum(f.followers), '<div class="d flat">' + (f.name ? escapeHtml(f.name) : 'Page total') + '</div>')}
+        ${sTile(FB, 'Facebook views', sNum(fm.page_media_view), sDelta(fm.page_media_view, fp.page_media_view))}
+        ${sTile(FB, 'Post engagements', sNum(fm.page_post_engagements), sDelta(fm.page_post_engagements, fp.page_post_engagements))}
+        ${sTile(FB, 'New follows', sNum(fm.page_daily_follows_unique), sDelta(fm.page_daily_follows_unique, fp.page_daily_follows_unique))}
+      </div>`);
+      const fbChart = lineChart(f.daily, rg.from, rg.to, '#2D4F8E', 'Facebook views per day');
+      out.push(`<div class="dash-grid" style="margin-top:12px;">
+        <div class="dash-card"><h3>Facebook views per day</h3><div class="sub">How often your Page and posts were seen</div>${fbChart || '<div class="sub" style="margin-top:8px">Pick a period of more than one day to see the chart.</div>'}<div style="margin-top:8px">${FB}</div></div>
+        <div class="dash-card"><h3>Latest Facebook posts</h3>${postList(f.posts, x => `${int(x.reactions)} reactions · ${int(x.comments)} comments · ${int(x.shares)} shares`)}<div style="margin-top:8px">${FB}${f.link ? ` <a href="${safeHref(f.link)}" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open Page</a>` : ''}</div></div>
+      </div>`);
+      // Instagram
+      if (g.linked === false) {
+        out.push(`<div class="dash-card dash-ga" style="margin-top:12px;"><h3>Instagram not linked</h3><div class="sub" style="margin-top:4px">Switch the Instagram account to a professional (Business or Creator) account and link it to the Facebook Page in Meta Business Suite; it will then appear here on its own.</div><div style="margin-top:8px">${IG}</div></div>`);
+      } else if (g.error) {
+        out.push(`<div class="dash-card dash-ga" style="margin-top:12px;"><h3>Instagram</h3><div class="sub" style="margin-top:4px">${escapeHtml(g.error)}</div></div>`);
+      } else {
+        const approx = g.approx ? '<div class="d flat">Approximate over long periods</div>' : null;
+        out.push(`<div class="dash-tiles" style="margin-top:16px;">
+          ${sTile(IG, 'Instagram followers', sNum(g.followers), '<div class="d flat">' + (g.username ? '@' + escapeHtml(g.username) : 'Account total') + (g.posts_total != null ? ' · ' + int(g.posts_total) + ' posts' : '') + '</div>')}
+          ${sTile(IG, 'Instagram views', sNum(gm.views), sDelta(gm.views, gp.views))}
+          ${sTile(IG, 'Accounts reached', sNum(gm.reach), approx || sDelta(gm.reach, gp.reach))}
+          ${sTile(IG, 'Interactions', sNum(gm.total_interactions), sDelta(gm.total_interactions, gp.total_interactions))}
+        </div>`);
+        const igChart = lineChart(g.daily, rg.from, rg.to, '#A23D6B', 'Instagram accounts reached per day');
+        out.push(`<div class="dash-grid" style="margin-top:12px;">
+          <div class="dash-card"><h3>Instagram reach per day</h3><div class="sub">Accounts that saw your posts or profile · ${sNum(gm.accounts_engaged)} engaged · ${sNum(gm.profile_links_taps)} taps on profile links</div>${igChart || '<div class="sub" style="margin-top:8px">Pick a period of more than one day to see the chart.</div>'}<div style="margin-top:8px">${IG}</div></div>
+          <div class="dash-card"><h3>Latest Instagram posts</h3>${postList(g.posts, x => `${int(x.likes)} likes · ${int(x.comments)} comments`)}<div style="margin-top:8px">${IG}${g.username ? ` <a href="https://www.instagram.com/${encodeURIComponent(g.username)}/" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open profile</a>` : ''}</div></div>
+        </div>`);
+      }
+      out.push('<div style="margin-top:10px; font-size:0.78rem; color:var(--charcoal-soft)">Numbers come from Meta and can lag up to a day. Meta Business Suite is the source of truth.</div>');
+      return out.join('');
+    }
+    let socialSeq = 0;
+    async function loadSocial(from, to) {
+      const mine = ++socialSeq;
+      const box = () => document.getElementById('dashSocial');
+      try {
+        const q = 'view=social' + (from ? '&from=' + from : '') + (to ? '&to=' + to : '');
+        const resp = await fetch('/api/settings?' + q);
+        const r = await resp.json();
+        if (mine !== socialSeq || !box()) return;
+        if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not load Facebook / Instagram.');
+        box().innerHTML = social(r.social);
+      } catch (err) {
+        if (mine === socialSeq && box()) box().innerHTML = '<div class="dash-sec">Social media</div><div class="empty-state">' + escapeHtml(err.message) + '</div>';
+      }
+    }
     const period = PeriodFilter.mount(document.getElementById('dashPeriodMount'), { defaultPreset: 'this_month', onChange: load });
     async function load() {
       const { from, to } = period.getRange();
@@ -3099,6 +3196,7 @@
         if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not load the dashboard.');
         loaded = true;
         render(r);
+        loadSocial(from, to);
       } catch (err) { body.innerHTML = '<div class="empty-state">' + escapeHtml(err.message) + '</div>'; }
     }
     document.querySelector('.subtabs button[data-subtab="insights"]').addEventListener('click', () => { if (!loaded) load(); });
