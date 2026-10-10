@@ -252,7 +252,7 @@ async function dashboardSummary(req, res, session) {
       const dayStart = `${today}T00:00:00+08:00`;
       const dayEnd = new Date(new Date(dayStart).getTime() + 24 * 60 * 60 * 1000).toISOString();
       const [salesResp, expensesResp, balPayResp] = await Promise.all([
-        supabaseRequest(`orders?select=amount,deposit,balance,payment_status,created_at${todayFilter}&deleted_at=is.null`, { method: 'GET' }),
+        supabaseRequest(`orders?select=amount,deposit,balance,payment_status,order_type,created_at${todayFilter}&deleted_at=is.null`, { method: 'GET' }),
         supabaseRequest(`expenses?select=amount&expense_date=eq.${encodeURIComponent(today)}`, { method: 'GET' }),
         supabaseRequest(`balance_payments?select=amount&created_at=gte.${encodeURIComponent(dayStart)}&created_at=lt.${encodeURIComponent(dayEnd)}`, { method: 'GET' }),
       ]);
@@ -261,6 +261,12 @@ async function dashboardSummary(req, res, session) {
         const totalAmount = salesOrders.reduce((sum, o) => sum + num(o.amount), 0);
         const totalDeposit = salesOrders.reduce((sum, o) => sum + num(o.deposit), 0);
         const totalOutstanding = salesOrders.reduce((sum, o) => sum + num(o.balance), 0);
+        const byType = { rx: { count: 0, amount: 0 }, non_rx: { count: 0, amount: 0 } };
+        salesOrders.forEach((o) => {
+          const t = o.order_type === 'non_rx' ? 'non_rx' : 'rx';
+          byType[t].count += 1;
+          byType[t].amount += num(o.amount);
+        });
         let balancePaymentsToday = 0;
         if (balPayResp.ok) {
           const bp = await balPayResp.json();
@@ -275,6 +281,8 @@ async function dashboardSummary(req, res, session) {
           todaysOrderCount: salesOrders.length,
           totalAmount,
           totalCollectedToday: totalDeposit + balancePaymentsToday,
+          rx: byType.rx,
+          nonRx: byType.non_rx,
           depositsToday: totalDeposit,
           balancePaymentsToday,
           totalOutstanding,

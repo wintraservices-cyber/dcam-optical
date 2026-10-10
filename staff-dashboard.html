@@ -576,7 +576,7 @@
 
       if (s.money) {
         document.getElementById('statSales').textContent = peso(s.money.totalAmount);
-        document.getElementById('statSalesNote').textContent = `across ${s.money.todaysOrderCount} order(s)`;
+        document.getElementById('statSalesNote').textContent = `Rx ${peso(s.money.rx.amount)} (${s.money.rx.count}) · Non-Rx ${peso(s.money.nonRx.amount)} (${s.money.nonRx.count})`;
         document.getElementById('statCollectedNote').textContent = `Deposits ${peso(s.money.depositsToday)} + balance payments ${peso(s.money.balancePaymentsToday)}`;
         document.getElementById('statCollected').textContent = peso(s.money.totalCollectedToday);
         document.getElementById('statExpenses').textContent = peso(s.money.totalExpensesToday);
