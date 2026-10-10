@@ -230,7 +230,7 @@ async function reassignRecord(req, res, body) {
 }
 
 // ---- PATCH: edit an existing patient's info ----
-async function updatePatient(req, res, body) {
+async function updatePatient(req, res, body, session) {
   const { id } = body || {};
   if (!id) {
     res.status(400).json({ ok: false, error: 'A valid patient id is required.' });
@@ -256,6 +256,23 @@ async function updatePatient(req, res, body) {
   }
   if (body.email !== undefined) {
     patch.email = String(body.email).trim().slice(0, 150) || null;
+  }
+
+  // Staff recording a patient's reminder / offer choice (e.g. said yes at the
+  // counter or on the phone, or asked to stop).
+  if (body.notify !== undefined && body.notify && typeof body.notify === 'object') {
+    const n = body.notify;
+    const on = (v) => v === true || v === 'true';
+    patch.notify_reminders = on(n.reminders);
+    patch.notify_promos = on(n.promos);
+    patch.notify_sms = on(n.sms);
+    patch.notify_email = on(n.email);
+    if ((patch.notify_reminders || patch.notify_promos) && !(patch.notify_sms || patch.notify_email)) {
+      res.status(400).json({ ok: false, error: 'Pick SMS or email for the reminders / offers.' });
+      return;
+    }
+    patch.notify_consent_at = new Date().toISOString();
+    patch.notify_consent_source = 'staff: ' + (session && session.username ? session.username : 'unknown');
   }
 
   if (Object.keys(patch).length === 0) {
@@ -288,7 +305,7 @@ async function updatePatient(req, res, body) {
     if (!resp.ok) {
       const errText = await resp.text();
       console.error('Supabase patient update error:', resp.status, errText);
-      res.status(502).json({ ok: false, error: 'Could not update this patient.' });
+      res.status(502).json({ ok: false, error: /notify_/.test(errText) ? 'Reminder choices are not set up yet -- run the latest supabase-schema.sql.' : 'Could not update this patient.' });
       return;
     }
 
@@ -477,7 +494,7 @@ module.exports = async (req, res) => {
         if (!requireAdmin(req, res)) return;
         return restorePatient(req, res, body);
       }
-      return updatePatient(req, res, body);
+      return updatePatient(req, res, body, session);
     }
 
     const action = (req.query && req.query.action) || 'create';

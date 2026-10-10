@@ -821,3 +821,14 @@ end $$;
 -- ---------------------------------------------------------------------
 alter table staff_users add column if not exists failed_attempts integer not null default 0;
 alter table staff_users add column if not exists locked_at timestamptz;
+
+-- ---------------------------------------------------------------------
+-- Reminder / offer opt-ins on the patient record. Opt-in only (default
+-- false); nothing is sent from these yet. Safe to re-run.
+-- ---------------------------------------------------------------------
+alter table patients add column if not exists notify_reminders boolean not null default false;
+alter table patients add column if not exists notify_promos boolean not null default false;
+alter table patients add column if not exists notify_sms boolean not null default false;
+alter table patients add column if not exists notify_email boolean not null default false;
+alter table patients add column if not exists notify_consent_at timestamptz;
+alter table patients add column if not exists notify_consent_source text;

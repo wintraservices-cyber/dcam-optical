@@ -314,6 +314,13 @@
     border-top: 1px solid var(--line);
   }
   .edit-patient-form.open { display: block; }
+  .optin-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 14px 0 4px; padding: 12px 14px; border: 1px dashed var(--border, #d9d2cd); border-radius: 12px; font-size: 14px; }
+  .optin-edit-title { flex-basis: 100%; font-weight: 700; }
+  .optin-edit-title span { font-weight: 400; opacity: .7; }
+  .optin-edit label { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+  .optin-edit input { width: auto; }
+  .optin-edit-sep { opacity: .7; }
+  .optin-edit-when { flex-basis: 100%; font-size: 12.5px; opacity: .7; }
   .edit-patient-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -758,6 +765,13 @@
     });
   }
 
+  function optInSummary(p) {
+    if (!p || !(p.notify_reminders || p.notify_promos)) return 'No';
+    const what = [p.notify_reminders && 'reminders', p.notify_promos && 'offers & news'].filter(Boolean).join(' + ');
+    const how = [p.notify_sms && 'SMS', p.notify_email && 'email'].filter(Boolean).join(' + ');
+    return what + ' by ' + how;
+  }
+
   async function viewPatient(phone) {
     content.innerHTML = '<div class="state-message">Loading patient…</div>';
     try {
@@ -882,6 +896,7 @@ const CONTACT_OPTS = [['not_contacted','Not contacted'],['contacted','Contacted'
               <span><strong>Phone:</strong> ${escapeHtml(patient.phone)}</span>
               ${patient.email ? `<span><strong>Email:</strong> ${escapeHtml(patient.email)}</span>` : ''}
               <span><strong>Patient since:</strong> ${formatDate(patient.created_at)}</span>
+              <span><strong>Reminders &amp; offers:</strong> ${escapeHtml(optInSummary(patient))}</span>
             </div>
           </div>
           <button type="button" class="edit-patient-btn" id="editPatientBtn">Edit</button>
@@ -901,6 +916,15 @@ const CONTACT_OPTS = [['not_contacted','Not contacted'],['contacted','Contacted'
               <label>Email</label>
               <input type="email" id="editEmail" value="${escapeHtml(patient.email || '')}">
             </div>
+          </div>
+          <div class="optin-edit">
+            <div class="optin-edit-title">Reminders &amp; offers <span>(only if the patient agreed &mdash; opt-in, never assumed)</span></div>
+            <label><input type="checkbox" id="editNotifyReminders" ${patient.notify_reminders ? 'checked' : ''}> Reminders (exam due, order ready)</label>
+            <label><input type="checkbox" id="editNotifyPromos" ${patient.notify_promos ? 'checked' : ''}> Offers &amp; news</label>
+            <span class="optin-edit-sep">By:</span>
+            <label><input type="checkbox" id="editNotifySms" ${patient.notify_sms ? 'checked' : ''}> SMS</label>
+            <label><input type="checkbox" id="editNotifyEmail" ${patient.notify_email ? 'checked' : ''}> Email</label>
+            ${patient.notify_consent_at ? `<div class="optin-edit-when">Last recorded ${escapeHtml(formatDate(patient.notify_consent_at))}${patient.notify_consent_source ? ' &middot; ' + escapeHtml(patient.notify_consent_source) : ''}</div>` : ''}
           </div>
           <div class="edit-patient-actions">
             <button type="button" class="edit-patient-save" id="editPatientSave">Save changes</button>
@@ -970,11 +994,21 @@ const CONTACT_OPTS = [['not_contacted','Not contacted'],['contacted','Contacted'
       statusEl.textContent = 'Saving…';
       statusEl.className = 'edit-patient-status';
 
+      // Only touch the recorded consent when staff actually changed it.
+      const notifyNow = {
+        reminders: document.getElementById('editNotifyReminders').checked,
+        promos: document.getElementById('editNotifyPromos').checked,
+        sms: document.getElementById('editNotifySms').checked,
+        email: document.getElementById('editNotifyEmail').checked,
+      };
+      const notifyChanged = notifyNow.reminders !== !!patient.notify_reminders || notifyNow.promos !== !!patient.notify_promos ||
+        notifyNow.sms !== !!patient.notify_sms || notifyNow.email !== !!patient.notify_email;
+
       try {
         const resp = await fetch('/api/patients', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: patient.id, name, phone, email: emailEl.value.trim() }),
+          body: JSON.stringify(Object.assign({ id: patient.id, name, phone, email: emailEl.value.trim() }, notifyChanged ? { notify: notifyNow } : {})),
         });
         const result = await resp.json();
         if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save changes.');

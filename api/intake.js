@@ -17,6 +17,7 @@
 
 const { supabaseRequest } = require('../lib/supabase');
 const { findOrCreatePatient, validatePhoneForSave } = require('../lib/patients-helper');
+const { readOptIn, savePrefs, describe: describeOptIn } = require('../lib/notify-prefs');
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
@@ -160,6 +161,7 @@ module.exports = async (req, res) => {
   const patientTypeLabel = data.patientType === 'returning' ? 'Returning patient' : 'New patient';
 
   const submittedAt = new Date().toISOString();
+  const optIn = readOptIn(body);
 
   // ---- Save to database (patient + intake_submissions), if configured ----
   let dbSaveError = null;
@@ -170,6 +172,7 @@ module.exports = async (req, res) => {
         name: `${data.fname} ${data.lname}`.trim(),
         email: data.email,
       });
+      if (optIn && patient) await savePrefs(patient.id, optIn, 'intake form');
 
       const intakeResp = await supabaseRequest('intake_submissions', {
         method: 'POST',
@@ -214,6 +217,7 @@ module.exports = async (req, res) => {
           <tr><td style="padding:6px 0; color:#777;">Reason for visit</td><td style="padding:6px 0;">${escapeHtml(reasonLabel)}</td></tr>
           <tr><td style="padding:6px 0; color:#777;">Preferred date</td><td style="padding:6px 0;">${escapeHtml(data.prefDate) || '—'}</td></tr>
           <tr><td style="padding:6px 0; color:#777;">Preferred time</td><td style="padding:6px 0;">${escapeHtml(timeLabel)}</td></tr>
+          <tr><td style="padding:6px 0; color:#777;">Reminders &amp; offers</td><td style="padding:6px 0;">${escapeHtml(describeOptIn(optIn))}</td></tr>
           <tr><td style="padding:6px 0; color:#777; vertical-align:top;">Notes</td><td style="padding:6px 0;">${data.notes ? escapeHtml(data.notes) : '—'}</td></tr>
         </table>
         <p style="margin-top: 20px; font-size: 12px; color: #999;">Both consent checkboxes were confirmed at submission.</p>
