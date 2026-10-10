@@ -3006,7 +3006,8 @@
       (a.sources || []).forEach(x => {
         const n = String(x.name || '');
         let k = n;
-        if (/facebook|^fb$|fb\.com|^m\.me$/i.test(n)) k = 'Facebook';
+                if (/chatgpt|chat\.openai|openai\.com|perplexity|gemini\.google|bard\.google|copilot\.microsoft|claude\.ai|meta\.ai|deepseek|grok\.com|you\.com|phind|mistral|poe\.com/i.test(n)) k = 'AI assistants';
+        else if (/facebook|^fb$|fb\.com|^m\.me$/i.test(n)) k = 'Facebook';
         else if (/instagram/i.test(n)) k = 'Instagram';
         else if (/^google$/i.test(n)) k = 'Google search';
         else if (/messenger/i.test(n)) k = 'Messenger';
@@ -3064,8 +3065,8 @@
     function intakeSources(src, a) {
       const head = '<div class="dash-sec">Where intakes came from</div>';
       if (!src) return head + '<div class="dash-card dash-ga"><h3>Not recorded yet</h3><div class="sub" style="margin-top:4px">Run the latest supabase-schema.sql in Supabase to start recording where each intake came from.</div></div>';
-      const visits = { facebook: 0, instagram: 0 };
-      ((a && a.sources) || []).forEach(x => { const n = String(x.name || ''); if (/instagram/i.test(n)) visits.instagram += x.sessions; else if (/facebook|^fb$|fb\.com/i.test(n)) visits.facebook += x.sessions; });
+      const visits = { facebook: 0, instagram: 0, ai: 0 };
+      ((a && a.sources) || []).forEach(x => { const n = String(x.name || ''); if (/chatgpt|chat\.openai|openai\.com|perplexity|gemini\.google|bard\.google|copilot\.microsoft|claude\.ai|meta\.ai|deepseek|grok\.com|you\.com|phind|mistral|poe\.com/i.test(n)) visits.ai += x.sessions; else if (/instagram/i.test(n)) visits.instagram += x.sessions; else if (/facebook|^fb$|fb\.com/i.test(n)) visits.facebook += x.sessions; });
       const ch = {}; (src.channels || []).forEach(c => { ch[c.key] = c.count; });
       const conv = (key, label) => {
         const v = visits[key], n = ch[key] || 0;
@@ -3076,8 +3077,8 @@
       return head + `<div class="dash-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
         <div class="dash-card"><h3>By where they came from</h3><div class="sub">${int(src.total)} intake${src.total === 1 ? '' : 's'} · from the link or site that brought them to the website</div>${barList(src.channels || [], c => escapeHtml(c.name), c => c.count)}<div style="margin-top:8px">${OWN}</div></div>
         <div class="dash-card"><h3>What they told us</h3><div class="sub">“How did you hear about us?” on the intake form (optional)</div>${barList(src.heard || [], c => escapeHtml(c.name), c => c.count)}<div style="margin-top:8px">${OWN}</div></div>
-        <div class="dash-card"><h3>Social visits that became intakes</h3><div class="sub">Website visits from each platform (Google Analytics) and the intakes that came from it</div>
-          ${ga ? `<div class="dash-funnel">${conv('facebook', 'Facebook')}${conv('instagram', 'Instagram')}</div>` : '<div class="sub" style="margin-top:10px">Needs Google Analytics connected.</div>'}
+        <div class="dash-card"><h3>Visits that became intakes</h3><div class="sub">Website visits from social media and AI assistants (Google Analytics) and the intakes that came from it</div>
+          ${ga ? `<div class="dash-funnel">${conv('facebook', 'Facebook')}${conv('instagram', 'Instagram')}${conv('ai', 'AI assistants')}</div>` : '<div class="sub" style="margin-top:10px">Needs Google Analytics connected.</div>'}
           ${(src.campaigns || []).length ? '<div class="sub" style="margin-top:12px"><b>Top campaigns</b></div>' + barList(src.campaigns, c => escapeHtml(c.name), c => c.count) : ''}
           <div style="margin-top:8px">${GA} ${OWN}</div></div>
       </div>`;
