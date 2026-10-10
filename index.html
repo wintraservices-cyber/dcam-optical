@@ -346,6 +346,12 @@
   .social h2 { font-size: clamp(30px, 3.6vw, 48px); font-weight: 800; letter-spacing: -0.03em; }
   .social p { color: #C2B8AF; }
   .social .btn { border-color: #7A7274; color: #F7F1E8; }
+  .notice-dialog { margin: auto; inset: 0; border: 0; border-radius: 24px; padding: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); background: var(--surface); color: var(--text); box-shadow: 0 30px 80px rgba(20,16,17,.35); overflow: auto; }
+  .notice-dialog::backdrop { background: rgba(20,16,17,.55); }
+  .notice-stack { display: flex; flex-direction: column; gap: 4px; padding: 52px 14px 18px; }
+  .notice-stack .note { background: transparent; border-radius: 0; padding: 22px 24px; border-bottom: 1px solid var(--border); }
+  .notice-stack .note:last-child { border-bottom: 0; }
+  .notice-close { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-size: 24px; line-height: 1; cursor: pointer; z-index: 1; }
   .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
   .note { background: var(--surface); border-radius: 24px; padding: 34px; display: flex; flex-direction: column; gap: 12px; }
   .note h3 { font-size: 20px; font-weight: 700; }
@@ -787,25 +793,27 @@
   </div>
 </section>
 
-<section class="block" style="padding-top:clamp(64px,8vw,96px)">
-  <div class="wrap notes">
-    <div class="note">
+</main>
+
+<dialog id="noticeDialog" class="notice-dialog" aria-label="Privacy and AI notice">
+  <button type="button" class="notice-close" aria-label="Close">&times;</button>
+  <div class="notice-stack">
+    <div class="note" id="privacy">
       <h3 data-text="privacy_title">Your privacy</h3>
       <p><span data-text="privacy_body">We handle your personal and health information in line with the Data Privacy Act of 2012 (RA 10173). We collect only what we need for your care and orders, keep it secure, and never sell it. You can ask us to access, correct or delete your data at any time.</span><span data-biz-email-note></span> This public website uses Google Analytics to count visits and see which pages are useful; it does not see anything you type into our forms or chat.</p>
     </div>
-    <div class="note">
+    <div class="note" id="ai-notice">
       <h3 data-text="ai_notice_title">How we use AI</h3>
       <p data-text="ai_notice_body">Our website chat uses AI to answer common questions and help you book. It doesn't diagnose or give medical advice; eye health questions go to our licensed optometrists. Please don't share sensitive health details in chat. You can always reach a person at the shop.</p>
     </div>
   </div>
-</section>
-</main>
+</dialog>
 
 <footer>
   <div class="wrap">
     <div class="top-row">
       <img src="/assets/landing-options/dcam-logo-ivory.png" alt="DCAM Optical">
-      <div class="links"><a href="#services">Services</a><a href="#story">Our story</a><a href="#book">Book</a><a href="#track">Track order</a><a href="#visit">Visit</a><a href="staff-login.html">Staff login</a></div>
+      <div class="links"><a href="#services">Services</a><a href="#story">Our story</a><a href="#book">Book</a><a href="#track">Track order</a><a href="#visit">Visit</a><a href="#privacy" data-notice="privacy">Privacy</a><a href="#ai-notice" data-notice="ai-notice">How we use AI</a><a href="staff-login.html">Staff login</a></div>
     </div>
     <div class="bottom-row">
       <span>© <span id="yr">2026</span> DCAM Optical · Formerly Limuaco Optical · Ever Gotesco Commonwealth, Quezon City</span>
@@ -817,6 +825,24 @@
 <script>
 (function () {
   document.getElementById('yr').textContent = new Date().getFullYear();
+
+  // ---- Privacy / AI notice: opens from the footer instead of sitting on the page ----
+  (function () {
+    var dlg = document.getElementById('noticeDialog');
+    if (!dlg || !dlg.showModal) return;
+    function openNotice(id) {
+      dlg.showModal();
+      var el = id && document.getElementById(id);
+      dlg.scrollTop = 0;
+      if (el && id !== 'privacy') el.scrollIntoView({ block: 'start' });
+    }
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('[data-notice]');
+      if (a) { e.preventDefault(); openNotice(a.getAttribute('data-notice')); return; }
+      if (e.target === dlg || (e.target.closest && e.target.closest('.notice-close'))) dlg.close();
+    });
+    if (location.hash === '#privacy' || location.hash === '#ai-notice') openNotice(location.hash.slice(1));
+  })();
 
   // ---- Analytics key events (no personal data) ----
   document.addEventListener('click', function (e) {
