@@ -18,6 +18,7 @@
 const { supabaseRequest } = require('../lib/supabase');
 const { findOrCreatePatient, validatePhoneForSave } = require('../lib/patients-helper');
 const { readOptIn, savePrefs, describe: describeOptIn } = require('../lib/notify-prefs');
+const { readAttribution, describeAttribution } = require('../lib/attribution');
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
@@ -162,6 +163,7 @@ module.exports = async (req, res) => {
 
   const submittedAt = new Date().toISOString();
   const optIn = readOptIn(body);
+  const attribution = readAttribution(body);
 
   // ---- Save to database (patient + intake_submissions), if configured ----
   let dbSaveError = null;
@@ -174,22 +176,30 @@ module.exports = async (req, res) => {
       });
       if (optIn && patient) await savePrefs(patient.id, optIn, 'intake form');
 
-      const intakeResp = await supabaseRequest('intake_submissions', {
+      const row = {
+        patient_id: patient ? patient.id : null,
+        fname: data.fname,
+        lname: data.lname,
+        phone: data.phone,
+        email: data.email,
+        patient_type: data.patientType || 'new',
+        reason: data.reason,
+        pref_date: data.prefDate || null,
+        pref_time: data.prefTime || null,
+        notes: data.notes || null,
+      };
+      const insert = (r) => supabaseRequest('intake_submissions', {
         method: 'POST',
         headers: { Prefer: 'return=representation' },
-        body: JSON.stringify({
-          patient_id: patient ? patient.id : null,
-          fname: data.fname,
-          lname: data.lname,
-          phone: data.phone,
-          email: data.email,
-          patient_type: data.patientType || 'new',
-          reason: data.reason,
-          pref_date: data.prefDate || null,
-          pref_time: data.prefTime || null,
-          notes: data.notes || null,
-        }),
+        body: JSON.stringify(r),
       });
+      let intakeResp = await insert({ ...row, ...attribution });
+      if (!intakeResp.ok) {
+        // Before the attribution columns exist (supabase-schema.sql not yet
+        // run), save the intake without them rather than losing it.
+        const t = await intakeResp.clone().text().catch(() => '');
+        if (/src_|heard_about|PGRST204|42703/.test(t)) intakeResp = await insert(row);
+      }
 
       if (!intakeResp.ok) {
         const errText = await intakeResp.text();
@@ -217,6 +227,7 @@ module.exports = async (req, res) => {
           <tr><td style="padding:6px 0; color:#777;">Reason for visit</td><td style="padding:6px 0;">${escapeHtml(reasonLabel)}</td></tr>
           <tr><td style="padding:6px 0; color:#777;">Preferred date</td><td style="padding:6px 0;">${escapeHtml(data.prefDate) || '—'}</td></tr>
           <tr><td style="padding:6px 0; color:#777;">Preferred time</td><td style="padding:6px 0;">${escapeHtml(timeLabel)}</td></tr>
+          <tr><td style="padding:6px 0; color:#777;">How they found us</td><td style="padding:6px 0;">${escapeHtml(describeAttribution(attribution))}</td></tr>
           <tr><td style="padding:6px 0; color:#777;">Reminders &amp; offers</td><td style="padding:6px 0;">${escapeHtml(describeOptIn(optIn))}</td></tr>
           <tr><td style="padding:6px 0; color:#777; vertical-align:top;">Notes</td><td style="padding:6px 0;">${data.notes ? escapeHtml(data.notes) : '—'}</td></tr>
         </table>

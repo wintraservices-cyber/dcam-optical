@@ -855,3 +855,17 @@ create table if not exists social_daily (
   primary key (day, platform)
 );
 alter table social_daily enable row level security;
+
+-- ---------------------------------------------------------------------
+-- Intake attribution: where the visitor came from (campaign tags or the
+-- referring site, from src-track.js) and the optional "How did you hear
+-- about us?" answer. Used by Website insights > Where intakes came from.
+-- Safe to re-run.
+-- ---------------------------------------------------------------------
+alter table intake_submissions add column if not exists src_channel text;
+alter table intake_submissions add column if not exists src_source text;
+alter table intake_submissions add column if not exists src_medium text;
+alter table intake_submissions add column if not exists src_campaign text;
+alter table intake_submissions add column if not exists src_referrer text;
+alter table intake_submissions add column if not exists src_landing text;
+alter table intake_submissions add column if not exists heard_about text;

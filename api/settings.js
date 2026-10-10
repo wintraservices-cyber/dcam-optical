@@ -16,6 +16,7 @@ const { usageReport, usageDaily, summarize, websiteSpendToday } = require('../li
 const { analyticsSummary } = require('../lib/ga4');
 const { socialSummary } = require('../lib/meta-insights');
 const { runSnapshot, readHistory } = require('../lib/meta-history');
+const { CHANNELS, HEARD } = require('../lib/attribution');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeTechCosts } = require('../lib/tech-costs');
 const { tidyFacebookUrl, DEFAULT_FACEBOOK_URL, normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
@@ -272,6 +273,29 @@ async function getDashboard(req, res) {
       };
       const cur = await sum(from, to);
       return { ...cur, previous: prev ? (await sum(prev.from, prev.to)).checks : null };
+    }),
+    safe('intake_sources', async () => {
+      // Where intakes came from (lib/attribution.js). null until the
+      // attribution columns exist in intake_submissions.
+      let path = 'intake_submissions?select=src_channel,heard_about,src_campaign&limit=5000';
+      if (from) path += `&created_at=gte.${encodeURIComponent(from + 'T00:00:00+08:00')}`;
+      if (to) path += `&created_at=lte.${encodeURIComponent(to + 'T23:59:59.999+08:00')}`;
+      const resp = await supabaseRequest(path, { method: 'GET' });
+      if (!resp.ok) throw new Error('intake_sources ' + resp.status);
+      const rows = await resp.json();
+      const count = (key, labels, none) => {
+        const m = {};
+        rows.forEach(r => { const k = r[key] || 'unknown'; m[k] = (m[k] || 0) + 1; });
+        return Object.keys(m).map(k => ({ key: k, name: labels[k] || (k === 'unknown' ? none : k), count: m[k] })).sort((a, b) => b.count - a.count);
+      };
+      const campaigns = {};
+      rows.forEach(r => { if (r.src_campaign) campaigns[r.src_campaign] = (campaigns[r.src_campaign] || 0) + 1; });
+      return {
+        total: rows.length,
+        channels: count('src_channel', CHANNELS, 'Before tracking started'),
+        heard: count('heard_about', HEARD, 'Didn’t say'),
+        campaigns: Object.keys(campaigns).map(k => ({ name: k, count: campaigns[k] })).sort((a, b) => b.count - a.count).slice(0, 6),
+      };
     }),
     safe('unanswered', async () => {
       const resp = await supabaseRequest('ai_unanswered?select=question,times_asked,channel&status=eq.open&order=times_asked.desc,last_asked_at.desc&limit=6', { method: 'GET' });

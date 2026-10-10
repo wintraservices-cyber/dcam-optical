@@ -558,3 +558,16 @@ Meta keeps no follower history and only returns insights for bounded date ranges
 - **What it adds to Website insights:** followers gained in the period, posts published per platform, a Followers over time chart, and **All time** totals from the saved days (Instagram reach summed from daily values is marked approximate).
 - **Setup:** run the latest `supabase-schema.sql` (creates `social_daily`), add `CRON_SECRET` (a random string of 16+ characters) in Vercel Production, redeploy. Vercel → Settings → Cron Jobs shows each run.
 - Facebook post totals come from listing the Page's posts (up to 2,000); Instagram's from `media_count`.
+
+## Where intakes came from (attribution)
+
+Website insights → **Where intakes came from** answers "is social media bringing in inquiries?".
+
+- **`src-track.js`** (on `index.html`, `coming-soon.html`, `intake.html`, loaded before the address bar drops `utm_*`): remembers the visitor's most recent visit that came from somewhere (campaign tags, `fbclid` / `gclid`, or the referring site) in this browser's localStorage for 90 days. No personal data, just source / medium / campaign / referring host / landing page. A later direct visit doesn't wipe it.
+- **Intake form:** sends that with the submission, plus an optional **"How did you hear about us?"** (Facebook, Instagram, Google search, Google Maps, Friend or family, Walked by, Been here before, Other).
+- **`lib/attribution.js`** turns it into one channel (Facebook, Instagram, Messenger, Google Business Profile, Google Ads, Search engines, Other websites, Email, Direct or unknown) and saves `src_*` / `heard_about` on `intake_submissions`. The front-desk email shows "How they found us". Before the columns exist the intake still saves, without them.
+- **Insights:** intakes by channel, what people said, top campaigns, and Facebook / Instagram visits (GA4) → intakes with a conversion rate.
+- **Tip:** tag links you post (`utm_source=facebook&utm_medium=social&utm_campaign=<name>`; for the Google Business Profile website link `utm_source=google&utm_medium=organic&utm_campaign=gbp`) so channels and campaigns are exact.
+- **Setup:** run the latest `supabase-schema.sql` (adds the `src_*` and `heard_about` columns).
+
+The Social media section also shows an **engagement rate** per platform (Facebook engagements ÷ views; Instagram interactions ÷ accounts reached) and **Top posts in this period** ranked by engagement, with each post's views / reach where Meta provides them.

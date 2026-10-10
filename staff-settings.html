@@ -3060,6 +3060,28 @@
           </div><div style="margin-top:8px">${GA}</div></div>
         </div>`;
     }
+    // Where intakes came from: the visitor's tagged or referred visit plus "How did you hear about us?".
+    function intakeSources(src, a) {
+      const head = '<div class="dash-sec">Where intakes came from</div>';
+      if (!src) return head + '<div class="dash-card dash-ga"><h3>Not recorded yet</h3><div class="sub" style="margin-top:4px">Run the latest supabase-schema.sql in Supabase to start recording where each intake came from.</div></div>';
+      const visits = { facebook: 0, instagram: 0 };
+      ((a && a.sources) || []).forEach(x => { const n = String(x.name || ''); if (/instagram/i.test(n)) visits.instagram += x.sessions; else if (/facebook|^fb$|fb\.com/i.test(n)) visits.facebook += x.sessions; });
+      const ch = {}; (src.channels || []).forEach(c => { ch[c.key] = c.count; });
+      const conv = (key, label) => {
+        const v = visits[key], n = ch[key] || 0;
+        const rate = v ? (100 * n / v).toFixed(1) + '%' : '—';
+        return `<div class="dash-step"><span>${label}: ${int(v)} visits → ${int(n)} intake${n === 1 ? '' : 's'}</span><b>${rate}</b></div>`;
+      };
+      const ga = a && a.configured && !a.error;
+      return head + `<div class="dash-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
+        <div class="dash-card"><h3>By where they came from</h3><div class="sub">${int(src.total)} intake${src.total === 1 ? '' : 's'} · from the link or site that brought them to the website</div>${barList(src.channels || [], c => escapeHtml(c.name), c => c.count)}<div style="margin-top:8px">${OWN}</div></div>
+        <div class="dash-card"><h3>What they told us</h3><div class="sub">“How did you hear about us?” on the intake form (optional)</div>${barList(src.heard || [], c => escapeHtml(c.name), c => c.count)}<div style="margin-top:8px">${OWN}</div></div>
+        <div class="dash-card"><h3>Social visits that became intakes</h3><div class="sub">Website visits from each platform (Google Analytics) and the intakes that came from it</div>
+          ${ga ? `<div class="dash-funnel">${conv('facebook', 'Facebook')}${conv('instagram', 'Instagram')}</div>` : '<div class="sub" style="margin-top:10px">Needs Google Analytics connected.</div>'}
+          ${(src.campaigns || []).length ? '<div class="sub" style="margin-top:12px"><b>Top campaigns</b></div>' + barList(src.campaigns, c => escapeHtml(c.name), c => c.count) : ''}
+          <div style="margin-top:8px">${GA} ${OWN}</div></div>
+      </div>`;
+    }
     function render(r) {
       const range = r.range.from ? `${escapeHtml(r.range.from)} → ${escapeHtml(r.range.to)}` : 'All time';
       const intake = r.intake, ai = r.ai, uq = r.unanswered, oc = r.order_checks;
@@ -3081,6 +3103,7 @@
           <div class="dash-step"><span>Website AI replies</span><b>${cur ? int(cur.website.messages) : '—'}</b></div>
         </div><div style="margin-top:8px">${OWN}</div></div>`;
       p.push(`<div class="dash-grid" style="margin-top:12px;">${daily ? `<div class="dash-card"><h3>Activity per day</h3><div class="sub">${range}</div>${chart(daily)}</div>` : `<div class="dash-card"><h3>Activity per day</h3><div class="sub">Pick a period of up to 3 months to see the daily chart.</div></div>`}${funnel}</div>`);
+      p.push(intakeSources(r.intake_sources, r.analytics));
       if (cur) {
         const perMsg = cur.total.messages ? cur.total.cost_usd / cur.total.messages : 0;
         const tot = Math.max(1, cur.total.messages);
@@ -3140,6 +3163,13 @@
         <svg class="dash-chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Facebook and Instagram followers over time">${grid}${line(fs, '#2D4F8E')}${line(gs, '#A23D6B')}<text x="${L}" y="192">${lab(days[0])}</text><text x="${R2}" y="192" text-anchor="end">${lab(days[days.length - 1])}</text></svg>
         <div class="dash-legend"><span><i style="background:#2D4F8E"></i>Facebook</span><span><i style="background:#A23D6B"></i>Instagram</span></div><div style="margin-top:8px">${OWN}</div></div>`;
     }
+    const pct = (num, den) => (num != null && den) ? (100 * num / den).toFixed(1) + '%' : '—';
+    const rateTile = (badge, num, den, how) => sTile(badge, 'Engagement rate', pct(num, den), '<div class="d flat">' + how + '</div>');
+    function postsCard(title, top, latest, badge, extra, fmtTop, fmtLatest, inPeriod) {
+      const useTop = top && top.length;
+      const head = useTop ? `<h3>Top posts in this period</h3><div class="sub">${int(inPeriod)} post${inPeriod === 1 ? '' : 's'} published · ranked by engagement</div>` : `<h3>${title}</h3>${top && !top.length ? '<div class="sub">No posts in this period, so here are the latest.</div>' : ''}`;
+      return `<div class="dash-card">${head}${postList(useTop ? top : latest, useTop ? fmtTop : fmtLatest)}<div style="margin-top:8px">${badge}${extra}</div></div>`;
+    }
     function social(s, h) {
       const head = '<div class="dash-sec">Social media</div>';
       if (!s || !s.configured) return head + `<div class="dash-card dash-ga"><h3>Not connected to Facebook / Instagram yet</h3>
@@ -3163,21 +3193,25 @@
       }
       const gained = (x) => x && x.followers_start != null && x.followers_end != null && x.days > 1 ? (x.followers_end - x.followers_start) : null;
       const gainLine = (x, fallback) => { const n = gained(x); return '<div class="d ' + (n == null || n === 0 ? 'flat' : n > 0 ? '' : 'down') + '">' + (n == null ? fallback : n === 0 ? 'No change in this period' : (n > 0 ? '▲ ' : '▼ ') + int(Math.abs(n)) + ' in this period') + '</div>'; };
-      const postsTile = (badge, label2, x) => sTile(badge, label2, x && x.posts_published != null ? int(x.posts_published) : '—', '<div class="d flat">' + (x && x.posts_published != null ? 'in this period' : 'Counted once daily saving starts') + '</div>');
+      // Live count from Meta for the period; the saved history for All time.
+      const postsTile = (badge, label2, x, live) => { const n = !fromHistory && live != null ? live : (x && x.posts_published != null ? x.posts_published : null); return sTile(badge, label2, n == null ? '—' : int(n), '<div class="d flat">' + (n == null ? 'Not available yet' : 'in this period') + '</div>'); };
       const out = [head.replace('Social media', 'Social media · ' + shownLabel)];
       if (rg.defaulted && !fromHistory) out.push('<div style="margin:-4px 0 10px; font-size:0.78rem; color:var(--charcoal-soft)">Meta needs a date range, so “All time” shows the last 28 days until the daily history has some days saved.</div>');
       // Facebook
-      out.push(`<div class="dash-tiles" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+      out.push(`<div class="dash-tiles" style="grid-template-columns:repeat(auto-fit,minmax(125px,1fr));">
         ${sTile(FB, 'Facebook followers', sNum(f.followers), gainLine(hf, f.name ? escapeHtml(f.name) : 'Page total'))}
         ${sTile(FB, 'Facebook views', sNum(fm.page_media_view), sDelta(fm.page_media_view, fp.page_media_view))}
         ${sTile(FB, 'Post engagements', sNum(fm.page_post_engagements), sDelta(fm.page_post_engagements, fp.page_post_engagements))}
         ${sTile(FB, 'New follows', sNum(fm.page_daily_follows_unique), sDelta(fm.page_daily_follows_unique, fp.page_daily_follows_unique))}
-        ${postsTile(FB, 'Facebook posts', hf)}
+        ${postsTile(FB, 'Facebook posts', hf, f.posts_in_period)}
+        ${rateTile(FB, fm.page_post_engagements != null ? fm.page_post_engagements : (fromHistory ? null : f.period_post_engagements), fm.page_media_view, 'engagements ÷ views')}
       </div>`);
       const fbChart = lineChart(f.daily, chartFrom, chartTo, '#2D4F8E', 'Facebook views per day');
       out.push(`<div class="dash-grid" style="margin-top:12px;">
         <div class="dash-card"><h3>Facebook views per day</h3><div class="sub">How often your Page and posts were seen</div>${fbChart || '<div class="sub" style="margin-top:8px">Pick a period of more than one day to see the chart.</div>'}<div style="margin-top:8px">${FB}</div></div>
-        <div class="dash-card"><h3>Latest Facebook posts</h3>${postList(f.posts, x => `${int(x.reactions)} reactions · ${int(x.comments)} comments · ${int(x.shares)} shares`)}<div style="margin-top:8px">${FB}${f.link ? ` <a href="${safeHref(f.link)}" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open Page</a>` : ''}</div></div>
+        ${postsCard('Latest Facebook posts', fromHistory ? null : f.top_posts, f.posts, FB, f.link ? ` <a href="${safeHref(f.link)}" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open Page</a>` : '',
+          x => `${int(x.engagements)} engagements` + (x.views != null ? ` · ${int(x.views)} views · ${pct(x.engagements, x.views)}` : ` · ${int(x.reactions)} reactions · ${int(x.comments)} comments · ${int(x.shares)} shares`),
+          x => `${int(x.reactions)} reactions · ${int(x.comments)} comments · ${int(x.shares)} shares`, f.posts_in_period || 0)}
       </div>`);
       // Instagram
       if (g.linked === false) {
@@ -3186,17 +3220,20 @@
         out.push(`<div class="dash-card dash-ga" style="margin-top:12px;"><h3>Instagram</h3><div class="sub" style="margin-top:4px">${escapeHtml(g.error)}</div></div>`);
       } else {
         const approx = g.approx ? '<div class="d flat">Approximate over long periods</div>' : null;
-        out.push(`<div class="dash-tiles" style="margin-top:16px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+        out.push(`<div class="dash-tiles" style="margin-top:16px; grid-template-columns:repeat(auto-fit,minmax(125px,1fr));">
           ${sTile(IG, 'Instagram followers', sNum(g.followers), gainLine(hg, (g.username ? '@' + escapeHtml(g.username) : 'Account total') + (g.posts_total != null ? ' · ' + int(g.posts_total) + ' posts' : '')))}
           ${sTile(IG, 'Instagram views', sNum(gm.views), sDelta(gm.views, gp.views))}
           ${sTile(IG, 'Accounts reached', sNum(gm.reach), approx || sDelta(gm.reach, gp.reach))}
           ${sTile(IG, 'Interactions', sNum(gm.total_interactions), sDelta(gm.total_interactions, gp.total_interactions))}
-          ${postsTile(IG, 'Instagram posts', hg)}
+          ${postsTile(IG, 'Instagram posts', hg, g.posts_in_period)}
+          ${rateTile(IG, gm.total_interactions, gm.reach, 'interactions ÷ accounts reached')}
         </div>`);
         const igChart = lineChart(g.daily, chartFrom, chartTo, '#A23D6B', 'Instagram accounts reached per day');
         out.push(`<div class="dash-grid" style="margin-top:12px;">
           <div class="dash-card"><h3>Instagram reach per day</h3><div class="sub">Accounts that saw your posts or profile · ${sNum(gm.accounts_engaged)} engaged · ${sNum(gm.profile_links_taps)} taps on profile links</div>${igChart || '<div class="sub" style="margin-top:8px">Pick a period of more than one day to see the chart.</div>'}<div style="margin-top:8px">${IG}</div></div>
-          <div class="dash-card"><h3>Latest Instagram posts</h3>${postList(g.posts, x => `${int(x.likes)} likes · ${int(x.comments)} comments`)}<div style="margin-top:8px">${IG}${g.username ? ` <a href="https://www.instagram.com/${encodeURIComponent(g.username)}/" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open profile</a>` : ''}</div></div>
+          ${postsCard('Latest Instagram posts', fromHistory ? null : g.top_posts, g.posts, IG, g.username ? ` <a href="https://www.instagram.com/${encodeURIComponent(g.username)}/" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open profile</a>` : '',
+            x => `${int(x.engagements)} interactions` + (x.reach != null ? ` · ${int(x.reach)} reached · ${pct(x.engagements, x.reach)}` : ` · ${int(x.likes)} likes · ${int(x.comments)} comments`),
+            x => `${int(x.likes)} likes · ${int(x.comments)} comments`, g.posts_in_period || 0)}
         </div>`);
       }
       out.push(followersCard(hf, hg));

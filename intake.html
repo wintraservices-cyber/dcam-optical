@@ -354,6 +354,7 @@
     .confirm-panel { padding: 40px 24px; }
   }
 </style>
+<script src="src-track.js"></script>
 </head>
 <body>
 
@@ -456,6 +457,20 @@
         <div class="field full">
           <label for="notes">Anything we should know before you arrive? <span class="hint">(optional — scheduling notes only, e.g. "running late usually" or "first-time contact lens wearer")</span></label>
           <textarea id="notes" name="notes" placeholder="Optional"></textarea>
+        </div>
+        <div class="field full">
+          <label for="heardAbout">How did you hear about us? <span class="hint">(optional)</span></label>
+          <select id="heardAbout" name="heardAbout">
+            <option value="">Prefer not to say</option>
+            <option value="facebook">Facebook</option>
+            <option value="instagram">Instagram</option>
+            <option value="google">Google search</option>
+            <option value="google_maps">Google Maps</option>
+            <option value="friend">Friend or family</option>
+            <option value="walk_by">Walked by the shop</option>
+            <option value="returning">I've been here before</option>
+            <option value="other">Other</option>
+          </select>
         </div>
       </div>
     </div>
@@ -627,6 +642,9 @@
     data.notifyPromos = document.getElementById('notifyPromos').checked;
     data.notifySms = document.getElementById('notifySms').checked;
     data.notifyEmail = document.getElementById('notifyEmail').checked;
+    data.heardAbout = (document.getElementById('heardAbout') || {}).value || '';
+    // Where the visitor came from (src-track.js): campaign tags or referring site only.
+    try { data.source = window.dcamSource ? window.dcamSource() : null; } catch (e) { data.source = null; }
     return data;
   }
 
