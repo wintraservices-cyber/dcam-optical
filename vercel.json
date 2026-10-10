@@ -29,5 +29,11 @@
       "destination": "/?utm_source=facebook&utm_medium=social&utm_campaign=page_links",
       "permanent": false
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/settings?action=social_snapshot",
+      "schedule": "0 17 * * *"
+    }
   ]
 }

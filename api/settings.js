@@ -8,12 +8,14 @@
 // GET with ?key=X returns just that key's value.
 // PATCH { key, value } upserts one key.
 
+const crypto = require('crypto');
 const { requireAuth, requireAdmin, requireAdminOrTech } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
 const { normalizeAiAccess } = require('../lib/ai-access');
 const { usageReport, usageDaily, summarize, websiteSpendToday } = require('../lib/ai-usage');
 const { analyticsSummary } = require('../lib/ga4');
 const { socialSummary } = require('../lib/meta-insights');
+const { runSnapshot, readHistory } = require('../lib/meta-history');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeTechCosts } = require('../lib/tech-costs');
 const { tidyFacebookUrl, DEFAULT_FACEBOOK_URL, normalizeSiteMode, redactSiteMode, publicSiteMode, checkPreviewPin, SiteModeError } = require('../lib/site-mode');
@@ -279,6 +281,37 @@ async function getDashboard(req, res) {
     }),
   ]);
   res.status(200).json(out);
+}
+
+// Turns saved social_daily rows into what Website insights shows: totals,
+// follower start/end and per-day series, per platform.
+function summarizeHistory(rows) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const out = { first_day: rows[0].day, last_day: rows[rows.length - 1].day };
+  ['facebook', 'instagram'].forEach(p => {
+    const mine = rows.filter(r => r.platform === p);
+    const sum = (c) => mine.reduce((n, r) => n + (Number(r[c]) || 0), 0);
+    const has = (c) => mine.some(r => r[c] != null);
+    const withF = mine.filter(r => r.followers != null);
+    const series = (c) => mine.reduce((o, r) => { if (r[c] != null) o[r.day] = Number(r[c]); return o; }, {});
+    out[p] = mine.length ? {
+      days: mine.length,
+      first_day: mine[0].day,
+      followers_start: withF.length ? withF[0].followers : null,
+      followers_end: withF.length ? withF[withF.length - 1].followers : null,
+      followers_series: series('followers'),
+      posts_published: has('posts_published') ? sum('posts_published') : null,
+      views: has('views') ? sum('views') : null,
+      views_series: series('views'),
+      reach: has('reach') ? sum('reach') : null,
+      reach_series: series('reach'),
+      engagements: has('engagements') ? sum('engagements') : null,
+      new_follows: has('new_follows') ? sum('new_follows') : null,
+      accounts_engaged: has('accounts_engaged') ? sum('accounts_engaged') : null,
+      link_taps: has('link_taps') ? sum('link_taps') : null,
+    } : null;
+  });
+  return out;
 }
 
 async function getAiUsage(req, res) {
@@ -553,6 +586,27 @@ module.exports = async (req, res) => {
     return getDashboard(req, res);
   }
 
+  if (req.query && req.query.action === 'social_snapshot' && (req.method === 'GET' || req.method === 'POST')) {
+    // Daily save of the Facebook / Instagram numbers into social_daily.
+    // GET: Vercel's cron job, which sends "Authorization: Bearer <CRON_SECRET>".
+    // POST: an admin or tech pressing "Save now" in Website insights.
+    if (req.method === 'GET') {
+      const secret = process.env.CRON_SECRET || '';
+      const got = String((req.headers && req.headers.authorization) || '');
+      const want = 'Bearer ' + secret;
+      const ok = secret.length >= 16 && got.length === want.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want));
+      if (!ok) { res.status(401).json({ ok: false, error: 'Not authorized.' }); return; }
+    } else if (!requireAdminOrTech(req, res)) return;
+    try {
+      const report = await runSnapshot();
+      res.status(report.ok ? 200 : 502).json(report);
+    } catch (err) {
+      console.error('social snapshot:', err.message);
+      res.status(502).json({ ok: false, error: err.migration ? err.message : 'Could not save the Facebook / Instagram numbers right now.' });
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.query && req.query.view === 'social') {
     // Facebook Page + Instagram numbers for Website insights -- admin or tech.
     // Loaded separately from view=dashboard so a slow Meta answer never holds
@@ -568,7 +622,8 @@ module.exports = async (req, res) => {
       prev = { from: shiftDate(from, -len), to: shiftDate(from, -1) };
     }
     try {
-      res.status(200).json({ ok: true, social: await socialSummary(from, to, prev) });
+      const [social, rows] = await Promise.all([socialSummary(from, to, prev), readHistory(from, to).catch(() => null)]);
+      res.status(200).json({ ok: true, social, history: summarizeHistory(rows) });
     } catch (err) {
       console.error('social insights:', err.message);
       res.status(200).json({ ok: true, social: { configured: true, error: 'Could not load Facebook / Instagram right now.' } });

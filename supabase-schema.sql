@@ -832,3 +832,26 @@ alter table patients add column if not exists notify_sms boolean not null defaul
 alter table patients add column if not exists notify_email boolean not null default false;
 alter table patients add column if not exists notify_consent_at timestamptz;
 alter table patients add column if not exists notify_consent_source text;
+
+-- ---------------------------------------------------------------------
+-- Social media history: one row per day per platform (facebook /
+-- instagram), saved by the daily cron job (GET /api/settings?action=
+-- social_snapshot). Meta keeps no follower history, so these rows are the
+-- only record of follower growth. Safe to re-run.
+-- ---------------------------------------------------------------------
+create table if not exists social_daily (
+  day date not null,
+  platform text not null check (platform in ('facebook', 'instagram')),
+  followers integer,
+  posts_total integer,
+  posts_published integer,
+  views integer,
+  reach integer,
+  engagements integer,
+  new_follows integer,
+  accounts_engaged integer,
+  link_taps integer,
+  updated_at timestamptz not null default now(),
+  primary key (day, platform)
+);
+alter table social_daily enable row level security;

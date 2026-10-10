@@ -3124,7 +3124,23 @@
       const lab = d => d.day.slice(5).replace('-', '/');
       return `<svg class="dash-chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${escapeHtml(label)}">${grid}<polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${days.map((d, i) => x(i).toFixed(1) + ',' + y(d.v).toFixed(1)).join(' ')}"/><text x="${L}" y="192">${lab(days[0])}</text><text x="${R2}" y="192" text-anchor="end">${lab(days[days.length - 1])}</text></svg>`;
     }
-    function social(s) {
+    // Followers over time (both platforms), from the saved daily history.
+    function followersCard(hf, hg) {
+      const fs = (hf && hf.followers_series) || {}, gs = (hg && hg.followers_series) || {};
+      const days = Array.from(new Set([...Object.keys(fs), ...Object.keys(gs)])).sort();
+      if (days.length < 2) return `<div class="dash-card" style="margin-top:12px;"><h3>Followers over time</h3><div class="sub" style="margin-top:4px">Meta doesn’t keep follower history, so DCAM saves the counts once a day. The chart appears after two days are saved${days.length ? ' (first saved: ' + escapeHtml(days[0]) + ')' : ''}.</div><div style="margin-top:8px">${FB} ${IG} ${OWN}</div></div>`;
+      const W = 640, H = 200, L = 46, R2 = 630, T = 16, B = 170;
+      const vals = days.flatMap(d => [fs[d], gs[d]]).filter(v => v != null);
+      const lo = Math.max(0, Math.floor(Math.min(...vals) * 0.95)), hi = Math.ceil(Math.max(lo + 4, ...vals) * 1.02);
+      const x = i => L + (R2 - L) * i / (days.length - 1), y = v => B - (B - T) * (v - lo) / (hi - lo);
+      const grid = [0, 1, 2, 3, 4].map(k => { const v = lo + (hi - lo) * k / 4; return `<line x1="${L}" y1="${y(v)}" x2="${R2}" y2="${y(v)}" stroke="rgba(56,51,52,.12)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${int(Math.round(v))}</text>`; }).join('');
+      const line = (m, color) => { const pts = days.map((d, i) => m[d] == null ? null : x(i).toFixed(1) + ',' + y(m[d]).toFixed(1)).filter(Boolean); return pts.length > 1 ? `<polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${pts.join(' ')}"/>` : ''; };
+      const lab = d => d.slice(5).replace('-', '/');
+      return `<div class="dash-card" style="margin-top:12px;"><h3>Followers over time</h3><div class="sub">Saved once a day</div>
+        <svg class="dash-chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Facebook and Instagram followers over time">${grid}${line(fs, '#2D4F8E')}${line(gs, '#A23D6B')}<text x="${L}" y="192">${lab(days[0])}</text><text x="${R2}" y="192" text-anchor="end">${lab(days[days.length - 1])}</text></svg>
+        <div class="dash-legend"><span><i style="background:#2D4F8E"></i>Facebook</span><span><i style="background:#A23D6B"></i>Instagram</span></div><div style="margin-top:8px">${OWN}</div></div>`;
+    }
+    function social(s, h) {
       const head = '<div class="dash-sec">Social media</div>';
       if (!s || !s.configured) return head + `<div class="dash-card dash-ga"><h3>Not connected to Facebook / Instagram yet</h3>
         <div class="sub" style="margin-top:4px">Page views, followers, engagement and your latest posts on Facebook and Instagram will appear here once a Meta Page token is added in Vercel (<code>META_PAGE_ID</code> and <code>META_PAGE_ACCESS_TOKEN</code>). Instagram needs to be a professional account linked to the Facebook Page.</div>
@@ -3132,18 +3148,33 @@
       if (s.error) return head + `<div class="dash-card dash-ga"><h3>Facebook / Instagram</h3><div class="sub" style="margin-top:4px">${escapeHtml(s.error)}</div></div>`;
       const rg = s.range || {};
       const label = rg.defaulted ? 'Last 28 days' : `${escapeHtml(rg.from)} → ${escapeHtml(rg.to)}`;
-      const f = s.facebook || {}, fm = f.metrics || {}, fp = f.previous || {};
-      const g = s.instagram || {}, gm = g.metrics || {}, gp = g.previous || {};
-      const out = [head.replace('Social media', 'Social media · ' + label)];
-      if (rg.defaulted) out.push('<div style="margin:-4px 0 10px; font-size:0.78rem; color:var(--charcoal-soft)">Meta needs a date range, so “All time” shows the last 28 days.</div>');
+      const f = s.facebook || {}, fm = (f.metrics = f.metrics || {}), fp = (f.previous = f.previous || {});
+      const g = s.instagram || {}, gm = (g.metrics = g.metrics || {}), gp = (g.previous = g.previous || {});
+      const hf = (h && h.facebook) || null, hg = (h && h.instagram) || null;
+      // "All time": use the saved daily history when there is some.
+      const fromHistory = !!(rg.defaulted && h && (hf || hg));
+      let shownLabel = label, chartFrom = rg.from, chartTo = rg.to;
+      if (fromHistory) {
+        shownLabel = 'All time (saved since ' + escapeHtml(h.first_day) + ')';
+        chartFrom = h.first_day; chartTo = h.last_day;
+        const clear = (o) => Object.keys(o).forEach(k => { delete o[k]; });
+        if (hf) { Object.assign(fm, { page_media_view: hf.views, page_post_engagements: hf.engagements, page_daily_follows_unique: hf.new_follows }); clear(fp); f.daily = hf.views_series; }
+        if (hg && !g.error && g.linked !== false) { Object.assign(gm, { views: hg.views, reach: hg.reach, total_interactions: hg.engagements, accounts_engaged: hg.accounts_engaged, profile_links_taps: hg.link_taps }); clear(gp); g.approx = true; g.daily = hg.reach_series; }
+      }
+      const gained = (x) => x && x.followers_start != null && x.followers_end != null && x.days > 1 ? (x.followers_end - x.followers_start) : null;
+      const gainLine = (x, fallback) => { const n = gained(x); return '<div class="d ' + (n == null || n === 0 ? 'flat' : n > 0 ? '' : 'down') + '">' + (n == null ? fallback : n === 0 ? 'No change in this period' : (n > 0 ? '▲ ' : '▼ ') + int(Math.abs(n)) + ' in this period') + '</div>'; };
+      const postsTile = (badge, label2, x) => sTile(badge, label2, x && x.posts_published != null ? int(x.posts_published) : '—', '<div class="d flat">' + (x && x.posts_published != null ? 'in this period' : 'Counted once daily saving starts') + '</div>');
+      const out = [head.replace('Social media', 'Social media · ' + shownLabel)];
+      if (rg.defaulted && !fromHistory) out.push('<div style="margin:-4px 0 10px; font-size:0.78rem; color:var(--charcoal-soft)">Meta needs a date range, so “All time” shows the last 28 days until the daily history has some days saved.</div>');
       // Facebook
-      out.push(`<div class="dash-tiles">
-        ${sTile(FB, 'Facebook followers', sNum(f.followers), '<div class="d flat">' + (f.name ? escapeHtml(f.name) : 'Page total') + '</div>')}
+      out.push(`<div class="dash-tiles" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+        ${sTile(FB, 'Facebook followers', sNum(f.followers), gainLine(hf, f.name ? escapeHtml(f.name) : 'Page total'))}
         ${sTile(FB, 'Facebook views', sNum(fm.page_media_view), sDelta(fm.page_media_view, fp.page_media_view))}
         ${sTile(FB, 'Post engagements', sNum(fm.page_post_engagements), sDelta(fm.page_post_engagements, fp.page_post_engagements))}
         ${sTile(FB, 'New follows', sNum(fm.page_daily_follows_unique), sDelta(fm.page_daily_follows_unique, fp.page_daily_follows_unique))}
+        ${postsTile(FB, 'Facebook posts', hf)}
       </div>`);
-      const fbChart = lineChart(f.daily, rg.from, rg.to, '#2D4F8E', 'Facebook views per day');
+      const fbChart = lineChart(f.daily, chartFrom, chartTo, '#2D4F8E', 'Facebook views per day');
       out.push(`<div class="dash-grid" style="margin-top:12px;">
         <div class="dash-card"><h3>Facebook views per day</h3><div class="sub">How often your Page and posts were seen</div>${fbChart || '<div class="sub" style="margin-top:8px">Pick a period of more than one day to see the chart.</div>'}<div style="margin-top:8px">${FB}</div></div>
         <div class="dash-card"><h3>Latest Facebook posts</h3>${postList(f.posts, x => `${int(x.reactions)} reactions · ${int(x.comments)} comments · ${int(x.shares)} shares`)}<div style="margin-top:8px">${FB}${f.link ? ` <a href="${safeHref(f.link)}" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open Page</a>` : ''}</div></div>
@@ -3155,19 +3186,21 @@
         out.push(`<div class="dash-card dash-ga" style="margin-top:12px;"><h3>Instagram</h3><div class="sub" style="margin-top:4px">${escapeHtml(g.error)}</div></div>`);
       } else {
         const approx = g.approx ? '<div class="d flat">Approximate over long periods</div>' : null;
-        out.push(`<div class="dash-tiles" style="margin-top:16px;">
-          ${sTile(IG, 'Instagram followers', sNum(g.followers), '<div class="d flat">' + (g.username ? '@' + escapeHtml(g.username) : 'Account total') + (g.posts_total != null ? ' · ' + int(g.posts_total) + ' posts' : '') + '</div>')}
+        out.push(`<div class="dash-tiles" style="margin-top:16px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+          ${sTile(IG, 'Instagram followers', sNum(g.followers), gainLine(hg, (g.username ? '@' + escapeHtml(g.username) : 'Account total') + (g.posts_total != null ? ' · ' + int(g.posts_total) + ' posts' : '')))}
           ${sTile(IG, 'Instagram views', sNum(gm.views), sDelta(gm.views, gp.views))}
           ${sTile(IG, 'Accounts reached', sNum(gm.reach), approx || sDelta(gm.reach, gp.reach))}
           ${sTile(IG, 'Interactions', sNum(gm.total_interactions), sDelta(gm.total_interactions, gp.total_interactions))}
+          ${postsTile(IG, 'Instagram posts', hg)}
         </div>`);
-        const igChart = lineChart(g.daily, rg.from, rg.to, '#A23D6B', 'Instagram accounts reached per day');
+        const igChart = lineChart(g.daily, chartFrom, chartTo, '#A23D6B', 'Instagram accounts reached per day');
         out.push(`<div class="dash-grid" style="margin-top:12px;">
           <div class="dash-card"><h3>Instagram reach per day</h3><div class="sub">Accounts that saw your posts or profile · ${sNum(gm.accounts_engaged)} engaged · ${sNum(gm.profile_links_taps)} taps on profile links</div>${igChart || '<div class="sub" style="margin-top:8px">Pick a period of more than one day to see the chart.</div>'}<div style="margin-top:8px">${IG}</div></div>
           <div class="dash-card"><h3>Latest Instagram posts</h3>${postList(g.posts, x => `${int(x.likes)} likes · ${int(x.comments)} comments`)}<div style="margin-top:8px">${IG}${g.username ? ` <a href="https://www.instagram.com/${encodeURIComponent(g.username)}/" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open profile</a>` : ''}</div></div>
         </div>`);
       }
-      out.push('<div style="margin-top:10px; font-size:0.78rem; color:var(--charcoal-soft)">Numbers come from Meta and can lag up to a day. Meta Business Suite is the source of truth.</div>');
+      out.push(followersCard(hf, hg));
+      out.push('<div style="margin-top:10px; font-size:0.78rem; color:var(--charcoal-soft)">Numbers come from Meta and can lag up to a day; they are saved to the database once a day so history keeps growing. Meta Business Suite is the source of truth. <button type="button" id="socialSaveNow" style="margin-left:6px; font-size:0.78rem; padding:3px 10px; border:1px solid var(--line); border-radius:99px; background:#fff; color:#8A3F7B; cursor:pointer;">Save today’s numbers now</button> <span id="socialSaveMsg"></span></div>');
       return out.join('');
     }
     let socialSeq = 0;
@@ -3180,7 +3213,19 @@
         const r = await resp.json();
         if (mine !== socialSeq || !box()) return;
         if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not load Facebook / Instagram.');
-        box().innerHTML = social(r.social);
+        box().innerHTML = social(r.social, r.history);
+        const btn = document.getElementById('socialSaveNow');
+        if (btn) btn.addEventListener('click', async () => {
+          const msg = document.getElementById('socialSaveMsg');
+          btn.disabled = true; msg.textContent = 'Saving…';
+          try {
+            const resp2 = await fetch('/api/settings?action=social_snapshot', { method: 'POST' });
+            const r2 = await resp2.json();
+            if (!resp2.ok || !r2.ok) throw new Error(r2.error || 'Could not save.');
+            msg.textContent = 'Saved ' + int(r2.saved) + ' rows.';
+            setTimeout(() => loadSocial(from, to), 600);
+          } catch (e) { msg.textContent = e.message; btn.disabled = false; }
+        });
       } catch (err) {
         if (mine === socialSeq && box()) box().innerHTML = '<div class="dash-sec">Social media</div><div class="empty-state">' + escapeHtml(err.message) + '</div>';
       }

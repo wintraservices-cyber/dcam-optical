@@ -548,3 +548,13 @@ Facebook Page and Instagram numbers next to the Google Analytics ones: followers
 - **Instagram** must be a professional (Business or Creator) account linked to the Facebook Page.
 - The Meta app only needs to be in Development mode with the business's own admins; no App Review is needed to read your own Page.
 - If the token is revoked or expires, the section says so; create a new one and replace the Vercel variable.
+
+### Social media history (daily save)
+
+Meta keeps no follower history and only returns insights for bounded date ranges, so the numbers are saved once a day in the `social_daily` table (one row per day per platform: followers, posts total, posts published that day, views, reach, engagements / interactions, new follows, accounts engaged, profile link taps).
+
+- **When:** a Vercel cron job (`vercel.json` → `crons`) calls `GET /api/settings?action=social_snapshot` daily at 17:00 UTC (1:00–1:59 AM Manila on the Hobby plan). Vercel sends `Authorization: Bearer <CRON_SECRET>`; the route refuses anything else. Admin / tech can also press **Save today's numbers now** in Website insights (`POST` with their login).
+- **Each run:** saves today's follower counts and post totals, re-saves the last 3 days (Meta revises recent numbers), and backfills one older chunk (Facebook 90 days, Instagram 30 days per run) until Meta returns nothing older or two years are covered. Progress is kept in the `social_backfill` app setting. Days before the Page / account existed are not stored.
+- **What it adds to Website insights:** followers gained in the period, posts published per platform, a Followers over time chart, and **All time** totals from the saved days (Instagram reach summed from daily values is marked approximate).
+- **Setup:** run the latest `supabase-schema.sql` (creates `social_daily`), add `CRON_SECRET` (a random string of 16+ characters) in Vercel Production, redeploy. Vercel → Settings → Cron Jobs shows each run.
+- Facebook post totals come from listing the Page's posts (up to 2,000); Instagram's from `media_count`.
