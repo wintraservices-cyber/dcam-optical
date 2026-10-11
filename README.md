@@ -549,6 +549,10 @@ Facebook Page and Instagram numbers next to the Google Analytics ones: followers
 - The Meta app only needs to be in Development mode with the business's own admins; no App Review is needed to read your own Page.
 - If the token is revoked or expires, the section says so; create a new one and replace the Vercel variable.
 
+### Social media — numbers entered by hand (until Meta is connected)
+
+While `META_PAGE_ID` / `META_PAGE_ACCESS_TOKEN` are not set, the Social media section shows an **Add numbers** form instead of "Not connected": platform, date, followers, views, reach, engagements, new follows, link taps, posts published (all optional, at least one). Entries are saved in the same `social_daily` table (`POST /api/settings?action=social_manual`, admin or tech; `DELETE` with `day` and `platform` removes one; code in `lib/social-manual.js`), so the period totals and the follower figures use them. Tip: type a month's totals from Meta Business Suite against the last day of that month. Saving the same platform and date replaces the entry. Needs the `social_daily` table (latest `supabase-schema.sql`). Once Meta is connected the live view takes over and the daily save writes to the same table.
+
 ### Social media history (daily save)
 
 Meta keeps no follower history and only returns insights for bounded date ranges, so the numbers are saved once a day in the `social_daily` table (one row per day per platform: followers, posts total, posts published that day, views, reach, engagements / interactions, new follows, accounts engaged, profile link taps).

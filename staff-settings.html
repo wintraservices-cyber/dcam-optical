@@ -3171,11 +3171,39 @@
       const head = useTop ? `<h3>Top posts in this period</h3><div class="sub">${int(inPeriod)} post${inPeriod === 1 ? '' : 's'} published · ranked by engagement</div>` : `<h3>${title}</h3>${top && !top.length ? '<div class="sub">No posts in this period, so here are the latest.</div>' : ''}`;
       return `<div class="dash-card">${head}${postList(useTop ? top : latest, useTop ? fmtTop : fmtLatest)}<div style="margin-top:8px">${badge}${extra}</div></div>`;
     }
-    function social(s, h) {
+    // ---- Hand-entered numbers (used until the Meta token is added) ----
+    function manualSocial(h, entries) {
+      const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+      const tilesFor = (p, badge, label) => {
+        const x = h && h[p];
+        if (!x) return '';
+        const gain = (x.followers_start != null && x.followers_end != null && x.days > 1) ? x.followers_end - x.followers_start : null;
+        const gl = gain == null ? '<div class="d flat">&nbsp;</div>' : '<div class="d ' + (gain === 0 ? 'flat' : gain > 0 ? '' : 'down') + '">' + (gain === 0 ? 'No change' : (gain > 0 ? '▲ ' : '▼ ') + int(Math.abs(gain)) + ' in this period') + '</div>';
+        const t = (l, v) => v == null ? '' : sTile(badge, label + ' ' + l, int(v), '<div class="d flat">entered by hand</div>');
+        return sTile(badge, label + ' followers', sNum(x.followers_end), gl) + t('views', x.views) + t('reach', x.reach) + t('engagements', x.engagements) + t('new follows', x.new_follows) + t('link taps', x.link_taps) + t('posts', x.posts_published);
+      };
+      const tiles = tilesFor('facebook', FB, 'Facebook') + tilesFor('instagram', IG, 'Instagram');
+      const rows = (entries || []).map(e => `<tr><td>${escapeHtml(e.day)}</td><td>${e.platform === 'instagram' ? 'Instagram' : 'Facebook'}</td><td>${sNum(e.followers)}</td><td>${sNum(e.views)}</td><td>${sNum(e.reach)}</td><td>${sNum(e.engagements)}</td><td>${sNum(e.new_follows)}</td><td>${sNum(e.link_taps)}</td><td>${sNum(e.posts_published)}</td><td><button type="button" class="smDel" data-day="${escapeHtml(e.day)}" data-p="${escapeHtml(e.platform)}" style="border:0; background:none; color:#B3261E; cursor:pointer; font-size:0.78rem;">Remove</button></td></tr>`).join('');
+      const fld = (id, label) => `<label style="display:block; font-size:0.72rem; font-weight:700; color:var(--charcoal-soft);">${label}<input type="number" min="0" step="1" id="${id}" inputmode="numeric" style="display:block; width:100%; margin-top:3px; padding:7px 8px; border:1px solid var(--line); border-radius:8px; font:inherit;"></label>`;
+      return `<div class="dash-card dash-ga" style="margin-bottom:12px"><h3>Facebook / Instagram numbers (entered by hand)</h3>
+        <div class="sub" style="margin-top:4px">Not connected to Meta yet, so type the numbers from Meta Business Suite (Insights). Tip: enter a month’s totals against the last day of that month; the period filter above then adds up the right months. Followers is the count on that day. Connecting Meta later fills these in automatically.</div>
+        <div style="margin-top:10px">${FB} ${IG} <a href="https://business.facebook.com/latest/insights" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open Meta Business Suite</a></div></div>
+        ${tiles ? '<div class="dash-tiles" style="grid-template-columns:repeat(auto-fit,minmax(125px,1fr));">' + tiles + '</div>' : '<div class="sub" style="margin:6px 0 10px">No numbers saved for this period yet.</div>'}
+        <div class="dash-card" style="margin-top:14px"><h3>Add numbers</h3>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-top:10px; align-items:end;">
+            <label style="display:block; font-size:0.72rem; font-weight:700; color:var(--charcoal-soft);">Platform<select id="smPlatform" style="display:block; width:100%; margin-top:3px; padding:7px 8px; border:1px solid var(--line); border-radius:8px; font:inherit;"><option value="facebook">Facebook</option><option value="instagram">Instagram</option></select></label>
+            <label style="display:block; font-size:0.72rem; font-weight:700; color:var(--charcoal-soft);">Date<input type="date" id="smDay" value="${todayIso}" max="${todayIso}" style="display:block; width:100%; margin-top:3px; padding:7px 8px; border:1px solid var(--line); border-radius:8px; font:inherit;"></label>
+            ${fld('smFollowers', 'Followers')}${fld('smViews', 'Views')}${fld('smReach', 'Reach')}${fld('smEng', 'Engagements')}${fld('smNew', 'New follows')}${fld('smLinks', 'Link taps')}${fld('smPosts', 'Posts published')}
+          </div>
+          <div style="margin-top:12px;"><button type="button" id="smSave" class="btn-primary" style="padding:8px 18px; border:0; border-radius:99px; cursor:pointer; font-weight:700;">Save numbers</button> <span id="smMsg" style="font-size:0.85rem; margin-left:8px;"></span></div>
+          <div class="sub" style="margin-top:8px">Saving the same platform and date again replaces that entry. Leave a box empty if you do not have that number.</div>
+        </div>
+        ${rows ? '<div class="dash-card" style="margin-top:14px; overflow-x:auto;"><h3>Saved entries</h3><table style="width:100%; border-collapse:collapse; font-size:0.82rem; margin-top:8px;"><thead><tr style="text-align:left; color:var(--charcoal-soft);"><th>Date</th><th>Platform</th><th>Followers</th><th>Views</th><th>Reach</th><th>Engage.</th><th>New</th><th>Links</th><th>Posts</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : ''}`;
+    }
+
+    function social(s, h, entries) {
       const head = '<div class="dash-sec">Social media</div>';
-      if (!s || !s.configured) return head + `<div class="dash-card dash-ga"><h3>Not connected to Facebook / Instagram yet</h3>
-        <div class="sub" style="margin-top:4px">Page views, followers, engagement and your latest posts on Facebook and Instagram will appear here once a Meta Page token is added in Vercel (<code>META_PAGE_ID</code> and <code>META_PAGE_ACCESS_TOKEN</code>). Instagram needs to be a professional account linked to the Facebook Page.</div>
-        <div style="margin-top:10px">${FB} ${IG} <a href="https://business.facebook.com/latest/insights" target="_blank" rel="noopener" style="font-size:0.85rem; margin-left:8px; color:#8A3F7B;">Open Meta Business Suite</a></div></div>`;
+      if (!s || !s.configured) return head + manualSocial(h, entries);
       if (s.error) return head + `<div class="dash-card dash-ga"><h3>Facebook / Instagram</h3><div class="sub" style="margin-top:4px">${escapeHtml(s.error)}</div></div>`;
       const rg = s.range || {};
       const label = rg.defaulted ? 'Last 28 days' : `${escapeHtml(rg.from)} → ${escapeHtml(rg.to)}`;
@@ -3251,7 +3279,26 @@
         const r = await resp.json();
         if (mine !== socialSeq || !box()) return;
         if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not load Facebook / Instagram.');
-        box().innerHTML = social(r.social, r.history);
+        box().innerHTML = social(r.social, r.history, r.entries);
+        const smSave = document.getElementById('smSave');
+        if (smSave) {
+          const post = async (url, opts) => { const rr = await fetch(url, opts); const j = await rr.json().catch(() => ({})); if (!rr.ok || !j.ok) throw new Error(j.error || 'Could not save.'); };
+          const val = (id) => document.getElementById(id).value;
+          smSave.addEventListener('click', async () => {
+            const msg = document.getElementById('smMsg');
+            smSave.disabled = true; msg.style.color = ''; msg.textContent = 'Saving…';
+            try {
+              await post('/api/settings?action=social_manual', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform: val('smPlatform'), day: val('smDay'), followers: val('smFollowers'), views: val('smViews'), reach: val('smReach'), engagements: val('smEng'), new_follows: val('smNew'), link_taps: val('smLinks'), posts_published: val('smPosts') }) });
+              msg.style.color = '#2E7D4F'; msg.textContent = 'Saved.';
+              setTimeout(() => loadSocial(from, to), 500);
+            } catch (err) { msg.style.color = '#B3261E'; msg.textContent = err.message; smSave.disabled = false; }
+          });
+          document.querySelectorAll('.smDel').forEach(b => b.addEventListener('click', async () => {
+            b.disabled = true;
+            try { await post('/api/settings?action=social_manual&day=' + encodeURIComponent(b.dataset.day) + '&platform=' + encodeURIComponent(b.dataset.p), { method: 'DELETE' }); loadSocial(from, to); }
+            catch (err) { b.disabled = false; b.textContent = err.message; }
+          }));
+        }
         const btn = document.getElementById('socialSaveNow');
         if (btn) btn.addEventListener('click', async () => {
           const msg = document.getElementById('socialSaveMsg');

@@ -16,6 +16,7 @@ const { usageReport, usageDaily, summarize, websiteSpendToday } = require('../li
 const { analyticsSummary } = require('../lib/ga4');
 const { socialSummary } = require('../lib/meta-insights');
 const { runSnapshot, readHistory } = require('../lib/meta-history');
+const socialManual = require('../lib/social-manual');
 const { CHANNELS, HEARD } = require('../lib/attribution');
 const { normalizeKnowledge, loadKnowledge, entriesFor, listUnanswered, setUnansweredStatus } = require('../lib/ai-knowledge');
 const { normalizeTechCosts } = require('../lib/tech-costs');
@@ -631,6 +632,21 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (req.query && req.query.action === 'social_manual' && (req.method === 'POST' || req.method === 'DELETE')) {
+    // Hand-entered Facebook / Instagram numbers (admin or tech), saved in social_daily.
+    if (!requireAdminOrTech(req, res)) return;
+    try {
+      let out;
+      if (req.method === 'DELETE') out = await socialManual.deleteEntry(req.query.day, req.query.platform);
+      else out = await socialManual.saveEntry(typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body);
+      res.status(out.ok ? 200 : (out.status || 400)).json(out.ok ? { ok: true } : { ok: false, error: out.error });
+    } catch (err) {
+      console.error('social manual:', err.message);
+      res.status(400).json({ ok: false, error: 'Could not save these numbers.' });
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.query && req.query.view === 'social') {
     // Facebook Page + Instagram numbers for Website insights -- admin or tech.
     // Loaded separately from view=dashboard so a slow Meta answer never holds
@@ -646,8 +662,8 @@ module.exports = async (req, res) => {
       prev = { from: shiftDate(from, -len), to: shiftDate(from, -1) };
     }
     try {
-      const [social, rows] = await Promise.all([socialSummary(from, to, prev), readHistory(from, to).catch(() => null)]);
-      res.status(200).json({ ok: true, social, history: summarizeHistory(rows) });
+      const [social, rows, entries] = await Promise.all([socialSummary(from, to, prev), readHistory(from, to).catch(() => null), socialManual.recentEntries(40).catch(() => null)]);
+      res.status(200).json({ ok: true, social, history: summarizeHistory(rows), entries });
     } catch (err) {
       console.error('social insights:', err.message);
       res.status(200).json({ ok: true, social: { configured: true, error: 'Could not load Facebook / Instagram right now.' } });
