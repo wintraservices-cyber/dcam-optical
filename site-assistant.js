@@ -25,9 +25,12 @@
   }
 
   const css = `
-  .dca-fab{position:fixed;right:20px;bottom:20px;z-index:9998;height:56px;min-width:56px;padding:0 20px 0 16px;border-radius:100px;border:none;cursor:pointer;
-    background:#B05A9E;color:#fff;box-shadow:0 8px 24px rgba(56,51,52,.3);display:flex;align-items:center;gap:10px;
-    font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.92rem;transition:transform .15s,background .15s}
+  .dca-fab{position:fixed;right:20px;bottom:20px;z-index:9998;height:56px;min-width:56px;padding:0 16px;border-radius:100px;border:none;cursor:pointer;
+    background:#B05A9E;color:#fff;box-shadow:0 8px 24px rgba(56,51,52,.3);display:flex;align-items:center;gap:0;
+    font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.92rem;transition:transform .15s,background .15s,gap .2s}
+  .dca-fab-label{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;transition:max-width .25s ease,opacity .2s ease}
+  .dca-fab:hover,.dca-fab:focus-visible{gap:10px}
+  .dca-fab:hover .dca-fab-label,.dca-fab:focus-visible .dca-fab-label{max-width:160px;opacity:1}
   .dca-fab:hover{background:#8F4680;transform:translateY(-1px)}
   .dca-fab:focus-visible{outline:3px solid #5BAFC0;outline-offset:3px}
   .dca-fab.open .dca-fab-label{display:none}
