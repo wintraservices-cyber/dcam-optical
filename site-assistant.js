@@ -21,7 +21,7 @@
   ];
   const DEFAULT_NAME = 'DCAM Assistant';
   function greetingFor(name) {
-    return "Hi! I'm " + name + ". Ask me about hours, HMO coverage, eye exams or eyewear — or I can help you book a visit.";
+    return "Hi! I'm " + name + ". Ask me about hours, eye exams or eyewear — or I can help you book a visit.";
   }
 
   const css = `

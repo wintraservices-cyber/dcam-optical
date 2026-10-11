@@ -52,7 +52,7 @@
     {
       "@type": "Question",
       "name": "Do you take HMO or insurance?",
-      "acceptedAnswer": { "@type": "Answer", "text": "We accept a number of HMO providers -- bring your HMO card and a valid ID for your visit and our front desk will confirm coverage." }
+      "acceptedAnswer": { "@type": "Answer", "text": "DCAM Optical does not accept HMO or insurance. Exams and eyewear are paid for directly at the shop." }
     },
     {
       "@type": "Question",
@@ -540,7 +540,7 @@
       <div class="ai-copy">
         <div class="kicker">Ask us anything</div>
         <h2 class="h2">A front desk that never puts you on hold.</h2>
-        <p class="lede">Our assistant knows the shop: hours, HMO questions, what to expect at a first eye exam, and how to book. Try it.</p>
+        <p class="lede">Our assistant knows the shop: hours, what to expect at a first eye exam, and how to book. Try it.</p>
         <div class="ai-points">
           <div class="ai-point"><div class="mark"></div><p><strong>Answers any time, day or night</strong>: hours, location, booking and your first visit.</p></div>
           <div class="ai-point"><div class="mark"></div><p><strong>Knows when to say "come in"</strong>: anything that sounds urgent goes to real care, not a chatbot.</p></div>
@@ -550,7 +550,7 @@
       <div class="chat-panel">
         <div class="chat-head"><div class="cdot"></div><span id="chatAssistantName">DCAM Assistant</span><span class="tag">AI assistant</span></div>
         <div class="chat-body" id="chatBody" aria-live="polite">
-          <div class="msg bot" id="chatGreeting">Hi! I'm the DCAM Optical assistant. Ask me about hours, HMO coverage, what to expect at your first exam, or how to book.</div>
+          <div class="msg bot" id="chatGreeting">Hi! I'm the DCAM Optical assistant. Ask me about hours, what to expect at your first exam, or how to book.</div>
         </div>
         <div class="chat-suggestions" id="chatChips">
           <button class="chip" type="button" data-q="Do you take HMO or insurance?">Do you take HMO?</button>
@@ -558,7 +558,7 @@
           <button class="chip" type="button" data-q="What are your hours and where are you located?">Hours &amp; location</button>
         </div>
         <div class="chat-input-row">
-          <input type="text" id="chatInput" placeholder="Ask about hours, HMO, exams…" autocomplete="off" aria-label="Your question">
+          <input type="text" id="chatInput" placeholder="Ask about hours, exams…" autocomplete="off" aria-label="Your question">
           <button class="chat-send" id="chatSend" type="button" aria-label="Send">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           </button>
@@ -575,7 +575,7 @@
     <h2>Frequently asked questions</h2>
     <div class="faq-item">
       <h3>Do you take HMO or insurance?</h3>
-      <p>We accept a number of HMO providers — bring your HMO card and a valid ID for your visit and our front desk will confirm coverage.</p>
+      <p>DCAM Optical does not accept HMO or insurance. Exams and eyewear are paid for directly at the shop.</p>
     </div>
     <div class="faq-item">
       <h3>What happens at a first eye exam?</h3>
@@ -1027,7 +1027,7 @@
       // an earlier chat turn -- harmless either way since this only runs
       // once on load, before any message has been sent.
       if (greetingEl) {
-        greetingEl.textContent = "Hi! I'm " + b.assistant_name + ". Ask me about hours, HMO coverage, what to expect at your first exam, or how to book.";
+        greetingEl.textContent = "Hi! I'm " + b.assistant_name + ". Ask me about hours, what to expect at your first exam, or how to book.";
       }
     }
     applyHomepage(b);
