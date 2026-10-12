@@ -1,4 +1,5 @@
 const { requireAuth } = require('../lib/auth');
+const { getPermissions, can, deny } = require('../lib/staff-permissions');
 const { supabaseRequest } = require('../lib/supabase');
 
 // Field allow-list + length caps, same defensive pattern as orders.js.
@@ -201,7 +202,15 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (!requireAuth(req, res)) return;
+  const session = requireAuth(req, res);
+  if (!session) return;
+
+  // Order-form pickers (GET ?active_only=1) stay open; everything else is the
+  // Catalog page and follows the "view_catalog" staff permission.
+  const pickerRead = req.method === 'GET' && req.query && req.query.active_only;
+  if (!pickerRead && session.role !== 'admin' && !can(session, await getPermissions(), 'view_catalog')) {
+    return deny(res, 'The Catalog is turned off for staff accounts. Ask an admin.');
+  }
 
   if (req.method === 'POST') return createItem(req, res);
   if (req.method === 'GET') return listItems(req, res);

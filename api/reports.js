@@ -24,6 +24,7 @@
 // admin-gating on staff-expenses.html.
 
 const { requireAuth } = require('../lib/auth');
+const { getPermissions, can, deny } = require('../lib/staff-permissions');
 const { supabaseRequest } = require('../lib/supabase');
 
 const STAFF_ALLOWED_TYPES = ['orders', 'patients', 'inventory'];
@@ -664,6 +665,9 @@ module.exports = async (req, res) => {
   if (!validTypes.includes(type)) {
     res.status(400).json({ ok: false, error: `type must be one of: ${validTypes.join(', ')}` });
     return;
+  }
+  if (session.role !== 'admin' && !can(session, await getPermissions(), 'view_reports')) {
+    return deny(res, 'Reports are turned off for staff accounts. Ask an admin.');
   }
   if (ADMIN_ONLY_TYPES.includes(type) && session.role !== 'admin') {
     res.status(403).json({ ok: false, error: 'This report requires an admin account.' });

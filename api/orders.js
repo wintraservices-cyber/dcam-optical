@@ -131,6 +131,9 @@ function sanitizeItems(rawItems) {
 }
 
 async function createOrder(req, res, session) {
+  if (session.role !== 'admin' && !can(session, await getPermissions(), 'create_orders')) {
+    return deny(res, 'Creating new orders is turned off for staff accounts. Ask an admin.');
+  }
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch (e) {
