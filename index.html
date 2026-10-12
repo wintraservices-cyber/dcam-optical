@@ -393,6 +393,12 @@
   .notice-stack { display: flex; flex-direction: column; gap: 4px; padding: 52px 14px 18px; }
   .notice-stack .note { background: transparent; border-radius: 0; padding: 22px 24px; border-bottom: 1px solid var(--border); }
   .notice-stack .note:last-child { border-bottom: 0; }
+  .notice-stack #privacy-full h3 { margin-bottom: 2px; }
+  .notice-stack #privacy-full h4 { margin: 18px 0 6px; font-size: 1rem; }
+  .notice-stack #privacy-full p, .notice-stack #privacy-full li { font-size: .93rem; line-height: 1.55; }
+  .notice-stack #privacy-full ul { margin: 6px 0 8px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  .notice-stack #privacy-full .pn-updated { color: var(--muted, #777); font-size: .82rem; margin: 0 0 4px; }
+  .notice-stack #privacy-full a { color: inherit; text-decoration: underline; }
   .notice-close { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-size: 24px; line-height: 1; cursor: pointer; z-index: 1; }
   .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
   .note { background: var(--surface); border-radius: 24px; padding: 34px; display: flex; flex-direction: column; gap: 12px; }
@@ -859,7 +865,66 @@
   <div class="notice-stack">
     <div class="note" id="privacy">
       <h3 data-text="privacy_title">Your privacy</h3>
-      <p><span data-text="privacy_body">We handle your personal and health information in line with the Data Privacy Act of 2012 (RA 10173). We collect only what we need for your care and orders, keep it secure, and never sell it. You can ask us to access, correct or delete your data at any time.</span><span data-biz-email-note></span> This public website uses Google Analytics to count visits and see which pages are useful; it does not see anything you type into our forms or chat. If you choose to receive reminders or offers on the intake form, we message you only by the SMS or email you picked, and you can ask us to stop at any time.</p>
+      <p><span data-text="privacy_body">We handle your personal and health information in line with the Data Privacy Act of 2012 (RA 10173). We collect only what we need for your care and orders, keep it secure, and never sell it. You can ask us to access, correct or delete your data at any time.</span><span data-biz-email-note></span> This public website uses Google Analytics to count visits and see which pages are useful; it does not see anything you type into our forms or chat. If you choose to receive reminders or offers on the intake form, we message you only by the SMS or email you picked, and you can ask us to stop at any time. <a href="#privacy-full" data-notice="privacy-full">Read the full privacy notice below.</a></p>
+    </div>
+    <div class="note" id="privacy-full">
+      <!-- Full privacy notice (static text). Owner to confirm: the named Data Protection Officer and a privacy contact, and the retention wording, before relying on this as final. Not legal advice. -->
+      <h3>Full privacy notice</h3>
+      <p class="pn-updated">Last updated October 2026</p>
+
+      <h4>Who we are</h4>
+      <p>DCAM Optical (formerly Limuaco Optical), LGF Ever Gotesco Commonwealth, Quezon City, is the business that decides how your personal information is used. You can reach us with the phone number or email shown in the &ldquo;Visit the shop&rdquo; section of this page, or at the shop.</p>
+
+      <h4>What we collect, and why</h4>
+      <ul>
+        <li><strong>Booking and intake form:</strong> your name, phone number, email, whether you are a new or returning patient, the reason for your visit, your preferred date and time, any notes you add, and your consent choices. We use this to schedule and manage your appointment and to contact you about it.</li>
+        <li><strong>Orders and eye records:</strong> your name and contact number, your eyeglass prescription and measurements, what you ordered, due dates, order status, and what you paid and how. We use this to make and hand over your glasses, keep payment records and look after you at your next visit. Prescription and eye-health details are <em>sensitive personal information</em>, and we treat them with extra care.</li>
+        <li><strong>Reminders and offers (only if you tick them):</strong> your choice of topics and of SMS or email, and when you chose them.</li>
+        <li><strong>How you found us:</strong> if you arrive from a link such as our Facebook page, we note that source with your request so we know which channels help patients find us.</li>
+        <li><strong>Website visits:</strong> our public pages use Google Analytics to count visits and see which pages are useful. It does not see what you type into our forms or chat.</li>
+        <li><strong>Chat:</strong> messages you type into the website chat are sent to an AI service so it can answer you. We do not keep chat conversations. Please do not share sensitive health details in chat.</li>
+      </ul>
+      <p>We rely on your consent (given on the intake form) and on what is needed to serve you and to keep the records the law requires.</p>
+
+      <h4>Who else handles your information</h4>
+      <p>We never sell your information. We share it only with the services that help us run the website and the shop, and only for that purpose, or when the law requires it:</p>
+      <ul>
+        <li><strong>Supabase</strong> &mdash; the database where intake requests, orders and patient records are stored.</li>
+        <li><strong>Vercel</strong> &mdash; hosts the website and the staff system.</li>
+        <li><strong>Microsoft 365</strong> &mdash; our business email, where staff receive and answer your requests.</li>
+        <li><strong>Resend</strong> &mdash; sends our internal notice to the shop when you submit the intake form. It contains the details you entered.</li>
+        <li><strong>Google Analytics</strong> &mdash; website visit statistics from our public pages.</li>
+        <li><strong>Anthropic and Google (AI services)</strong> &mdash; answer chat questions on the website, and help our staff look up shop records. The website chat does not read patient records; its only lookup is the order-status check, which needs your order number and the last four digits of your phone number.</li>
+      </ul>
+      <p>Only authorised DCAM Optical staff can open patient and order records, and each person sees only what their role needs.</p>
+
+      <h4>Outside the Philippines</h4>
+      <p>These services may store or process information on servers outside the Philippines, including in the United States. We choose providers that protect data with security controls, and we share only what each service needs to do its job.</p>
+
+      <h4>How long we keep it</h4>
+      <p>We keep your information only as long as it is needed for the reasons above, including your care, warranty and after-sales needs and the business and tax records we must keep. After that we delete it or remove what identifies you. Chat conversations are not stored. If the shop keeps a log of questions the AI could not answer, phone numbers and email addresses are removed from it and it is deleted after 90 days. Google Analytics keeps visit statistics under its own retention settings.</p>
+
+      <h4>How we protect it</h4>
+      <p>Records sit behind staff logins with role-based access, the connection to the website is encrypted, access keys are kept out of the website itself, and repeated wrong passwords lock a staff account.</p>
+
+      <h4>Your rights</h4>
+      <p>Under the Data Privacy Act of 2012 (RA 10173) you may:</p>
+      <ul>
+        <li>be informed about how your information is used (this notice);</li>
+        <li>ask for a copy of the information we hold about you;</li>
+        <li>ask us to correct anything that is wrong or out of date;</li>
+        <li>object to our use of it, or withdraw your consent, including for reminders and offers;</li>
+        <li>ask us to suspend, block or delete it where the law allows;</li>
+        <li>ask for your information in a commonly used format; and</li>
+        <li>claim compensation if you were harmed by a misuse of your information.</li>
+      </ul>
+      <p>To use any of these rights, contact us at the shop or with the phone or email on this page. We will verify who you are before sharing or changing anything. Reminders and offers can be stopped at any time by telling us.</p>
+
+      <h4>Complaints</h4>
+      <p>If you feel your information has been mishandled, please tell us first so we can put it right. You also have the right to complain to the <strong>National Privacy Commission</strong> of the Philippines (<a href="https://privacy.gov.ph" target="_blank" rel="noopener">privacy.gov.ph</a>).</p>
+
+      <h4>Changes to this notice</h4>
+      <p>If we change how we use your information, we will update this notice and its date.</p>
     </div>
     <div class="note" id="ai-notice">
       <h3 data-text="ai_notice_title">How we use AI</h3>
