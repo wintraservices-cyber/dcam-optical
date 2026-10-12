@@ -10,6 +10,7 @@
 //   4. In Vercel: Project Settings -> Environment Variables, add:
 //        RESEND_API_KEY            = your Resend API key
 //        NOTIFY_EMAIL_TO           = the practice inbox that should receive submissions
+//                                    (several addresses may be separated by commas)
 //        NOTIFY_EMAIL_FROM         = a verified "from" address (e.g. intake@yourdomain.com)
 //        SUPABASE_URL              = your Supabase project URL
 //        SUPABASE_SERVICE_ROLE_KEY = your Supabase service role key
@@ -231,7 +232,8 @@ module.exports = async (req, res) => {
           <tr><td style="padding:6px 0; color:#777;">Reminders &amp; offers</td><td style="padding:6px 0;">${escapeHtml(describeOptIn(optIn))}</td></tr>
           <tr><td style="padding:6px 0; color:#777; vertical-align:top;">Notes</td><td style="padding:6px 0;">${data.notes ? escapeHtml(data.notes) : '—'}</td></tr>
         </table>
-        <p style="margin-top: 20px; font-size: 12px; color: #999;">Both consent checkboxes were confirmed at submission.</p>
+        <p style="margin-top: 22px;"><a href="${(process.env.SITE_URL || 'https://dcamoptical.com').replace(/\/+$/, '')}/staff-dashboard" style="display:inline-block; background:#B05A9E; color:#fff; text-decoration:none; font-weight:600; font-size:14px; padding:10px 18px; border-radius:8px;">Open the staff Dashboard</a></p>
+        <p style="margin-top: 12px; font-size: 12px; color: #999;">Process this request from the Dashboard (staff login required). Both consent checkboxes were confirmed at submission.</p>
       </div>
     `;
 
@@ -244,7 +246,7 @@ module.exports = async (req, res) => {
         },
         body: JSON.stringify({
           from: NOTIFY_EMAIL_FROM,
-          to: [NOTIFY_EMAIL_TO],
+          to: NOTIFY_EMAIL_TO.split(/[,;]/).map(x => x.trim()).filter(Boolean),
           reply_to: data.email,
           subject: `New intake: ${data.fname} ${data.lname} — ${reasonLabel}`,
           html: htmlBody,
