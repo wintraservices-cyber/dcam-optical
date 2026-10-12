@@ -434,7 +434,7 @@ async function updateOrderFull(req, res, session) {
 const ORDER_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 async function listOrders(req, res) {
-  const { q, status, id, from, to, order_type, due } = req.query || {};
+  const { q, status, id, from, to, order_type, due, date_field } = req.query || {};
 
   // order_items(*) embeds each order's line items in the same query,
   // using PostgREST's resource-embedding (a join via the order_items.order_id
@@ -509,7 +509,25 @@ async function listOrders(req, res) {
   const validFrom = from && typeof from === 'string' && ORDER_DATE_RE.test(from) ? from : null;
   const validTo = to && typeof to === 'string' && ORDER_DATE_RE.test(to) ? to : null;
 
-  if (validFrom || validTo) {
+  // date_field=transaction filters by the Transaction Date instead (the day a
+  // sale counts under in reports: orders.transaction_date, else the day the
+  // order was keyed in, Manila time) -- same rule as the Orders report. If the
+  // transaction_date column isn't in the database yet, it falls back to
+  // created_at so the page keeps working.
+  const byTransaction = date_field === 'transaction';
+  let txnFallbackPath = null;
+  if ((validFrom || validTo) && byTransaction) {
+    const tsConds = [];
+    if (validFrom) tsConds.push(`created_at.gte.${encodeURIComponent(validFrom + 'T00:00:00+08:00')}`);
+    if (validTo) tsConds.push(`created_at.lte.${encodeURIComponent(validTo + 'T23:59:59.999+08:00')}`);
+    const dayConds = [];
+    if (validFrom) dayConds.push(`transaction_date.gte.${encodeURIComponent(validFrom)}`);
+    if (validTo) dayConds.push(`transaction_date.lte.${encodeURIComponent(validTo)}`);
+    txnFallbackPath = path
+      + (validFrom ? `&created_at=gte.${encodeURIComponent(validFrom + 'T00:00:00+08:00')}` : '')
+      + (validTo ? `&created_at=lte.${encodeURIComponent(validTo + 'T23:59:59.999+08:00')}` : '');
+    path += `&or=(and(${dayConds.join(',')}),and(transaction_date.is.null,${tsConds.join(',')}))`;
+  } else if (validFrom || validTo) {
     const dateConds = [];
     if (validFrom) dateConds.push(`order_date.gte.${encodeURIComponent(validFrom)}`);
     if (validTo) dateConds.push(`order_date.lte.${encodeURIComponent(validTo)}`);
@@ -539,7 +557,11 @@ async function listOrders(req, res) {
   }
 
   try {
-    const resp = await supabaseRequest(path, { method: 'GET' });
+    let resp = await supabaseRequest(path, { method: 'GET' });
+    if (!resp.ok && txnFallbackPath) {
+      console.error('Orders list: transaction_date filter failed, falling back to created_at', resp.status);
+      resp = await supabaseRequest(txnFallbackPath, { method: 'GET' });
+    }
     if (!resp.ok) {
       const errText = await resp.text();
       console.error('Supabase list error:', resp.status, errText);

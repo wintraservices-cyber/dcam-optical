@@ -82,6 +82,9 @@
     outline: none;
   }
   .controls input[type="text"]:focus { border-color: var(--blue); }
+  .date-basis label { display:block; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--charcoal-soft); margin-bottom:4px; font-family:var(--display, inherit); font-weight:700; }
+  .date-basis select { border:1.5px solid var(--line, rgba(56,51,52,0.14)); background:#fff; padding:10px 12px; border-radius:8px; font-family:inherit; font-size:0.9rem; color:var(--charcoal); outline:none; }
+  .date-basis select:focus { border-color: var(--blue); }
   .status-filter { display: flex; gap: 8px; }
   .status-filter button {
     font-family: var(--display);
@@ -326,6 +329,13 @@
 <div class="wrap">
   <div class="controls">
     <input type="text" id="searchInput" placeholder="Search by order # or patient name…">
+    <div class="date-basis">
+      <label for="dateBasis">Filter by</label>
+      <select id="dateBasis">
+        <option value="order">Order date</option>
+        <option value="transaction">Transaction date</option>
+      </select>
+    </div>
     <div id="periodFilterMount"></div>
     <div class="status-filter">
       <button class="active" data-status="">All</button>
@@ -358,6 +368,15 @@
   let currentStatus = '';
   let currentType = '';
   let currentDue = '';
+  const dateBasisEl = document.getElementById('dateBasis');
+  dateBasisEl.addEventListener('change', () => loadOrders());
+  // Day (YYYY-MM-DD) a timestamp falls on in Manila -- the Transaction Date
+  // shown when staff never set one (same fallback the reports use).
+  function manilaDay(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return isNaN(d) ? '' : d.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+  }
   let searchDebounce = null;
   // Defaults to "All" -- staff pulling up the order list usually want
   // everything (a specific order # search, or checking today's ready
@@ -438,6 +457,7 @@
     if (currentStatus) params.set('status', currentStatus);
     if (currentType) params.set('order_type', currentType);
     if (currentDue) params.set('due', currentDue);
+    if (dateBasisEl.value === 'transaction') params.set('date_field', 'transaction');
     const { from, to } = periodFilter.getRange();
     if (from) params.set('from', from);
     if (to) params.set('to', to);
@@ -497,7 +517,8 @@
       <tr class="order-row" data-open-id="${o.id}" title="Double-click to open this order">
         <td data-label="Order #">#${escapeHtml(o.order_no)}<span class="type-tag ${o.order_type === 'non_rx' ? 'non-rx' : 'rx'}">${o.order_type === 'non_rx' ? 'Non-Rx' : escapeHtml(o.rx_subtype || 'Rx')}</span><br><a href="order-form.html?id=${o.id}" class="log-payment-btn" style="text-decoration:none; display:inline-block; margin-top:4px;">${allowed('edit_saved_orders') ? 'Edit' : 'View'}</a> <a href="order-form.html?id=${o.id}&threeup=1" class="print-order-btn" title="Print order #${escapeHtml(o.order_no)}" aria-label="Print order #${escapeHtml(o.order_no)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg></a>${allowed('delete_orders') ? ` <button type="button" class="delete-order-btn" title="Delete order #${escapeHtml(o.order_no)}" aria-label="Delete order #${escapeHtml(o.order_no)}" data-order-id="${o.id}" data-order-no="${escapeHtml(o.order_no)}">&times;</button>` : ''}</td>
         <td data-label="Patient">${escapeHtml(o.patient_name)}</td>
-        <td data-label="Date">${escapeHtml(o.order_date) || '—'}${paymentBadge}</td>
+        <td data-label="Order Date">${escapeHtml(o.order_date) || '—'}${paymentBadge}</td>
+        <td data-label="Transaction Date">${escapeHtml(o.transaction_date || manilaDay(o.created_at)) || '—'}</td>
         <td data-label="Due">${escapeHtml(o.due_date) || '—'}</td>
         <td data-label="Item / Frame">${o.order_type === 'non_rx' ? itemsSummary(o) : (escapeHtml(o.frame) || '—')}</td>
         <td data-label="Balance">
@@ -544,7 +565,7 @@
       <table>
         <thead>
           <tr>
-            <th>Order #</th><th>Patient</th><th>Date</th><th>Due</th><th>Item / Frame</th><th>Balance</th><th>Payment</th><th>Status</th>
+            <th>Order #</th><th>Patient</th><th>Order Date</th><th>Transaction Date</th><th>Due</th><th>Item / Frame</th><th>Balance</th><th>Payment</th><th>Status</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
