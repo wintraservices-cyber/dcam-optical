@@ -482,8 +482,15 @@
   .dash-tile { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
   .dash-tile .l { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--charcoal-soft); font-weight: 700; }
   .dash-tile .v { font-family: var(--display); font-size: 1.9rem; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; }
-  .dash-tile .d { font-size: 0.78rem; font-weight: 600; color: #2E7D4F; }
+  .dash-tile .d { font-size: 0.78rem; font-weight: 600; color: #2E7D4F; margin-top: 8px; }
   .dash-tile .d.down { color: #B26A00; } .dash-tile .d.flat { color: var(--charcoal-soft); font-weight: 400; }
+  /* Change vs the previous period of the same length: a percentage pill plus the earlier figure. */
+  .dash-tile .chg { display: flex; align-items: center; gap: 8px; margin-top: 8px; min-height: 22px; font-size: 0.76rem; color: var(--charcoal-soft); }
+  .dash-tile .chg b { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 99px; font-weight: 700; font-variant-numeric: tabular-nums; background: #E4F2EA; color: #1F6B3F; white-space: nowrap; }
+  .dash-tile .chg.down b { background: #FBEBD3; color: #8F5200; }
+  .dash-tile .chg.flat b { background: var(--ivory-dim); color: var(--charcoal-soft); }
+  .dash-tile .chg.none { visibility: hidden; }
+  .dash-sec .dash-src { margin: 0 0 0 8px; vertical-align: 1px; }
   .dash-src { display: inline-block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 99px; margin-top: 6px; background: #F1E0EC; color: #8A3F7B; }
   .dash-src.ga { background: #DCEEF1; color: #2F8798; }
   .dash-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; }
@@ -2962,15 +2969,22 @@
     const usd = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: (Number(n) || 0) < 1 ? 4 : 2 });
     const int = (n) => (Number(n) || 0).toLocaleString('en-US');
     const OWN = '<span class="dash-src">DCAM SYSTEM (LIVE)</span>';
+    // Change vs the previous period of the same length, as a percentage with the earlier figure beside it.
+    // `money` marks costs: the earlier figure is shown as dollars, and a rise is not shown as good news.
     function delta(cur, prev, money) {
-      if (prev == null) return '<div class="d flat">&nbsp;</div>';
-      const diff = cur - prev;
-      if (!diff) return '<div class="d flat">same as previous period</div>';
-      const amt = money ? usd(Math.abs(diff)) : int(Math.abs(diff));
-      return `<div class="d ${diff > 0 ? '' : 'down'}">${diff > 0 ? '▲' : '▼'} ${amt} vs previous period</div>`;
+      if (prev == null) return '<div class="chg none"><b>&nbsp;</b></div>';
+      cur = Number(cur) || 0; prev = Number(prev) || 0;
+      const was = money ? usd(prev) : int(prev);
+      if (cur === prev) return `<div class="chg flat"><b>— 0%</b><span>${prev ? 'no change' : 'none in either period'}</span></div>`;
+      const up = cur > prev;
+      const tone = (money ? !up : up) ? '' : ' down';
+      if (!prev) return `<div class="chg${tone}"><b>▲ New</b><span>none before</span></div>`;
+      const abs = Math.abs(100 * (cur - prev) / prev);
+      const txt = abs >= 1000 ? '999%+' : abs < 0.1 ? '<0.1%' : (abs < 10 ? abs.toFixed(1) : Math.round(abs).toLocaleString('en-US')) + '%';
+      return `<div class="chg${tone}"><b>${up ? '▲' : '▼'} ${txt}</b><span>vs ${was} before</span></div>`;
     }
-    function tile(label, value, sub) { return `<div class="dash-tile"><div class="l">${label}</div><div class="v">${value}</div>${sub || ''}${OWN}</div>`; }
-    const off = (label, why) => `<div class="dash-tile"><div class="l">${label}</div><div class="v">—</div><div class="d flat">${why}</div></div>`;
+    function tile(label, value, sub) { return `<div class="dash-tile"><div class="l">${label}</div><div class="v">${value}</div>${sub || ''}</div>`; }
+    const off = (label, why) => `<div class="dash-tile"><div class="l">${label}</div><div class="v">—</div><div class="chg flat"><span>${why}</span></div></div>`;
 
     // Two-line chart (intake forms and AI replies per day), drawn to one scale.
     function chart(days) {
@@ -2986,7 +3000,7 @@
         <div class="dash-legend"><span><i style="background:#8A3F7B"></i>Intake forms</span><span><i style="background:#2F8798"></i>AI replies</span></div>`;
     }
     const GA = '<span class="dash-src ga">GOOGLE ANALYTICS</span>';
-    const gaTile = (label, value, sub) => `<div class="dash-tile"><div class="l">${label}</div><div class="v">${value}</div>${sub || ''}${GA}</div>`;
+    const gaTile = (label, value, sub) => `<div class="dash-tile"><div class="l">${label}</div><div class="v">${value}</div>${sub || ''}</div>`;
     const pageName = (p) => p === '/' || p === '/index' || p === '/index.html' ? 'Home page' : p === '/intake' ? 'Intake form' : p === '/coming-soon' ? 'Coming-soon page' : escapeHtml(p);
     const barList = (items, labelFn, valFn, fmt) => {
       const max = Math.max(1, ...items.map(valFn));
@@ -3038,7 +3052,7 @@
         const lab = d => d.day.slice(5).replace('-', '/');
         svg = `<svg class="dash-chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Visitors per day">${grid}<polyline fill="none" stroke="#2F8798" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${daily.map((d, i) => x(i).toFixed(1) + ',' + y(d.users).toFixed(1)).join(' ')}"/><text x="${L}" y="192">${lab(daily[0])}</text><text x="${R2}" y="192" text-anchor="end">${lab(daily[daily.length - 1])}</text></svg>`;
       }
-      return `<div class="dash-sec">Visitors · ${range}</div><div class="dash-tiles">
+      return `<div class="dash-sec">Visitors · ${range}${GA}</div><div class="dash-tiles">
           ${gaTile('Visitors', int(a.users.cur), delta(a.users.cur, a.users.prev))}
           ${gaTile('New visitors', int(a.new_users.cur), delta(a.new_users.cur, a.new_users.prev))}
           ${gaTile('Page views', int(a.views.cur), delta(a.views.cur, a.views.prev))}
@@ -3090,7 +3104,7 @@
       const p = [];
       p.push(visitors(r.analytics, range, r.range.from, r.range.to));
       p.push('<div id="dashSocial"><div class="dash-sec">Social media</div><div class="loading-state">Loading Facebook and Instagram…</div></div>');
-      p.push(`<div class="dash-sec">Activity · ${range}</div><div class="dash-tiles">
+      p.push(`<div class="dash-sec">Activity · ${range}${OWN}</div><div class="dash-tiles">
         ${intake ? tile('Intake forms submitted', int(intake.count), delta(intake.count, intake.previous)) : off('Intake forms submitted', 'Could not load')}
         ${oc ? tile('Order status checks', int(oc.checks), delta(oc.checks, oc.previous)) : off('Order status checks', 'Needs the database update')}
         ${cur ? tile('Website AI replies', int(cur.website.messages), delta(cur.website.messages, old && old.website.messages)) : off('Website AI replies', 'Could not load')}
