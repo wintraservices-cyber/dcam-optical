@@ -25,8 +25,9 @@ const { buildTeam, adminTeam, publicTeam, decodePhoto, TeamError } = require('..
 const { normalizeHomepage, TEXT_FIELDS } = require('../lib/homepage');
 const { geminiStatus } = require('../lib/ai-gemini');
 const { PERMISSIONS, normalizePermissions, getPermissions } = require('../lib/staff-permissions');
+const { normalizeJobSeries, getJobSeries, describeSeries, JobSeriesError } = require('../lib/job-series');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status', 'staff_permissions', 'tech_costs'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status', 'staff_permissions', 'tech_costs', 'job_series'];
 
 async function readSetting(key) {
   const resp = await supabaseRequest(`app_settings?key=eq.${encodeURIComponent(key)}&limit=1`, { method: 'GET' });
@@ -153,10 +154,11 @@ async function putSetting(req, res, sessionUser) {
       : key === 'homepage' ? normalizeHomepage(value)
       : key === 'staff_permissions' ? normalizePermissions(value)
       : key === 'tech_costs' ? normalizeTechCosts(value)
+      : key === 'job_series' ? normalizeJobSeries(value)
       : key === 'optometrists' ? await saveTeamPhotos(value, sessionUser)
       : value;
   } catch (err) {
-    if (err instanceof SiteModeError || err instanceof TeamError) {
+    if (err instanceof SiteModeError || err instanceof TeamError || err instanceof JobSeriesError) {
       res.status(400).json({ ok: false, error: err.message });
       return;
     }
@@ -516,6 +518,21 @@ module.exports = async (req, res) => {
     const labels = {};
     for (const k of Object.keys(PERMISSIONS)) labels[k] = { label: PERMISSIONS[k].label, hint: PERMISSIONS[k].hint };
     res.status(200).json({ ok: true, role: sessionUser.role, permissions, labels });
+    return;
+  }
+
+  // Job code series (Rx and Non-Rx numbering) with the last order in each
+  // series and the next number. Admin only.
+  if (req.method === 'GET' && req.query && req.query.view === 'job_series') {
+    if (!requireAdmin(req, res)) return;
+    try {
+      const config = await getJobSeries();
+      const series = await describeSeries(config);
+      res.status(200).json({ ok: true, config, series });
+    } catch (err) {
+      console.error('job_series view error:', err.message);
+      res.status(502).json({ ok: false, error: 'Could not load the job code series.' });
+    }
     return;
   }
 

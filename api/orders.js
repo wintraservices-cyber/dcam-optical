@@ -3,6 +3,7 @@ const { supabaseRequest } = require('../lib/supabase');
 const { findOrCreatePatient } = require('../lib/patients-helper');
 const { logOrderAudit, diffFields } = require('../lib/audit');
 const { getPermissions, can, isBackwards, manilaToday, deny } = require('../lib/staff-permissions');
+const jobSeries = require('../lib/job-series');
 
 // Soft delete: any logged-in staff member can delete (sets deleted_at/
 // deleted_by rather than removing the row); only an admin can restore or
@@ -736,7 +737,8 @@ async function getOrderAudit(req, res) {
 }
 
 // ---- Next order number suggestion ----
-// Rx and Non-Rx orders use DIFFERENT formats and DIFFERENT reset periods:
+// Rx and Non-Rx orders have their own configurable code series (Settings >
+// Rx ranges > Job code series; see lib/job-series.js). The defaults are:
 //   Rx      : YYYY-NNNN        (e.g. "2025-0001")       -- resets YEARLY
 //   Non-Rx  : YYYY-MM-NNNN     (e.g. "2025-01-0001")    -- resets MONTHLY
 // Each type's counter is independent of the other. Purely a suggestion --
@@ -744,65 +746,11 @@ async function getOrderAudit(req, res) {
 // the number. Folded in from its own /api/next-order-number route to stay
 // under Vercel Hobby's 12-serverless-function limit -- it's small,
 // order-specific, and only ever called from the order form.
-const RX_ORDER_NO_RE = /^(\d{4})-(\d{4,})$/;
-const NON_RX_ORDER_NO_RE = /^(\d{4})-(\d{2})-(\d{4,})$/;
-
-function suggestNextRx(existingOrderNos, currentYear) {
-  let maxCounter = 0;
-  let widestPadding = 4;
-  for (const orderNo of existingOrderNos) {
-    const trimmed = (orderNo || '').trim();
-    const match = trimmed.match(RX_ORDER_NO_RE);
-    if (!match) continue;
-    const [, year, counterStr] = match;
-    if (year !== String(currentYear)) continue;
-    const counterValue = parseInt(counterStr, 10);
-    if (counterValue > maxCounter) {
-      maxCounter = counterValue;
-      widestPadding = counterStr.length;
-    }
-  }
-  const next = maxCounter + 1;
-  return `${currentYear}-${String(next).padStart(widestPadding, '0')}`;
-}
-
-function suggestNextNonRx(existingOrderNos, currentYear, currentMonth) {
-  let maxCounter = 0;
-  let widestPadding = 4;
-  const monthStr = String(currentMonth).padStart(2, '0');
-  for (const orderNo of existingOrderNos) {
-    const trimmed = (orderNo || '').trim();
-    const match = trimmed.match(NON_RX_ORDER_NO_RE);
-    if (!match) continue;
-    const [, year, month, counterStr] = match;
-    if (year !== String(currentYear) || month !== monthStr) continue;
-    const counterValue = parseInt(counterStr, 10);
-    if (counterValue > maxCounter) {
-      maxCounter = counterValue;
-      widestPadding = counterStr.length;
-    }
-  }
-  const next = maxCounter + 1;
-  return `${currentYear}-${monthStr}-${String(next).padStart(widestPadding, '0')}`;
-}
-
 // Computes the next suggested order number (null if it can't be worked out).
 // Used when a staff account is not allowed to choose its own job number.
 async function computeNextOrderNumber(order_type) {
-  if (order_type !== 'rx' && order_type !== 'non_rx') return null;
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
   try {
-    const prefix = order_type === 'rx'
-      ? encodeURIComponent(`${currentYear}-%`)
-      : encodeURIComponent(`${currentYear}-${String(currentMonth).padStart(2, '0')}-%`);
-    const resp = await supabaseRequest(`orders?select=order_no&order_no=ilike.${prefix}&order=order_no.desc&limit=500`, { method: 'GET' });
-    if (!resp.ok) return null;
-    const orderNos = (await resp.json()).map(r => r.order_no);
-    return order_type === 'rx'
-      ? suggestNextRx(orderNos, currentYear)
-      : suggestNextNonRx(orderNos, currentYear, currentMonth);
+    return await jobSeries.nextNumber(order_type);
   } catch (e) {
     console.error('computeNextOrderNumber failed:', e.message);
     return null;
@@ -815,43 +763,12 @@ async function nextOrderNumber(req, res) {
     res.status(400).json({ ok: false, error: 'order_type must be "rx" or "non_rx".' });
     return;
   }
-
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-
   try {
-    let prefix;
-    if (order_type === 'rx') {
-      prefix = encodeURIComponent(`${currentYear}-%`);
-    } else {
-      const monthStr = String(currentMonth).padStart(2, '0');
-      prefix = encodeURIComponent(`${currentYear}-${monthStr}-%`);
-    }
-
-    const resp = await supabaseRequest(
-      `orders?select=order_no&order_no=ilike.${prefix}&order=order_no.desc&limit=500`,
-      { method: 'GET' }
-    );
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      console.error('Supabase next-order-number error:', resp.status, errText);
-      res.status(502).json({ ok: false, error: 'Could not determine next order number.' });
-      return;
-    }
-
-    const rows = await resp.json();
-    const orderNos = rows.map(r => r.order_no);
-
-    const suggestion = order_type === 'rx'
-      ? suggestNextRx(orderNos, currentYear)
-      : suggestNextNonRx(orderNos, currentYear, currentMonth);
-
+    const suggestion = await jobSeries.nextNumber(order_type);
     res.status(200).json({ ok: true, suggestion });
   } catch (err) {
     console.error('Unexpected error suggesting next order number:', err);
-    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+    res.status(502).json({ ok: false, error: 'Could not determine next order number.' });
   }
 }
 

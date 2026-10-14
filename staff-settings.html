@@ -553,6 +553,16 @@
         <span class="save-status" id="rxRangesStatus"></span>
       </div>
     </div>
+
+    <div class="card" id="jobSeriesCard">
+      <h2>Job code series</h2>
+      <div class="card-sub">How job order numbers are built for Rx and Non-Rx orders. A number is a prefix (optional), the year, the month (optional) and a running counter, for example <strong>2026-2768</strong> or <strong>RX-2026-10-0012</strong>. The order form suggests the next number in the series; it applies to new orders only, and saved orders keep the number they have. Each series counts on its own.</div>
+      <div id="jobSeriesForm"><div class="loading-state">Loading…</div></div>
+      <div class="save-row">
+        <button class="save-btn" id="saveJobSeries" type="button">Save job code series</button>
+        <span class="save-status" id="jobSeriesStatus"></span>
+      </div>
+    </div>
   </div>
 
   <!-- Business Info -->
@@ -3416,6 +3426,126 @@
       items = (v.items || []).map(x => ({ ...x }));
       draw();
     };
+  })();
+
+
+  // ---- Job code series ----
+  (function () {
+    const form = document.getElementById('jobSeriesForm');
+    const btn = document.getElementById('saveJobSeries');
+    const statusEl = document.getElementById('jobSeriesStatus');
+    const TYPES = [['rx', 'Rx orders'], ['non_rx', 'Non-Rx orders']];
+    let loaded = false;
+    function fmt(c, counter, d) {
+      const year = d.getFullYear(), mm = String(d.getMonth() + 1).padStart(2, '0');
+      return c.prefix + (c.include_year ? year + '-' : '') + (c.include_month ? mm + '-' : '') + String(counter).padStart(c.digits, '0');
+    }
+    function read(t) {
+      const g = (n) => form.querySelector('[data-js="' + t + '.' + n + '"]');
+      let prefix = (g('prefix').value || '').replace(/[^A-Za-z0-9-]/g, '').toUpperCase().slice(0, 5);
+      return {
+        prefix,
+        include_year: g('include_year').checked,
+        include_month: g('include_month').checked,
+        digits: parseInt(g('digits').value, 10) || 4,
+        reset: g('reset').value,
+        start: Math.max(1, parseInt(g('start').value, 10) || 1),
+      };
+    }
+    function syncRules(t) {
+      // A restart period needs that date part in the number.
+      const g = (n) => form.querySelector('[data-js="' + t + '.' + n + '"]');
+      const reset = g('reset').value;
+      if (reset === 'monthly') { g('include_year').checked = true; g('include_month').checked = true; }
+      if (reset === 'yearly') g('include_year').checked = true;
+      if (g('include_month').checked) g('include_year').checked = true;
+      g('include_year').disabled = reset !== 'never';
+      g('include_month').disabled = reset === 'monthly';
+    }
+    function preview(t) {
+      syncRules(t);
+      const c = read(t);
+      form.querySelector('[data-js="' + t + '.preview"]').textContent = fmt(c, c.start, new Date()) + '  ·  then  ' + fmt(c, c.start + 1, new Date());
+    }
+    function whenText(row) {
+      if (!row) return '';
+      const d = row.order_date || (row.created_at ? String(row.created_at).slice(0, 10) : '');
+      return [row.patient_name, d].filter(Boolean).join(' · ');
+    }
+    function render(r) {
+      form.innerHTML = TYPES.map(([t, label], idx) => {
+        const c = r.config[t], info = r.series[t] || {};
+        const last = info.last
+          ? `<strong>${escapeHtml(info.last.order_no)}</strong>${whenText(info.last) ? ' <span style="color:var(--charcoal-soft)">(' + escapeHtml(whenText(info.last)) + ')</span>' : ''}`
+          : '<span style="color:var(--charcoal-soft)">No orders in this series yet</span>';
+        return `
+        <div style="${idx ? 'border-top:1px solid var(--line); margin-top:18px; padding-top:18px;' : ''}">
+          <h3 style="font-size:1rem; margin:0 0 10px;">${label}</h3>
+          <div style="background:var(--soft, #f4f0ea); border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:0.9rem; line-height:1.7;">
+            <div>Last order in the series: ${last}</div>
+            <div>Next number: <strong>${escapeHtml(info.next || '')}</strong></div>
+          </div>
+          <div class="field-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+            <div><label>Prefix (optional)</label><input type="text" maxlength="5" placeholder="e.g. RX" value="${escapeHtml(c.prefix)}" data-js="${t}.prefix"></div>
+            <div><label>Counter digits</label><select data-js="${t}.digits">${[3,4,5,6].map(n => `<option value="${n}"${c.digits === n ? ' selected' : ''}>${n} (${'0'.repeat(n - 1)}1)</option>`).join('')}</select></div>
+            <div><label>Restart the counter</label><select data-js="${t}.reset">
+              <option value="yearly"${c.reset === 'yearly' ? ' selected' : ''}>Every year</option>
+              <option value="monthly"${c.reset === 'monthly' ? ' selected' : ''}>Every month</option>
+              <option value="never"${c.reset === 'never' ? ' selected' : ''}>Never</option></select></div>
+            <div><label>Start at</label><input type="number" min="1" step="1" value="${c.start}" data-js="${t}.start"></div>
+          </div>
+          <div style="display:flex; gap:22px; flex-wrap:wrap; margin:12px 0 6px; font-size:0.9rem;">
+            <label style="display:flex; align-items:center; gap:8px; text-transform:none;"><input type="checkbox" style="width:auto;" data-js="${t}.include_year"${c.include_year ? ' checked' : ''}> Include the year</label>
+            <label style="display:flex; align-items:center; gap:8px; text-transform:none;"><input type="checkbox" style="width:auto;" data-js="${t}.include_month"${c.include_month ? ' checked' : ''}> Include the month</label>
+          </div>
+          <div style="font-size:0.88rem;">First numbers: <strong data-js="${t}.preview"></strong></div>
+          <div class="card-sub" style="margin:6px 0 0;">"Start at" is the lowest counter a new period begins with; the suggestion is always one above the highest number already used, and never below it.</div>
+        </div>`;
+      }).join('');
+      TYPES.forEach(([t]) => {
+        form.querySelectorAll('[data-js^="' + t + '."]').forEach(el => {
+          el.addEventListener('input', () => preview(t));
+          el.addEventListener('change', () => preview(t));
+        });
+        preview(t);
+      });
+    }
+    async function load() {
+      try {
+        const resp = await fetch('/api/settings?view=job_series');
+        const r = await resp.json();
+        if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not load the job code series.');
+        render(r);
+        loaded = true;
+      } catch (err) {
+        form.innerHTML = '<div class="loading-state">' + escapeHtml(err.message) + '</div>';
+      }
+    }
+    btn.addEventListener('click', async () => {
+      if (!loaded) return;
+      btn.disabled = true;
+      statusEl.textContent = 'Saving…';
+      statusEl.className = 'save-status';
+      try {
+        const value = { rx: read('rx'), non_rx: read('non_rx') };
+        const resp = await fetch('/api/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'job_series', value }),
+        });
+        const r = await resp.json();
+        if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not save.');
+        statusEl.textContent = 'Saved. New orders use this series.';
+        statusEl.className = 'save-status success';
+        load();
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.className = 'save-status error';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    if (typeof isTech === 'undefined' || !isTech) load();
   })();
 
   // ---- Staff permissions ----
