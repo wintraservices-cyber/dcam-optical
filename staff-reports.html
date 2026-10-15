@@ -209,6 +209,11 @@
     <div class="report-card admin-only-report" data-report="expenses">
       <h2>Expenses</h2>
       <div class="card-sub">Petty cash, payroll advances, supplies, and other business expenses logged in Expenses.</div>
+      <details class="col-picker" data-type="expenses">
+        <summary>Choose columns <span class="col-count"></span></summary>
+        <div class="col-list"></div>
+        <div class="col-tools"><button type="button" data-act="all">Select all</button><button type="button" data-act="reset">Reset to default</button></div>
+      </details>
       <button class="download-btn" data-type="expenses">Download CSV</button>
       <span class="download-status" id="status-expenses"></span>
     </div>
@@ -356,7 +361,7 @@
           if (from) url += `&from=${encodeURIComponent(from)}`;
           if (to) url += `&to=${encodeURIComponent(to)}`;
         }
-        if (type === 'orders' || type === 'sales') {
+        if (type === 'orders' || type === 'sales' || type === 'expenses') {
           const st = columnState[type];
           if (st && st.on.size === 0) throw new Error('Tick at least one column to download.');
           const cols = selectedColumnsParam(type);

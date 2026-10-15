@@ -602,6 +602,16 @@ async function inventoryReport(req, res) {
   }
 }
 
+const EXPENSE_SOURCE_LABELS = { cash: 'Cash', check: 'Check', gcash: 'GCash' };
+const EXPENSES_COLUMNS = [
+  { label: 'Date', value: 'expense_date' },
+  { label: 'Type', value: 'type' },
+  { label: 'Recipient / Details', value: 'details' },
+  { label: 'Amount', value: 'amount' },
+  { label: 'Source', value: (e) => EXPENSE_SOURCE_LABELS[e.source] || (e.source ? String(e.source) : 'Cash') },
+  { label: 'Logged By', value: 'created_by' },
+];
+
 async function expensesReport(req, res, from, to) {
   try {
     const path = `expenses?select=*&order=expense_date.desc,created_at.desc&limit=5000${dateRangeFilter(from, to, 'expense_date')}`;
@@ -612,13 +622,7 @@ async function expensesReport(req, res, from, to) {
     }
     const expenses = await resp.json();
 
-    const columns = [
-      { label: 'Date', value: 'expense_date' },
-      { label: 'Type', value: 'type' },
-      { label: 'Recipient / Details', value: 'details' },
-      { label: 'Amount', value: 'amount' },
-      { label: 'Logged By', value: 'created_by' },
-    ];
+    const columns = pickColumns(EXPENSES_COLUMNS, req.query && req.query.cols);
 
     const total = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
 
@@ -705,8 +709,8 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (req.query && req.query.meta === 'columns' && (type === 'orders' || type === 'sales')) {
-    const all = type === 'orders' ? ORDERS_COLUMNS : SALES_COLUMNS;
+  if (req.query && req.query.meta === 'columns' && (type === 'orders' || type === 'sales' || type === 'expenses')) {
+    const all = type === 'orders' ? ORDERS_COLUMNS : type === 'sales' ? SALES_COLUMNS : EXPENSES_COLUMNS;
     return res.status(200).json({ ok: true, columns: all.map(c => c.label) });
   }
   if (type === 'orders') return ordersReport(req, res, from, to);
