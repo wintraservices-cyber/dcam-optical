@@ -351,7 +351,7 @@
       var r = await resp.json();
       if (!resp.ok || !r.ok) throw new Error(r.error || 'Could not load sales.');
       var t = r.totals;
-      $('tiles').innerHTML = [['Total billed', t.amount], ['Deposits', t.deposit], ['Balance payments', t.balance_payments], ['Collected', t.collected], ['Still owed', t.balance]]
+      $('tiles').innerHTML = [['Total billed', t.amount], ['Deposits', t.deposit], ['Balance payments', t.balance_payments], ['Collected', t.collected], ['Collected in cash', t.collected_cash], ['Collected in GCash/CC', t.collected_gcash], ['Still owed', t.balance]]
         .map(function (x) { return '<div class="tile"><div class="l">' + x[0] + '</div><div class="v">' + peso(x[1]) + '</div></div>'; }).join('');
       if (!r.rows.length) { $('tbl').innerHTML = '<div class="msg">No sales in this period.</div>'; return; }
       var head = '<tr>' + r.columns.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr>';
@@ -359,7 +359,7 @@
         return '<tr>' + row.map(function (v, i) {
           var c = r.columns[i];
           if (MONEY[c] && v !== '' && v != null && !isNaN(parseFloat(v))) return '<td style="text-align:right">' + peso(v) + '</td>';
-          if (c === 'Payment Method') v = v === 'gcash_cc' ? 'GCash/CC' : v === 'cash' ? 'Cash' : v;
+          if (c === 'Payment Method') v = v === 'gcash_cc' ? 'GCash/CC' : v === 'cash' ? 'Cash' : v === 'split' ? 'Split' : v;
           return '<td>' + esc(v) + '</td>';
         }).join('') + '</tr>';
       }).join('');

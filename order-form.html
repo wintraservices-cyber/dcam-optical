@@ -1903,6 +1903,7 @@
     document.getElementById('splitGcash').value = '';
     document.getElementById('splitTotalDisplay').value = '';
     document.getElementById('splitPaymentRow').style.display = 'none';
+    try { recalcSplitTotal(); } catch (e) { /* not set up yet on first load */ }
     balanceManuallyEdited = false;
     orderNoManuallyEdited = false;
     resetItemRows();
@@ -2262,6 +2263,7 @@
     const paymentMethodEl = document.querySelector(`input[name="paymentMethod"][value="${order.payment_method || 'cash'}"]`);
     if (paymentMethodEl) paymentMethodEl.checked = true;
     splitPaymentRow.style.display = (order.payment_method === 'split') ? 'grid' : 'none';
+    recalcSplitTotal(); // the Split total is shown, not stored, so work it out for the loaded order
 
     const jobStatusEl = document.querySelector(`input[name="jobStatus"][value="${order.status || 'ordered'}"]`);
     if (jobStatusEl) jobStatusEl.checked = true;
@@ -3055,18 +3057,44 @@
   const splitGcashInput = document.getElementById('splitGcash');
   const splitTotalDisplay = document.getElementById('splitTotalDisplay');
 
+  // Amounts may be typed with thousands commas or a peso sign.
+  function splitNum(v) {
+    const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''));
+    return Number.isFinite(n) ? n : 0;
+  }
+  const splitTotalHint = document.createElement('div');
+  splitTotalHint.id = 'splitTotalHint';
+  splitTotalHint.style.cssText = 'grid-column: 1 / -1; font-size: 0.85rem; margin-top: -4px; display: none;';
+  splitPaymentRow.appendChild(splitTotalHint);
+
   function recalcSplitTotal() {
-    const cash = parseFloat(splitCashInput.value) || 0;
-    const gcash = parseFloat(splitGcashInput.value) || 0;
-    const total = cash + gcash;
+    const cash = splitNum(splitCashInput.value);
+    const gcash = splitNum(splitGcashInput.value);
+    const total = Math.round((cash + gcash) * 100) / 100;
     splitTotalDisplay.value = total ? total.toFixed(2) : '';
+    // Compare with Payment today (Deposit) so a mismatch is obvious before saving.
+    const dep = splitNum((document.getElementById('deposit') || {}).value);
+    if (total && dep && Math.abs(total - dep) > 0.005) {
+      splitTotalHint.textContent = 'Split total \u20b1' + total.toFixed(2) + ' does not match Payment today \u20b1' + dep.toFixed(2) + '.';
+      splitTotalHint.style.color = '#b3261e';
+      splitTotalHint.style.display = 'block';
+    } else if (total && dep) {
+      splitTotalHint.textContent = 'Matches Payment today.';
+      splitTotalHint.style.color = '#2e7d32';
+      splitTotalHint.style.display = 'block';
+    } else {
+      splitTotalHint.style.display = 'none';
+    }
   }
   splitCashInput.addEventListener('input', recalcSplitTotal);
   splitGcashInput.addEventListener('input', recalcSplitTotal);
+  const depositForSplit = document.getElementById('deposit');
+  if (depositForSplit) depositForSplit.addEventListener('input', recalcSplitTotal);
 
   document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
       splitPaymentRow.style.display = e.target.value === 'split' ? 'grid' : 'none';
+      recalcSplitTotal();
     });
   });
 

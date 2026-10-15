@@ -249,6 +249,28 @@ function pickColumns(all, colsParam) {
   return picked.length ? picked : all;
 }
 
+// Cash / GCash-CC breakdown of the money collected on a report row (the
+// intake deposit on an Order row, the payment itself on a Balance Payment
+// row). A split payment reports the two parts staff entered; a plain Cash
+// or GCash/CC payment reports its whole amount under that tender.
+function paymentToday(o) {
+  return parseFloat(String((o.__entry === 'payment' ? o.amount : o.deposit) || '').replace(/[^0-9.\-]/g, '')) || 0;
+}
+function tenderAmount(o, which) {
+  const m = o.payment_method;
+  let n = 0;
+  if (m === 'split') {
+    n = parseFloat(String((which === 'cash' ? o.split_cash : o.split_gcash) || '').replace(/[^0-9.\-]/g, '')) || 0;
+  } else if ((m === 'gcash_cc' && which === 'gcash') || ((m === 'cash' || !m) && which === 'cash')) {
+    n = paymentToday(o);
+  }
+  return n ? n.toFixed(2) : '';
+}
+const TENDER_COLUMNS = [
+  { label: 'Cash', value: (o) => tenderAmount(o, 'cash') },
+  { label: 'GCash/CC', value: (o) => tenderAmount(o, 'gcash') },
+];
+
 const ORDERS_COLUMNS = [
   { label: 'Order Date', value: (o) => o.order_date || '' },
   { label: 'Order #', value: 'order_no' },
@@ -269,6 +291,8 @@ const ORDERS_COLUMNS = [
   { label: 'Transaction Date', value: (o) => o.transaction_date || '' },
   { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
   { label: 'Balance', value: rowBalance },
+  // Cash / GCash-CC breakdown of Payment Today (shows a split payment's two parts)
+  ...TENDER_COLUMNS,
   // -- not on the client's sheet, appended at the end --
   { label: 'Created Date', value: (o) => manilaDate(o.created_at) },
   { label: 'Phone', value: 'tel_no' },
@@ -292,6 +316,8 @@ const SALES_COLUMNS = [
   { label: 'Payment Method', value: 'payment_method' },
   { label: 'Entry', value: (o) => (o.__entry === 'payment' ? 'Balance Payment' : 'Order') },
   { label: 'Balance', value: rowBalance },
+  // Cash / GCash-CC breakdown of Payment Today (shows a split payment's two parts)
+  ...TENDER_COLUMNS,
   // -- not on the client's sheet, appended at the end --
   { label: 'Payment Status', value: 'payment_status' },
   { label: 'Status', value: 'status' },
@@ -421,13 +447,16 @@ async function salesReport(req, res, from, to) {
     const totalDeposit = orders.reduce((sum, o) => sum + (parseFloat(o.deposit) || 0), 0);
     const totalBalance = orders.reduce((sum, o) => sum + (parseFloat(o.balance) || 0), 0);
     const totalBalancePayments = paymentRows.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    // Money collected in this range by tender (deposits on orders + balance payments).
+    const collectedCash = rows.reduce((sum, o) => sum + (parseFloat(tenderAmount(o, 'cash')) || 0), 0);
+    const collectedGcash = rows.reduce((sum, o) => sum + (parseFloat(tenderAmount(o, 'gcash')) || 0), 0);
 
     if (req.query && req.query.format === 'json') {
       res.status(200).json({
         ok: true,
         columns: columns.map(c => c.label),
         rows: rows.map(r => columns.map(c => (typeof c.value === 'function' ? c.value(r) : r[c.value]))),
-        totals: { amount: totalAmount, deposit: totalDeposit, balance: totalBalance, balance_payments: totalBalancePayments, collected: totalDeposit + totalBalancePayments },
+        totals: { amount: totalAmount, deposit: totalDeposit, balance: totalBalance, balance_payments: totalBalancePayments, collected: totalDeposit + totalBalancePayments, collected_cash: collectedCash, collected_gcash: collectedGcash },
       });
       return;
     }
@@ -438,6 +467,8 @@ async function salesReport(req, res, from, to) {
     csvContent += `Total Deposit,${totalDeposit.toFixed(2)}\r\n`;
     csvContent += `Total Balance,${totalBalance.toFixed(2)}\r\n`;
     csvContent += `Total Balance Payments Collected,${totalBalancePayments.toFixed(2)}\r\n`;
+    csvContent += `Collected in Cash,${collectedCash.toFixed(2)}\r\n`;
+    csvContent += `Collected in GCash/CC,${collectedGcash.toFixed(2)}\r\n`;
 
     sendCsv(res, `sales-report-${new Date().toISOString().slice(0, 10)}.csv`, csvContent);
   } catch (err) {
