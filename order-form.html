@@ -638,6 +638,12 @@
     background: transparent;
   }
   /* Review QR on the on-screen claim stub (Settings > Print toggle) */
+  #claimStubSection { position: relative; }
+  .claim-stamp { display: none; position: absolute; left: 50%; top: 78%; transform: translate(-50%, -50%) rotate(-14deg);
+    border: 3px double #3E8E5A; color: #3E8E5A; padding: 4px 16px; text-align: center; font-weight: 900; font-size: 2rem;
+    letter-spacing: 0.14em; line-height: 1.1; background: rgba(255,255,255,0.55); pointer-events: none; z-index: 2; }
+  .claim-stamp small { display: block; font-size: 0.6rem; letter-spacing: 0.25em; }
+  .claim-stamp.visible { display: block; }
   .claim-qr { display: none; text-align: center; margin-top: 12px; }
   .claim-qr.visible { display: block; }
   .claim-qr svg { width: 96px; height: 96px; display: block; margin: 0 auto; }
@@ -1083,6 +1089,12 @@
     .tu-claim-title { font-weight: 800; letter-spacing: 0.06em; font-size: 7.4px; }
     .tu-claim-no { font-weight: 700; margin-top: 2px; font-size: 6.5px; }
     /* Review QR under the claim number (Settings > Print). Hidden unless a link is set. */
+    /* PAID stamp: reprints of an order that is already claimed and settled (Settings > Print). */
+    .tu-stamp { display: none; position: absolute; right: 2px; top: 22px; transform: rotate(-10deg);
+      border: 2px double #000; padding: 2px 8px; text-align: center; font-weight: 900; font-size: 11px; letter-spacing: 0.14em;
+      line-height: 1.1; color: #000; pointer-events: none; }
+    .tu-stamp small { display: block; font-size: 4.6px; letter-spacing: 0.2em; font-weight: 800; }
+    .tu-stamp.visible { display: block; }
     .tu-qr { display: none; text-align: center; margin-top: 4px; }
     .tu-qr.visible { display: block; }
     .tu-qr svg { width: 30px; height: 30px; display: block; margin: 0 auto; }
@@ -1433,6 +1445,7 @@
         <span class="hash">No. #</span>
         <input type="text" id="claimNoDisplay" readonly autocomplete="off">
       </div>
+      <div class="claim-stamp" id="claimStamp"><span>PAID</span><small>CLAIMED</small></div>
       <div class="claim-qr" id="claimQr"><div id="claimQrSvg"></div><div class="claim-qr-cap">Scan to review us on Facebook</div></div>
     </div>
   </div>
@@ -1544,6 +1557,7 @@
             <div class="tu-claim-title">CLAIM STUB</div>
             <div class="tu-claim-no">No. # <span data-field="orderNo"></span></div>
           </div>
+          <div class="tu-stamp"><span>PAID</span><small>CLAIMED</small></div>
           <div class="tu-qr"><div class="tu-qr-svg"></div><div class="tu-qr-cap">Scan to review us on Facebook</div></div>
         </div>
       </div>
@@ -1776,6 +1790,7 @@
         box.appendChild(img);
       });
     }
+    if (stampApplies()) node.querySelectorAll('.tu-stamp').forEach(el => el.classList.add('visible'));
     // Review QR on the claim stub (Settings > Print). Drawn locally as SVG,
     // so printing needs no network and nothing is sent anywhere.
     if (stubQrUrl && window.qrcode) {
@@ -2116,6 +2131,19 @@
   let stubQrUrl = '';
   // Facebook's review page for a Page link: /name -> /name/reviews, or
   // profile.php?id=N -> profile.php?id=N&sk=reviews.
+  // Settings > Print: stamp PAID on the claim stub of an order that is already
+  // claimed and fully settled, so a reprint shows it. Saved orders only.
+  let stubPaidStamp = true;
+  function stampApplies() {
+    if (!stubPaidStamp || !editingOrderId) return false;
+    const st = document.querySelector('input[name="jobStatus"]:checked');
+    const bal = parseFloat(String((document.getElementById('balance') || {}).value || '').replace(/[^0-9.\-]/g, '')) || 0;
+    return !!(st && st.value === 'claimed' && bal <= 0);
+  }
+  function syncScreenStamp() {
+    const el = document.getElementById('claimStamp');
+    if (el) el.classList.toggle('visible', stampApplies());
+  }
   function qrSvgFor(url) {
     try {
       if (!url || !window.qrcode) return '';
@@ -2156,6 +2184,8 @@
         syncStubDue();
       }
       const pv = (result.ok && result.value) || {};
+      stubPaidStamp = pv.stub_paid_stamp !== false;
+      syncScreenStamp();
       if (pv.stub_qr !== false) {
         const custom = typeof pv.review_url === 'string' ? pv.review_url.trim() : '';
         if (/^https:\/\//i.test(custom)) {
@@ -2456,6 +2486,7 @@
 
     const jobStatusEl = document.querySelector(`input[name="jobStatus"][value="${order.status || 'ordered'}"]`);
     if (jobStatusEl) jobStatusEl.checked = true;
+    syncScreenStamp();
     if (jobStatusRow) jobStatusRow.style.display = 'flex';
 
     if (order.order_type === 'non_rx') {
@@ -3293,6 +3324,7 @@
   // live field on an already-saved order, not part of the normal
   // Save/Save changes flow below, so a status change here isn't lost
   // if staff navigate away without clicking Save.
+  document.querySelectorAll('input[name="jobStatus"]').forEach(r => r.addEventListener('change', syncScreenStamp));
   const jobStatusRow = document.getElementById('jobStatusRow');
   const jobStatusSaveStatus = document.getElementById('jobStatusSaveStatus');
   document.querySelectorAll('input[name="jobStatus"]').forEach(radio => {

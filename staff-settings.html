@@ -802,6 +802,13 @@
       </div>
       <div style="border-top:1px solid var(--line); margin-top:18px; padding-top:16px;">
         <label style="display:flex; align-items:flex-start; gap:8px; text-transform:none; font-size:0.9rem;">
+          <input type="checkbox" id="stubPaidStamp" checked style="width:auto; margin-top:3px;">
+          <span><strong>Stamp "PAID / CLAIMED" on the claim stub of a claimed order</strong><br>
+          <span style="color:var(--charcoal-soft); font-size:0.82rem;">When a saved order is marked Claimed and has no balance left, its claim stub shows a PAID stamp on screen and when printed, so a reprint of an already-claimed order is easy to spot. New and unclaimed orders never show it.</span></span>
+        </label>
+      </div>
+      <div style="border-top:1px solid var(--line); margin-top:18px; padding-top:16px;">
+        <label style="display:flex; align-items:flex-start; gap:8px; text-transform:none; font-size:0.9rem;">
           <input type="checkbox" id="stubQr" checked style="width:auto; margin-top:3px;">
           <span><strong>Show a review QR code on the claim stub (on screen and printed)</strong><br>
           <span style="color:var(--charcoal-soft); font-size:0.82rem;">Switch this off to remove it from both. Customers scan it to leave a review on your Facebook Page. By default it opens the Reviews tab of the Facebook link in Settings &gt; Website.</span></span>
@@ -1460,6 +1467,7 @@
     if (radio) radio.checked = true;
     document.getElementById('stubShowTba').checked = !(setting && setting.stub_show_tba === false);
     document.getElementById('stubQr').checked = !(setting && setting.stub_qr === false);
+    document.getElementById('stubPaidStamp').checked = !(setting && setting.stub_paid_stamp === false);
     document.getElementById('reviewUrl').value = (setting && setting.review_url) || '';
   }
 
@@ -1480,7 +1488,7 @@
       const resp = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'print_prefs', value: { paper_size: paperSize, stub_show_tba: document.getElementById('stubShowTba').checked, stub_qr: document.getElementById('stubQr').checked, review_url: reviewUrl } }),
+        body: JSON.stringify({ key: 'print_prefs', value: { paper_size: paperSize, stub_show_tba: document.getElementById('stubShowTba').checked, stub_qr: document.getElementById('stubQr').checked, stub_paid_stamp: document.getElementById('stubPaidStamp').checked, review_url: reviewUrl } }),
       });
       const result = await resp.json();
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
