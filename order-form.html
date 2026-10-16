@@ -2148,8 +2148,11 @@
           try {
             const r2 = await fetch('/api/settings?view=public_info');
             const info = r2.ok ? await r2.json() : null;
-            if (info && info.facebook_url) stubQrUrl = facebookReviewsUrl(info.facebook_url);
-          } catch (e) { /* no QR */ }
+            const fbUrl = info && info.info && info.info.facebook_url;
+            stubQrUrl = facebookReviewsUrl(fbUrl || 'https://www.facebook.com/dcamoptical');
+          } catch (e) {
+            stubQrUrl = facebookReviewsUrl('https://www.facebook.com/dcamoptical');
+          }
         }
       }
       showScreenQr();
