@@ -1062,6 +1062,11 @@
     .tu-claim { text-align: center; margin-top: 6px; }
     .tu-claim-title { font-weight: 800; letter-spacing: 0.06em; font-size: 7.4px; }
     .tu-claim-no { font-weight: 700; margin-top: 2px; font-size: 6.5px; }
+    /* Review QR under the claim number (Settings > Print). Hidden unless a link is set. */
+    .tu-qr { display: none; text-align: center; margin-top: 4px; }
+    .tu-qr.visible { display: block; }
+    .tu-qr svg { width: 30px; height: 30px; display: block; margin: 0 auto; }
+    .tu-qr-cap { font-size: 4.6px; font-weight: 700; line-height: 1.15; margin-top: 1px; }
   }
 
   @media (max-width: 720px) {
@@ -1095,6 +1100,7 @@
 </style>
 <script src="tech-guard.js"></script>
 <script src="perm-guard.js"></script>
+<script src="qrcode.js"></script>
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon/favicon-16.png">
@@ -1516,6 +1522,7 @@
             <div class="tu-claim-title">CLAIM STUB</div>
             <div class="tu-claim-no">No. # <span data-field="orderNo"></span></div>
           </div>
+          <div class="tu-qr"><div class="tu-qr-svg"></div><div class="tu-qr-cap">Scan to review us on Facebook</div></div>
         </div>
       </div>
     </template>
@@ -1746,6 +1753,20 @@
         const img = logoSrc.cloneNode();
         box.appendChild(img);
       });
+    }
+    // Review QR on the claim stub (Settings > Print). Drawn locally as SVG,
+    // so printing needs no network and nothing is sent anywhere.
+    if (stubQrUrl && window.qrcode) {
+      try {
+        const qr = window.qrcode(0, 'L');
+        qr.addData(stubQrUrl);
+        qr.make();
+        const svg = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
+        node.querySelectorAll('.tu-qr').forEach(box => {
+          box.querySelector('.tu-qr-svg').innerHTML = svg;
+          box.classList.add('visible');
+        });
+      } catch (e) { /* no QR: stub prints without it */ }
     }
     const bizName = (document.getElementById('bizNameDisplay1') || {}).textContent || 'DCAM Optical';
     const bizBranch = (document.getElementById('bizBranchDisplay1') || {}).textContent || '';
@@ -2069,6 +2090,21 @@
   // saved yet or the fetch fails, so this never changes behavior for a
   // practice that hasn't visited that setting.
   let printPaperSize = 'strip';
+  // Link behind the claim-stub review QR ('' = no QR). See loadPrintPrefs().
+  let stubQrUrl = '';
+  // Facebook's review page for a Page link: /name -> /name/reviews, or
+  // profile.php?id=N -> profile.php?id=N&sk=reviews.
+  function facebookReviewsUrl(fb) {
+    try {
+      const u = new URL(fb);
+      if (u.pathname.replace(/\/+$/, '').endsWith('/reviews')) return u.origin + u.pathname + u.search;
+      if (/profile\.php$/i.test(u.pathname)) {
+        const id = u.searchParams.get('id');
+        return id ? `${u.origin}/profile.php?id=${encodeURIComponent(id)}&sk=reviews` : '';
+      }
+      return u.origin + u.pathname.replace(/\/+$/, '') + '/reviews';
+    } catch (e) { return ''; }
+  }
   async function loadPrintPrefs() {
     try {
       const resp = await fetch('/api/settings?key=print_prefs');
@@ -2080,6 +2116,19 @@
       if (result.ok && result.value && result.value.stub_show_tba === false) {
         stubShowTba = false;
         syncStubDue();
+      }
+      const pv = (result.ok && result.value) || {};
+      if (pv.stub_qr !== false) {
+        const custom = typeof pv.review_url === 'string' ? pv.review_url.trim() : '';
+        if (/^https:\/\//i.test(custom)) {
+          stubQrUrl = custom;
+        } else {
+          try {
+            const r2 = await fetch('/api/settings?view=public_info');
+            const info = r2.ok ? await r2.json() : null;
+            if (info && info.facebook_url) stubQrUrl = facebookReviewsUrl(info.facebook_url);
+          } catch (e) { /* no QR */ }
+        }
       }
     } catch (e) {
       // Non-fatal -- falls back to the strip, same as before this setting existed.

@@ -800,6 +800,16 @@
           <span style="color:var(--charcoal-soft); font-size:0.82rem;">When a due date is not a calendar date (TBA), the claim stub prints exactly what was entered. Turn this off to leave the stub's due date blank instead. Real dates always print. The order copy always shows what was entered.</span></span>
         </label>
       </div>
+      <div style="border-top:1px solid var(--line); margin-top:18px; padding-top:16px;">
+        <label style="display:flex; align-items:flex-start; gap:8px; text-transform:none; font-size:0.9rem;">
+          <input type="checkbox" id="stubQr" checked style="width:auto; margin-top:3px;">
+          <span><strong>Print a review QR code on the claim stub</strong><br>
+          <span style="color:var(--charcoal-soft); font-size:0.82rem;">Customers scan it to leave a review on your Facebook Page. By default it opens the Reviews tab of the Facebook link in Settings &gt; Website.</span></span>
+        </label>
+        <label for="reviewUrl" style="display:block; margin-top:10px; text-transform:none; font-size:0.85rem;">Review link (optional)</label>
+        <input type="url" id="reviewUrl" placeholder="https://www.facebook.com/dcamoptical/reviews" style="width:100%; max-width:520px;">
+        <div style="color:var(--charcoal-soft); font-size:0.8rem; margin-top:4px;">Leave blank to use the Facebook Page's Reviews tab. Must start with https://. Test the printed QR with a phone before using it on all stubs.</div>
+      </div>
       <div class="save-row">
         <button class="save-btn" id="savePrintPrefs">Save</button>
         <span class="save-status" id="printPrefsStatus"></span>
@@ -1449,12 +1459,20 @@
     const radio = document.querySelector(`input[name="printPaperSize"][value="${paperSize}"]`);
     if (radio) radio.checked = true;
     document.getElementById('stubShowTba').checked = !(setting && setting.stub_show_tba === false);
+    document.getElementById('stubQr').checked = !(setting && setting.stub_qr === false);
+    document.getElementById('reviewUrl').value = (setting && setting.review_url) || '';
   }
 
   document.getElementById('savePrintPrefs').addEventListener('click', async () => {
     const btn = document.getElementById('savePrintPrefs');
     const statusEl = document.getElementById('printPrefsStatus');
     const paperSize = (document.querySelector('input[name="printPaperSize"]:checked') || {}).value || 'strip';
+    const reviewUrl = document.getElementById('reviewUrl').value.trim();
+    if (reviewUrl && !/^https:\/\//i.test(reviewUrl)) {
+      statusEl.textContent = 'The review link must start with https://';
+      statusEl.className = 'save-status error';
+      return;
+    }
     btn.disabled = true;
     statusEl.textContent = 'Saving…';
     statusEl.className = 'save-status';
@@ -1462,7 +1480,7 @@
       const resp = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'print_prefs', value: { paper_size: paperSize, stub_show_tba: document.getElementById('stubShowTba').checked } }),
+        body: JSON.stringify({ key: 'print_prefs', value: { paper_size: paperSize, stub_show_tba: document.getElementById('stubShowTba').checked, stub_qr: document.getElementById('stubQr').checked, review_url: reviewUrl } }),
       });
       const result = await resp.json();
       if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
