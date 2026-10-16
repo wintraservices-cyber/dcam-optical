@@ -147,9 +147,143 @@ async function recordPayment(req, res, session) {
   }
 }
 
+function money(n) { return (Math.round((Number(n) || 0) * 100) / 100); }
+
+// Recomputes an order's balance (and each later payment's balance_after)
+// from scratch: Amount - Deposit - payments, in the order they were taken.
+// Called after a payment is edited or voided so nothing downstream goes
+// stale. Falls back to a delta on the stored balance when the order has no
+// usable Amount.
+async function recomputeOrder(orderId, order, fallbackDelta) {
+  const payResp = await supabaseRequest(`balance_payments?order_id=eq.${encodeURIComponent(orderId)}&order=created_at.asc&select=id,amount,balance_after`, { method: 'GET' });
+  const pays = payResp.ok ? await payResp.json() : [];
+  const amt = parseFloat(order.amount);
+  const dep = parseFloat(order.deposit) || 0;
+  let running;
+  if (Number.isFinite(amt)) {
+    running = Math.max(amt - dep, 0);
+    for (const p of pays) {
+      running = Math.max(0, money(running - (parseFloat(p.amount) || 0)));
+      const after = running.toFixed(2);
+      if (p.balance_after !== after) {
+        await supabaseRequest(`balance_payments?id=eq.${encodeURIComponent(p.id)}`, { method: 'PATCH', body: JSON.stringify({ balance_after: after }) });
+      }
+    }
+  } else {
+    running = Math.max(0, money((parseFloat(order.balance) || 0) + (fallbackDelta || 0)));
+  }
+  const paymentStatus = running <= 0 && (Number.isFinite(amt) ? amt > 0 : true)
+    ? 'paid'
+    : ((Number.isFinite(amt) && running >= amt) ? 'unpaid' : 'partial');
+  const patch = { balance: running.toFixed(2), payment_status: paymentStatus, updated_at: new Date().toISOString() };
+  const upd = await supabaseRequest(`orders?id=eq.${encodeURIComponent(orderId)}&deleted_at=is.null`, {
+    method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
+  });
+  const rows = upd.ok ? await upd.json() : [];
+  return { order: rows[0] || { ...order, ...patch }, ok: upd.ok };
+}
+
+// PATCH = correct a logged payment (method / amount / split parts).
+// DELETE = void it (the row is removed; the audit trail keeps what it was).
+// Admin-only unless the "Edit or void a logged payment" permission is on.
+async function correctPayment(req, res, session, isVoid) {
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
+  }
+  body = body && typeof body === 'object' ? body : {};
+  const id = (req.query && req.query.id) || body.id;
+
+  const perms = await getPermissions();
+  if (!can(session, perms, 'edit_payments')) {
+    return deny(res, 'Only an admin can correct or void a logged payment.');
+  }
+  if (!id) {
+    res.status(400).json({ ok: false, error: 'A payment id is required.' });
+    return;
+  }
+
+  try {
+    const payResp = await supabaseRequest(`balance_payments?id=eq.${encodeURIComponent(id)}&limit=1`, { method: 'GET' });
+    if (!payResp.ok) { res.status(502).json({ ok: false, error: 'Could not find the payment.' }); return; }
+    const [payment] = await payResp.json();
+    if (!payment) { res.status(404).json({ ok: false, error: 'Payment not found.' }); return; }
+
+    const orderResp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(payment.order_id)}&deleted_at=is.null&limit=1`, { method: 'GET' });
+    const [order] = orderResp.ok ? await orderResp.json() : [];
+    if (!order) { res.status(404).json({ ok: false, error: 'The order for this payment was not found.' }); return; }
+
+    const before = {
+      amount: payment.amount, payment_method: payment.payment_method,
+      split_cash: payment.split_cash, split_gcash: payment.split_gcash,
+    };
+    let changes;
+
+    if (isVoid) {
+      const del = await supabaseRequest(`balance_payments?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!del.ok) {
+        console.error('balance_payments delete error:', del.status, await del.text());
+        res.status(502).json({ ok: false, error: 'Could not void the payment.' });
+        return;
+      }
+      changes = { correction: 'voided', payment_id: id, ...before, taken_by: payment.taken_by || null };
+    } else {
+      const amount = body.amount === undefined ? payment.amount : sanitizeAmount(body.amount);
+      const parsed = parseFloat(amount);
+      if (!amount || !Number.isFinite(parsed) || parsed <= 0) {
+        res.status(400).json({ ok: false, error: 'A valid payment amount is required.' });
+        return;
+      }
+      const method = body.payment_method === undefined ? payment.payment_method : body.payment_method;
+      if (!isValidPaymentMethod(method)) {
+        res.status(400).json({ ok: false, error: 'Choose Cash, GCash/CC or Split.' });
+        return;
+      }
+      let splitCash = null, splitGcash = null;
+      if (method === 'split') {
+        splitCash = sanitizeAmount(body.split_cash === undefined ? payment.split_cash : body.split_cash);
+        splitGcash = sanitizeAmount(body.split_gcash === undefined ? payment.split_gcash : body.split_gcash);
+        const c = parseFloat(splitCash), g = parseFloat(splitGcash);
+        if (!Number.isFinite(c) || !Number.isFinite(g)) {
+          res.status(400).json({ ok: false, error: 'Enter both the cash and the GCash/CC amounts for a split payment.' });
+          return;
+        }
+        if (Math.abs(c + g - parsed) > 0.005) {
+          res.status(400).json({ ok: false, error: `Cash + GCash/CC (${money(c + g).toFixed(2)}) must equal the payment amount (${money(parsed).toFixed(2)}).` });
+          return;
+        }
+      }
+      const patch = { amount, payment_method: method, split_cash: splitCash, split_gcash: splitGcash };
+      const upd = await supabaseRequest(`balance_payments?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) });
+      if (!upd.ok) {
+        console.error('balance_payments patch error:', upd.status, await upd.text());
+        res.status(502).json({ ok: false, error: 'Could not save the correction.' });
+        return;
+      }
+      changes = { correction: 'edited', payment_id: id, ...patch, before };
+    }
+
+    const delta = isVoid ? (parseFloat(before.amount) || 0) : (parseFloat(before.amount) || 0) - (parseFloat(changes.amount) || 0);
+    const result = await recomputeOrder(payment.order_id, order, delta);
+
+    logOrderAudit({
+      orderId: payment.order_id,
+      orderNo: order.order_no,
+      action: 'balance_payment',
+      changedBy: session.username,
+      changes,
+    });
+
+    res.status(200).json({ ok: true, order: result.order });
+  } catch (err) {
+    console.error('Unexpected error correcting balance payment:', err);
+    res.status(500).json({ ok: false, error: 'Unexpected server error.' });
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -161,6 +295,8 @@ module.exports = async (req, res) => {
   if (!session) return;
 
   if (req.method === 'POST') return recordPayment(req, res, session);
+  if (req.method === 'PATCH') return correctPayment(req, res, session, false);
+  if (req.method === 'DELETE') return correctPayment(req, res, session, true);
 
   res.status(405).json({ ok: false, error: 'Method not allowed' });
 };

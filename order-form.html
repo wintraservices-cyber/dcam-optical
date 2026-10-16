@@ -596,6 +596,15 @@
   .later-payments { margin: 6px 0 4px; padding: 8px 10px; border: 1px dashed var(--line, #ccc); border-radius: 8px; font-size: 0.85rem; }
   .later-payments .lp-title { font-weight: 700; margin-bottom: 4px; }
   .later-payments .lp-row { display: flex; justify-content: space-between; gap: 10px; }
+  .later-payments .lp-row { align-items: center; }
+  .later-payments .lp-actions { display: inline-flex; gap: 6px; margin-left: 8px; }
+  .later-payments .lp-actions button, .later-payments .lp-edit button { border: 1px solid var(--line, #ccc); background: #fff; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; cursor: pointer; }
+  .later-payments .lp-actions .lp-void { color: #B0405A; }
+  .later-payments .lp-edit { margin: 4px 0 8px; padding: 8px; background: rgba(0,0,0,0.03); border-radius: 8px; display: grid; gap: 6px; }
+  .later-payments .lp-edit label { font-size: 0.75rem; font-weight: 700; display: block; }
+  .later-payments .lp-edit input, .later-payments .lp-edit select { width: 100%; padding: 4px 6px; font: inherit; }
+  .later-payments .lp-edit .lp-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .later-payments .lp-err { color: #B0405A; font-size: 0.8rem; }
   .later-payments .lp-sum { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line, #ddd); color: var(--charcoal-soft, #555); }
   /* Claim stub (right half) */
   .claim-title {
@@ -2002,7 +2011,7 @@
     lockOrderNumberAndDate();
     applyStatusPermissions();
     if (permAllowed('edit_saved_orders')) return;
-    const keep = '[name="jobStatus"], #printBtnBottom, #historyPanel *';
+    const keep = '[name="jobStatus"], #printBtnBottom, #historyPanel *, #laterPayments *';
     document.querySelectorAll('.page-wrap input, .page-wrap select, .page-wrap textarea, .page-wrap button').forEach(el => {
       if (el.matches(keep)) return;
       if (el.name === 'jobStatus') return;
@@ -2193,12 +2202,69 @@
       let how = labels[p.payment_method] || '';
       if (p.payment_method === 'split') how += ` (Cash ${money(p.split_cash)} / GCash ${money(p.split_gcash)})`;
       const day = p.created_at ? manilaToday(p.created_at) : '';
-      return `<div class="lp-row"><span>${esc(day)}${how ? ' · ' + esc(how) : ''}</span><span>${money(amt)}</span></div>`;
+      const acts = (p.id && permAllowed('edit_payments'))
+        ? `<span class="lp-actions"><button type="button" class="lp-editbtn" data-id="${esc(p.id)}">Edit</button><button type="button" class="lp-void" data-id="${esc(p.id)}">Void</button></span>` : '';
+      return `<div class="lp-row" data-pay="${esc(p.id || '')}"><span>${esc(day)}${how ? ' · ' + esc(how) : ''}</span><span>${money(amt)}${acts}</span></div><div class="lp-slot" data-slot="${esc(p.id || '')}"></div>`;
     }).join('');
     const amt = parseFloat(order.amount) || 0, dep = parseFloat(order.deposit) || 0;
     box.innerHTML = `<div class="lp-title">Payments logged after intake</div>${rows}` +
       `<div class="lp-sum">${money(amt)} total − ${money(dep)} paid at intake − ${money(paid)} later = ${money(Math.max(amt - dep - paid, 0))} balance</div>`;
     box.hidden = false;
+    box.querySelectorAll('.lp-editbtn').forEach(b => b.addEventListener('click', () => openPaymentEditor(box, pays.find(x => x.id === b.dataset.id))));
+    box.querySelectorAll('.lp-void').forEach(b => b.addEventListener('click', () => voidPayment(box, pays.find(x => x.id === b.dataset.id))));
+  }
+  async function paymentCall(method, id, body) {
+    const resp = await fetch('/api/balance-payments' + (method === 'DELETE' ? '?id=' + encodeURIComponent(id) : ''), {
+      method, headers: { 'Content-Type': 'application/json' }, body: method === 'DELETE' ? undefined : JSON.stringify({ id, ...body }),
+    });
+    const result = await resp.json().catch(() => ({}));
+    if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+    return result;
+  }
+  function openPaymentEditor(box, p) {
+    if (!p) return;
+    const slot = box.querySelector(`[data-slot="${p.id}"]`);
+    if (!slot) return;
+    box.querySelectorAll('.lp-slot').forEach(x => { if (x !== slot) x.innerHTML = ''; });
+    const m = p.payment_method || 'cash';
+    slot.innerHTML = `<div class="lp-edit">
+      <div><label>Amount ₱</label><input type="text" inputmode="decimal" class="lp-amt" value="${(parseFloat(p.amount) || 0).toFixed(2)}"></div>
+      <div><label>Payment method</label><select class="lp-method"><option value="cash">Cash</option><option value="gcash_cc">GCash/CC</option><option value="split">Split</option></select></div>
+      <div class="lp-split" style="display:none; grid-template-columns:1fr 1fr; gap:6px;">
+        <div><label>Cash ₱</label><input type="text" inputmode="decimal" class="lp-cash" value="${p.split_cash || ''}"></div>
+        <div><label>GCash/CC ₱</label><input type="text" inputmode="decimal" class="lp-gcash" value="${p.split_gcash || ''}"></div>
+      </div>
+      <div class="lp-btns"><button type="button" class="lp-save">Save correction</button><button type="button" class="lp-cancel">Cancel</button><span class="lp-err"></span></div>
+    </div>`;
+    const sel = slot.querySelector('.lp-method'); sel.value = m;
+    const splitBox = slot.querySelector('.lp-split');
+    const sync = () => { splitBox.style.display = sel.value === 'split' ? 'grid' : 'none'; };
+    sel.addEventListener('change', sync); sync();
+    slot.querySelector('.lp-cancel').addEventListener('click', () => { slot.innerHTML = ''; });
+    slot.querySelector('.lp-save').addEventListener('click', async (ev) => {
+      const err = slot.querySelector('.lp-err'); err.textContent = '';
+      const btn = ev.currentTarget; btn.disabled = true;
+      try {
+        await paymentCall('PATCH', p.id, {
+          amount: slot.querySelector('.lp-amt').value.replace(/[^0-9.]/g, ''),
+          payment_method: sel.value,
+          split_cash: slot.querySelector('.lp-cash').value.replace(/[^0-9.]/g, ''),
+          split_gcash: slot.querySelector('.lp-gcash').value.replace(/[^0-9.]/g, ''),
+        });
+        window.location.reload();
+      } catch (e) { err.textContent = e.message; btn.disabled = false; }
+    });
+  }
+  async function voidPayment(box, p) {
+    if (!p) return;
+    if (!window.confirm('Void this payment of ₱' + (parseFloat(p.amount) || 0).toFixed(2) + '? The balance goes back up by that amount. The history keeps a record of it.')) return;
+    try {
+      await paymentCall('DELETE', p.id);
+      window.location.reload();
+    } catch (e) {
+      const slot = box.querySelector(`[data-slot="${p.id}"]`);
+      if (slot) slot.innerHTML = '<div class="lp-edit"><span class="lp-err">' + escapeHtmlClient(e.message) + '</span></div>';
+    }
   }
   async function loadOrderForEdit(id) {
     try {
@@ -2254,8 +2320,11 @@
       status_change: 'Status changed',
       payment_status_change: 'Payment status changed',
       full_edit: 'Order edited',
-      balance_payment: 'Payment logged',
+      balance_payment: 'Payment logged - balance payment',
     };
+    if (entry.action === 'balance_payment' && entry.changes && entry.changes.correction) {
+      return entry.changes.correction === 'voided' ? 'Payment voided' : 'Payment corrected';
+    }
     return labels[entry.action] || entry.action;
   }
 
@@ -2265,6 +2334,21 @@
     // payment itself (amount/method/split), not a set of before/after
     // field diffs like every other action -- render it as a payment
     // summary instead of trying to read .before/.after off plain values.
+    if (entry.action === 'created') {
+      const c = entry.changes;
+      if (c.deposit === undefined) return '';
+      const m = (v) => '₱' + (parseFloat(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const labels = { cash: 'Cash', gcash_cc: 'GCash/CC', split: 'Split' };
+      let how = labels[c.payment_method] || '';
+      if (c.payment_method === 'split') how += ' (cash ' + m(c.split_cash) + ' / gcash-cc ' + m(c.split_gcash) + ')';
+      const owed = Math.max((parseFloat(c.amount) || 0) - (parseFloat(c.deposit) || 0), 0);
+      return 'Total ' + m(c.amount) + ' · Paid at intake ' + m(c.deposit) + (how ? ' · ' + how : '') + ' · Balance at intake ' + m(owed);
+    }
+    if (entry.action === 'balance_payment' && entry.changes.correction) {
+      const c = entry.changes, b = c.before || c;
+      const desc = (x) => '₱' + (x.amount ?? '') + ' ' + (x.payment_method ?? '') + (x.payment_method === 'split' ? ' (cash ₱' + (x.split_cash || '0') + ' / gcash-cc ₱' + (x.split_gcash || '0') + ')' : '');
+      return c.correction === 'voided' ? 'Voided ' + desc(b) : 'Was ' + desc(b) + ' → now ' + desc(c);
+    }
     if (entry.action === 'balance_payment') {
       const c = entry.changes;
       const parts = ['₱' + (c.amount ?? ''), c.payment_method ?? ''];

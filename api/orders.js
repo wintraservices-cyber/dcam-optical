@@ -219,6 +219,12 @@ async function createOrder(req, res, session) {
       orderNo: saved.order_no,
       action: 'created',
       changedBy: session.username,
+      // What was paid at intake, so the history shows it (not just "created").
+      changes: {
+        amount: saved.amount ?? null, deposit: saved.deposit ?? null,
+        payment_method: saved.payment_method ?? null,
+        split_cash: saved.split_cash ?? null, split_gcash: saved.split_gcash ?? null,
+      },
     });
 
     // Write multi-item rows (Non-Rx orders with more than one product)
@@ -455,7 +461,7 @@ async function listOrders(req, res) {
   // a deleted order is only viewable/actionable from the Trash tab, not
   // editable via the normal order form.
   if (id && typeof id === 'string') {
-    path = `orders?select=*,order_items(*),balance_payments(created_at,amount,payment_method,split_cash,split_gcash)&id=eq.${encodeURIComponent(id)}${NOT_DELETED}&limit=1`;
+    path = `orders?select=*,order_items(*),balance_payments(id,created_at,amount,payment_method,split_cash,split_gcash,taken_by)&id=eq.${encodeURIComponent(id)}${NOT_DELETED}&limit=1`;
     try {
       const resp = await supabaseRequest(path, { method: 'GET' });
       if (!resp.ok) {
@@ -728,6 +734,30 @@ async function getOrderAudit(req, res) {
       changes: row.changes,
       created_at: row.created_at,
     }));
+
+    // Orders created before the history recorded what was paid at intake:
+    // rebuild it from the order as it is now, undoing any later edits to
+    // those fields (each edit logged its before/after).
+    const needsIntake = timeline.find(t => t.action === 'created' && (!t.changes || t.changes.deposit === undefined));
+    if (needsIntake) {
+      try {
+        const oResp = await supabaseRequest(`orders?id=eq.${encodeURIComponent(id)}&select=amount,deposit,payment_method,split_cash,split_gcash&limit=1`, { method: 'GET' });
+        const [o] = oResp.ok ? await oResp.json() : [];
+        if (o) {
+          const FIELDS = ['amount', 'deposit', 'payment_method', 'split_cash', 'split_gcash'];
+          const intake = {};
+          FIELDS.forEach(f => { intake[f] = o[f] ?? null; });
+          timeline.slice().reverse().forEach(t => {
+            if (t.action !== 'full_edit' || !t.changes || typeof t.changes !== 'object') return;
+            FIELDS.forEach(f => {
+              const c = t.changes[f];
+              if (c && typeof c === 'object' && 'before' in c) intake[f] = c.before;
+            });
+          });
+          needsIntake.changes = { ...intake, derived: true };
+        }
+      } catch (e) { /* history still renders without it */ }
+    }
 
     res.status(200).json({ ok: true, timeline });
   } catch (err) {
