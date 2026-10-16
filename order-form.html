@@ -591,6 +591,12 @@
     padding: 4px 2px;
   }
 
+  /* Payments logged after intake (Log payment), shown on a saved order so
+     Amount - Deposit - payments = Balance can be checked on screen. */
+  .later-payments { margin: 6px 0 4px; padding: 8px 10px; border: 1px dashed var(--line, #ccc); border-radius: 8px; font-size: 0.85rem; }
+  .later-payments .lp-title { font-weight: 700; margin-bottom: 4px; }
+  .later-payments .lp-row { display: flex; justify-content: space-between; gap: 10px; }
+  .later-payments .lp-sum { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line, #ddd); color: var(--charcoal-soft, #555); }
   /* Claim stub (right half) */
   .claim-title {
     text-align: center;
@@ -1344,6 +1350,7 @@
         <div class="field-inline"><label>Deposit / Payment</label><input type="text" id="deposit" inputmode="decimal" placeholder="0.00" autocomplete="off"></div>
         <div class="field-inline"><label>Balance <span style="font-weight:400; text-transform:none; letter-spacing:0; opacity:0.7;">(auto)</span></label><input type="text" id="balance" inputmode="decimal" placeholder="0.00" autocomplete="off"></div>
       </div>
+      <div id="laterPayments" class="later-payments" hidden></div>
       <div class="payment-rows-group">
         <!-- Job status (Ordered/Ready/Claimed): only meaningful for an
              order that already exists (a brand-new order always starts
@@ -2171,6 +2178,28 @@
   // ---- Editing an existing order (order-form.html?id=<uuid>) ----
   let editingOrderId = null;
 
+  function showLaterPayments(order) {
+    const box = document.getElementById('laterPayments');
+    if (!box) return;
+    const pays = Array.isArray(order.balance_payments) ? order.balance_payments.slice() : [];
+    if (!pays.length) { box.hidden = true; box.innerHTML = ''; return; }
+    pays.sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')));
+    const money = (n) => '₱' + (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const labels = { cash: 'Cash', gcash_cc: 'GCash/CC', split: 'Split' };
+    const esc = (t) => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    let paid = 0;
+    const rows = pays.map(p => {
+      const amt = parseFloat(p.amount) || 0; paid += amt;
+      let how = labels[p.payment_method] || '';
+      if (p.payment_method === 'split') how += ` (Cash ${money(p.split_cash)} / GCash ${money(p.split_gcash)})`;
+      const day = p.created_at ? manilaToday(p.created_at) : '';
+      return `<div class="lp-row"><span>${esc(day)}${how ? ' · ' + esc(how) : ''}</span><span>${money(amt)}</span></div>`;
+    }).join('');
+    const amt = parseFloat(order.amount) || 0, dep = parseFloat(order.deposit) || 0;
+    box.innerHTML = `<div class="lp-title">Payments logged after intake</div>${rows}` +
+      `<div class="lp-sum">${money(amt)} total − ${money(dep)} paid at intake − ${money(paid)} later = ${money(Math.max(amt - dep - paid, 0))} balance</div>`;
+    box.hidden = false;
+  }
   async function loadOrderForEdit(id) {
     try {
       const resp = await fetch('/api/orders?id=' + encodeURIComponent(id));
@@ -2329,6 +2358,7 @@
         }
       }
     }
+    showLaterPayments(order);
     paymentStatusManuallyEdited = true; // preserve the loaded payment status rather than recalculating over it
     paymentStatusUserSet = false;       // ...but only until Amount/Deposit is edited (see applyAmountDepositDelta)
     syncPrevAmounts();
