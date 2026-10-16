@@ -622,6 +622,11 @@
     color: var(--purple-deep);
     background: transparent;
   }
+  /* Review QR on the on-screen claim stub (Settings > Print toggle) */
+  .claim-qr { display: none; text-align: center; margin-top: 12px; }
+  .claim-qr.visible { display: block; }
+  .claim-qr svg { width: 96px; height: 96px; display: block; margin: 0 auto; }
+  .claim-qr-cap { font-size: 0.74rem; font-weight: 700; margin-top: 4px; color: var(--charcoal); }
   .forfeit-note {
     margin-top: 20px;
     font-size: 0.7rem;
@@ -1412,6 +1417,7 @@
         <span class="hash">No. #</span>
         <input type="text" id="claimNoDisplay" readonly autocomplete="off">
       </div>
+      <div class="claim-qr" id="claimQr"><div id="claimQrSvg"></div><div class="claim-qr-cap">Scan to review us on Facebook</div></div>
     </div>
   </div>
 
@@ -2094,6 +2100,22 @@
   let stubQrUrl = '';
   // Facebook's review page for a Page link: /name -> /name/reviews, or
   // profile.php?id=N -> profile.php?id=N&sk=reviews.
+  function qrSvgFor(url) {
+    try {
+      if (!url || !window.qrcode) return '';
+      const qr = window.qrcode(0, 'L');
+      qr.addData(url);
+      qr.make();
+      return qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
+    } catch (e) { return ''; }
+  }
+  function showScreenQr() {
+    const box = document.getElementById('claimQr');
+    if (!box) return;
+    const svg = qrSvgFor(stubQrUrl);
+    box.querySelector('#claimQrSvg').innerHTML = svg;
+    box.classList.toggle('visible', !!svg);
+  }
   function facebookReviewsUrl(fb) {
     try {
       const u = new URL(fb);
@@ -2130,6 +2152,7 @@
           } catch (e) { /* no QR */ }
         }
       }
+      showScreenQr();
     } catch (e) {
       // Non-fatal -- falls back to the strip, same as before this setting existed.
     }
