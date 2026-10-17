@@ -307,6 +307,14 @@
   }
 
   .ai-cards-wrap.off { opacity: 0.45; pointer-events: none; }
+  .ann-grid { display: grid; grid-template-columns: 200px 1fr; gap: 20px; margin-top: 16px; align-items: start; }
+  .ann-thumb { width: 200px; aspect-ratio: 4 / 5; border-radius: 10px; border: 1px dashed var(--line); background: var(--ivory-dim, #EFE6D8); display: flex; align-items: center; justify-content: center; overflow: hidden; color: #6B6264; font-size: 0.8rem; }
+  .ann-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; background: #383334; }
+  .ann-image-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .ann-grid .ai-help { font-size: 0.78rem; color: #6B6264; line-height: 1.4; margin-top: 4px; }
+  .ann-btn { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; min-height: 40px; font-family: var(--body); font-size: 0.8rem; cursor: pointer; color: var(--charcoal); }
+  .ann-btn:hover { border-color: var(--blue); }
+  @media (max-width: 720px) { .ann-grid { grid-template-columns: 1fr; } .ann-thumb { width: 160px; } .ann-grid .field-grid { grid-template-columns: 1fr !important; } }
   .site-status { display: inline-block; margin-left: 8px; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; border-radius: 100px; padding: 2px 9px; vertical-align: 2px; }
   .site-status.live { background: #E3F2E8; color: #2F7A4A; }
   .site-status.gated { background: #F6E3F1; color: #8F4680; }
@@ -704,6 +712,60 @@
           <div class="ai-help">Saves as soon as you flip it. When on, visitors to the home page see the teaser page instead of the website (it can take up to 30 seconds to switch). Staff pages, staff login and the intake form keep working.</div>
         </div>
         <label class="switch"><input type="checkbox" id="siteGateOn" aria-label="Show Coming Soon or Maintenance page"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="card" id="announceCard">
+      <div class="ai-master kill" style="border-bottom:none; padding:0;">
+        <div>
+          <div class="ai-label">Announcement pop-up <span class="site-status live" id="annPill">Off</span></div>
+          <div class="ai-help">A picture that opens over the home page for marketing or news (an event, a promo, new hours). Upload the image, pick when it starts and ends, then click Save. It stops showing by itself at the end time.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="annOn" aria-label="Show the announcement pop-up on the home page"><span class="slider"></span></label>
+      </div>
+      <div class="ann-grid">
+        <div class="ann-image">
+          <div class="ann-thumb" id="annThumb"><span>No image yet</span></div>
+          <div class="ann-image-actions">
+            <button type="button" class="ann-btn" id="annPick">Upload image</button>
+            <button type="button" class="ann-btn" id="annRemove" hidden>Remove image</button>
+          </div>
+          <input type="file" id="annFile" accept="image/*" hidden>
+          <div class="ai-help" id="annImgNote">Any JPEG, PNG or WebP. It is resized automatically; a portrait or square picture about 1080 pixels wide looks best.</div>
+        </div>
+        <div class="field-grid" style="grid-template-columns: 1fr 1fr;">
+          <div style="grid-column: 1 / -1;">
+            <label for="annAlt">Describe the picture (for screen readers)</label>
+            <input type="text" id="annAlt" maxlength="160" placeholder="Anita Day promo, October 24: 50% off selected frames and a free eye checkup">
+          </div>
+          <div>
+            <label for="annStart">Starts (Manila time)</label>
+            <input type="datetime-local" id="annStart">
+            <div class="ai-help">Leave blank to start as soon as you save.</div>
+          </div>
+          <div>
+            <label for="annEnd">Ends (Manila time)</label>
+            <input type="datetime-local" id="annEnd">
+            <div class="ai-help">Leave blank to keep showing until you turn it off.</div>
+          </div>
+          <div>
+            <label for="annFreq">How often a visitor sees it</label>
+            <select id="annFreq">
+              <option value="daily">Once a day</option>
+              <option value="once">Once only</option>
+              <option value="session">Every visit</option>
+            </select>
+          </div>
+          <div>
+            <label for="annLink">Link when the picture is clicked (optional)</label>
+            <input type="text" id="annLink" maxlength="300" placeholder="/intake or https://…">
+          </div>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="save-btn" id="annSave" type="button">Save</button>
+        <button class="save-btn" id="annPreview" type="button" style="background:#fff; color:var(--purple-deep, #8F4680); border:1.5px solid var(--purple, #B05A9E);">Preview pop-up</button>
+        <span class="save-status" id="annStatus"></span>
       </div>
     </div>
 
@@ -1207,6 +1269,8 @@
   <p>This page requires an admin account.</p>
 </div>
 
+<script>window.DCAM_ANNOUNCE_MANUAL = true;</script>
+<script src="announcement.js"></script>
 <script src="period-filter.js"></script>
 <script>
 (function() {
@@ -2857,6 +2921,116 @@
     if (!ok) { box.checked = !box.checked; syncSiteStatus(); }
   });
 
+  // ---- Announcement pop-up ----
+  // The image is resized in the browser and sent with Save; the server keeps
+  // it in its own row so normal settings loads stay small.
+  const ann = { image_data: '', remove_image: false, image_url: '', had_image: false };
+  const annEl = (id) => document.getElementById(id);
+  const MANILA_MS = 8 * 3600 * 1000;
+  const isoToManilaLocal = (iso) => { const t = Date.parse(iso); return Number.isFinite(t) ? new Date(t + MANILA_MS).toISOString().slice(0, 16) : ''; };
+  const manilaLocalToIso = (v) => v ? new Date(v + ':00+08:00').toISOString() : '';
+  function annSrc() { return ann.image_data || (!ann.remove_image && ann.image_url) || ''; }
+  function renderAnnImage() {
+    const src = annSrc();
+    annEl('annThumb').innerHTML = src ? '<img alt="">' : '<span>No image yet</span>';
+    if (src) annEl('annThumb').firstChild.src = src;
+    annEl('annPick').textContent = src ? 'Change image' : 'Upload image';
+    annEl('annRemove').hidden = !src;
+  }
+  function syncAnnPill(state) {
+    const pill = annEl('annPill');
+    const on = annEl('annOn').checked;
+    const label = !on ? 'Off' : state === 'scheduled' ? 'Scheduled' : state === 'ended' ? 'Ended' : state === 'live' ? 'Showing now' : 'On, not saved yet';
+    pill.textContent = label;
+    pill.className = 'site-status ' + (label === 'Showing now' ? 'gated' : 'live');
+  }
+  function renderAnnouncement(v) {
+    v = v || {};
+    ann.image_data = ''; ann.remove_image = false;
+    ann.image_url = v.image_url || ''; ann.had_image = !!v.image_url;
+    annEl('annOn').checked = v.enabled === true;
+    annEl('annAlt').value = v.alt || '';
+    annEl('annLink').value = v.link_url || '';
+    annEl('annFreq').value = v.frequency || 'daily';
+    annEl('annStart').value = isoToManilaLocal(v.start_at);
+    annEl('annEnd').value = isoToManilaLocal(v.end_at);
+    renderAnnImage();
+    syncAnnPill(v.state);
+  }
+  // Fit within 1080 wide and under ~700 KB, as a JPEG.
+  function processAnnImage(file) {
+    return new Promise((resolve, reject) => {
+      if (!/^image\//.test(file.type)) return reject(new Error('Please choose an image file.'));
+      if (file.size > 25 * 1024 * 1024) return reject(new Error('That image is over 25 MB.'));
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, 1080 / img.naturalWidth, 1600 / img.naturalHeight);
+        const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        let q = 0.88, out = c.toDataURL('image/jpeg', q);
+        while (out.length > 900000 && q > 0.45) { q -= 0.08; out = c.toDataURL('image/jpeg', q); }
+        if (out.length > 1100000) return reject(new Error('That image is still too large after resizing. Try a smaller one.'));
+        resolve(out);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image.')); };
+      img.src = url;
+    });
+  }
+  function annStatus(msg, cls) { const el = annEl('annStatus'); el.textContent = msg; el.className = 'save-status' + (cls ? ' ' + cls : ''); }
+  annEl('annPick').addEventListener('click', () => annEl('annFile').click());
+  annEl('annFile').addEventListener('change', async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!f) return;
+    try {
+      annStatus('Preparing image…');
+      ann.image_data = await processAnnImage(f); ann.remove_image = false;
+      renderAnnImage();
+      annStatus('Image ready. Click Save to publish.');
+    } catch (err) { annStatus(err.message, 'error'); }
+  });
+  annEl('annRemove').addEventListener('click', () => {
+    ann.image_data = ''; ann.remove_image = true;
+    annEl('annOn').checked = false;
+    renderAnnImage(); syncAnnPill();
+    annStatus('Image removed. Click Save to confirm.');
+  });
+  annEl('annOn').addEventListener('change', () => syncAnnPill());
+  async function saveAnnouncement() {
+    const btn = annEl('annSave');
+    const start = manilaLocalToIso(annEl('annStart').value), end = manilaLocalToIso(annEl('annEnd').value);
+    if (annEl('annOn').checked && !annSrc()) { annStatus('Upload an image before turning the pop-up on.', 'error'); return; }
+    if (start && end && Date.parse(end) <= Date.parse(start)) { annStatus('The end must be after the start.', 'error'); return; }
+    btn.disabled = true; annStatus('Saving…');
+    const value = {
+      enabled: annEl('annOn').checked,
+      alt: annEl('annAlt').value.trim(),
+      link_url: annEl('annLink').value.trim(),
+      frequency: annEl('annFreq').value,
+      start_at: start, end_at: end,
+    };
+    if (ann.image_data) value.image_data = ann.image_data; else if (ann.remove_image) value.remove_image = true;
+    try {
+      const resp = await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'announcement', value }) });
+      const result = await resp.json();
+      if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not save.');
+      renderAnnouncement(result.setting && result.setting.value);
+      const st = result.setting && result.setting.value && result.setting.value.state;
+      annStatus(st === 'live' ? 'Saved. It is showing on the website now.' : st === 'scheduled' ? 'Saved. It will start at the time you set.' : st === 'ended' ? 'Saved, but the end time has already passed, so it is not showing.' : 'Saved.', st === 'ended' ? 'error' : 'success');
+    } catch (err) { annStatus(err.message, 'error'); }
+    finally { btn.disabled = false; }
+  }
+  annEl('annSave').addEventListener('click', saveAnnouncement);
+  annEl('annPreview').addEventListener('click', () => {
+    const src = annSrc();
+    if (!src) { annStatus('Upload an image to preview it.', 'error'); return; }
+    if (window.DCAMAnnouncement) window.DCAMAnnouncement.show({ image_url: src, alt: annEl('annAlt').value.trim() || 'Announcement preview', link_url: annEl('annLink').value.trim(), preview: true });
+  });
+
   // ---- Optometrists ----
   let team = [];
   const TEAM_GROUPS = [['optometrist', 'Optometrists'], ['staff', 'Staff'], ['tech', 'Technicians']];
@@ -3019,6 +3193,7 @@
       aiSpendToday = result.settings.ai_spend_today || null;
       renderAiAccess(result.settings.ai_access);
       renderSiteMode(result.settings.site_mode);
+      if (isTech) annEl('announceCard').hidden = true; else renderAnnouncement(result.settings.announcement);
       hpTextFields = result.settings.homepage_text_fields || [];
       renderHomepage(result.settings.homepage);
       kbEntries = (result.settings.ai_knowledge && result.settings.ai_knowledge.entries) || [];
@@ -3036,6 +3211,7 @@
       if (!isTech) renderTeamFrom(null);
       renderAiAccess(null);
       renderSiteMode(null);
+      if (isTech) annEl('announceCard').hidden = true; else renderAnnouncement(null);
       renderHomepage(null);
       renderKnowledge();
       if (!isTech) loadAccounts();

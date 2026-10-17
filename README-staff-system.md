@@ -150,3 +150,12 @@ Settings → **Business info → Optometrists** manages the "Meet our optometris
 - Stored in `app_settings`: `optometrists` (names, bios, order, visibility) and `optometrist_photos` (images, kept separate so normal settings loads stay small). No schema change needed.
 - Photos are cropped to a 4:5 portrait and resized to 640×800 JPEG in the browser before upload (~100 KB).
 - Public endpoints (no login): `GET /api/settings?view=team` (visible entries only) and `GET /api/settings?view=team_photo&id=…&v=…` (cached for a year; `v` changes when the photo changes).
+
+## Announcement pop-up (home page)
+
+Settings → **Website → Site settings → Announcement pop-up** (admin only) shows one image over the home page for marketing or news. Upload the image, set a start and end (Manila time, both optional), choose how often a visitor sees it (once a day, once only, every visit), optionally add a link for when the picture is clicked, then Save. **Preview pop-up** shows exactly what visitors will see. It switches off by itself at the end time.
+
+- Stored in `app_settings`: `announcement` (on/off, description, link, start, end, frequency, image hash) and `announcement_image` (the picture, kept separate so normal settings loads stay small). No schema change needed.
+- The picture is resized to at most 1080 px wide JPEG in the browser (~150-300 KB). The link may be `https://…` or an on-site path such as `/intake`.
+- Public endpoints (no login): `GET /api/settings?view=announcement` (null unless on and inside its window) and `GET /api/settings?view=announcement_image&v=…` (cached for a year).
+- Client: `announcement.js` on `index.html`. It waits about a second after load, closes with the button, Esc or a click outside, and remembers what a visitor has seen in their own browser.

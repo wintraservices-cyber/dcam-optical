@@ -26,8 +26,9 @@ const { normalizeHomepage, TEXT_FIELDS } = require('../lib/homepage');
 const { geminiStatus } = require('../lib/ai-gemini');
 const { PERMISSIONS, normalizePermissions, getPermissions } = require('../lib/staff-permissions');
 const { normalizeJobSeries, getJobSeries, describeSeries, JobSeriesError } = require('../lib/job-series');
+const { buildAnnouncement, adminAnnouncement, publicAnnouncement, decodeImage, AnnouncementError } = require('../lib/announcement');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status', 'staff_permissions', 'tech_costs', 'job_series'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status', 'staff_permissions', 'tech_costs', 'job_series', 'announcement'];
 
 async function readSetting(key) {
   const resp = await supabaseRequest(`app_settings?key=eq.${encodeURIComponent(key)}&limit=1`, { method: 'GET' });
@@ -61,8 +62,9 @@ async function getSettings(req, res, sessionUser) {
   try {
     const path = key
       ? `app_settings?key=eq.${encodeURIComponent(key)}&limit=1`
-      // Optometrist photos are large and only needed on the home page.
-      : 'app_settings?select=key,value&key=neq.optometrist_photos';
+      // Optometrist photos and the announcement image are large and only
+      // needed on the home page.
+      : 'app_settings?select=key,value&key=not.in.(optometrist_photos,announcement_image)';
     const resp = await supabaseRequest(path, { method: 'GET' });
     if (!resp.ok) {
       const errText = await resp.text();
@@ -74,7 +76,7 @@ async function getSettings(req, res, sessionUser) {
 
     if (key) {
       const value = rows[0] ? rows[0].value : null;
-      res.status(200).json({ ok: true, value: key === 'site_mode' ? redactSiteMode(value) : key === 'optometrists' ? adminTeam(value) : key === 'homepage' ? normalizeHomepage(value) : value });
+      res.status(200).json({ ok: true, value: key === 'site_mode' ? redactSiteMode(value) : key === 'optometrists' ? adminTeam(value) : key === 'homepage' ? normalizeHomepage(value) : key === 'announcement' ? adminAnnouncement(value) : value });
       return;
     }
 
@@ -85,6 +87,7 @@ async function getSettings(req, res, sessionUser) {
     // original content) so the editor shows what the site shows today.
     settings.homepage = normalizeHomepage(settings.homepage);
     settings.tech_costs = normalizeTechCosts(settings.tech_costs);
+    settings.announcement = adminAnnouncement(settings.announcement);
     // Field list for the Page text editor (labels + original wording).
     settings.homepage_text_fields = TEXT_FIELDS;
     // Which AI keys are set in Vercel (never the keys themselves), for the
@@ -116,6 +119,16 @@ async function saveTeamPhotos(value, sessionUser) {
   const [prevMeta, prevPhotos] = await Promise.all([readSetting('optometrists'), readSetting('optometrist_photos')]);
   const { meta, photos } = buildTeam(value, prevMeta, prevPhotos);
   await writeSetting('optometrist_photos', photos, sessionUser.username);
+  return meta;
+}
+
+// Splits the announcement into its small record + the image row, writes
+// the image (or clears it), and returns the small record for putSetting.
+async function saveAnnouncement(value, sessionUser) {
+  const [prevMeta, prevImage] = await Promise.all([readSetting('announcement'), readSetting('announcement_image')]);
+  const { meta, image, removeImage } = buildAnnouncement(value, prevMeta, prevImage);
+  if (image) await writeSetting('announcement_image', image, sessionUser.username);
+  else if (removeImage && prevImage && prevImage.data) await writeSetting('announcement_image', {}, sessionUser.username);
   return meta;
 }
 
@@ -156,9 +169,10 @@ async function putSetting(req, res, sessionUser) {
       : key === 'tech_costs' ? normalizeTechCosts(value)
       : key === 'job_series' ? normalizeJobSeries(value)
       : key === 'optometrists' ? await saveTeamPhotos(value, sessionUser)
+      : key === 'announcement' ? await saveAnnouncement(value, sessionUser)
       : value;
   } catch (err) {
-    if (err instanceof SiteModeError || err instanceof TeamError || err instanceof JobSeriesError) {
+    if (err instanceof SiteModeError || err instanceof TeamError || err instanceof JobSeriesError || err instanceof AnnouncementError) {
       res.status(400).json({ ok: false, error: err.message });
       return;
     }
@@ -193,6 +207,7 @@ async function putSetting(req, res, sessionUser) {
     const [saved] = await resp.json();
     if (saved && saved.key === 'site_mode') saved.value = redactSiteMode(saved.value);
     if (saved && saved.key === 'optometrists') saved.value = adminTeam(saved.value);
+    if (saved && saved.key === 'announcement') saved.value = adminAnnouncement(saved.value);
     res.status(200).json({ ok: true, setting: saved });
   } catch (err) {
     console.error('Unexpected error saving setting:', err);
@@ -532,6 +547,38 @@ module.exports = async (req, res) => {
     } catch (err) {
       console.error('job_series view error:', err.message);
       res.status(502).json({ ok: false, error: 'Could not load the job code series.' });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'announcement') {
+    // Public: the home page pop-up, only while it is switched on and
+    // inside its start/end window (otherwise announcement is null).
+    try {
+      const announcement = publicAnnouncement(await readSetting('announcement'));
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Vercel-CDN-Cache-Control', 'max-age=10, stale-while-revalidate=30');
+      res.status(200).json({ ok: true, announcement });
+    } catch (err) {
+      console.error('announcement read error:', err.message);
+      res.status(200).json({ ok: true, announcement: null });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'announcement_image') {
+    // Public: the pop-up image. The URL carries a hash of the image
+    // (v=...), so it can be cached for a long time.
+    try {
+      const img = decodeImage(await readSetting('announcement_image'));
+      if (!img) { res.status(404).json({ ok: false, error: 'Image not found.' }); return; }
+      res.setHeader('Content-Type', img.type);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.status(200).end(img.buf);
+    } catch (err) {
+      console.error('announcement_image error:', err.message);
+      res.status(502).json({ ok: false, error: 'Could not load image.' });
     }
     return;
   }
