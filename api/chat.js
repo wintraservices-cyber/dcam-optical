@@ -867,7 +867,7 @@ async function socialReply(ev, access) {
 
 async function metaWebhook(req, res) {
   if (req.method === 'GET') {
-    const r = meta.verifyChallenge(req.query);
+    const r = meta.verifyChallenge(req);
     res.status(r.status).setHeader('Content-Type', 'text/plain');
     res.end(r.body);
     return;
