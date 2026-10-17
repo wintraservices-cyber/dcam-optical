@@ -1993,6 +1993,43 @@
     }, 1200);
   });
 
+  // What Meta itself says about the Page: which apps receive its messages.
+  function metaConnectionHtml(c) {
+    if (!c || !c.checked) return '';
+    let h = '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">';
+    h += '<strong>Page check (asked Meta just now)</strong><br>';
+    if (c.token_error) h += `✗ Token: ${escapeHtml(c.token_error)}<br>`;
+    else if (c.token_owner) h += `✓ Token belongs to: ${escapeHtml(c.token_owner)}<br>`;
+    if (c.error) {
+      h += `✗ Could not read the Page's subscriptions: ${escapeHtml(c.error)}<br>`;
+    } else {
+      h += c.this_app_subscribed
+        ? (c.missing_fields && c.missing_fields.length
+            ? `⚠ DCAM's app is subscribed but missing: ${escapeHtml(c.missing_fields.join(', '))}<br>`
+            : '✓ DCAM\'s app receives this Page\'s messages (messages, postbacks, echoes)<br>')
+        : '✗ DCAM\'s app is NOT subscribed to this Page\'s messages, so Meta isn\'t sending them<br>';
+      if (c.other_apps && c.other_apps.length) {
+        h += `Other apps on this Page: ${escapeHtml(c.other_apps.join(', '))} — if one of them is set as the main receiver in Conversation routing, it gets the messages first.<br>`;
+      }
+    }
+    if (!c.this_app_subscribed || (c.missing_fields && c.missing_fields.length)) {
+      h += '<button type="button" class="btn-light" id="aiMetaSubscribe" style="margin-top:8px;">Subscribe the Page now</button> <span id="aiMetaSubscribeMsg" class="save-status"></span>';
+    }
+    return h + '</div>';
+  }
+  async function subscribeMetaPage() {
+    const msg = document.getElementById('aiMetaSubscribeMsg');
+    if (msg) { msg.textContent = 'Subscribing…'; msg.className = 'save-status'; }
+    try {
+      const r = await fetch('/api/chat?mode=meta-status', { method: 'POST', cache: 'no-store' });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || 'Failed');
+      renderMetaStatus();
+    } catch (e) {
+      if (msg) { msg.textContent = 'Meta said: ' + e.message; msg.className = 'save-status error'; }
+    }
+  }
+
   // Messenger & Instagram: which Meta settings exist in Vercel (never the values).
   async function renderMetaStatus() {
     const box = document.getElementById('aiMetaStatus');
@@ -2005,7 +2042,10 @@
       box.innerHTML = `<strong>Meta connection${d.ready ? ': ready' : ': not set up yet'}</strong><br>`
         + item(d.page_token, 'Page token') + item(d.app_secret, 'App secret') + item(d.verify_token, 'Verify token') + item(d.app_id, 'App ID') + item(d.page_id, 'Page ID')
         + `<br>Webhook URL for the Meta app: <code>${escapeHtml(d.webhook_url)}</code>`
-        + (d.ready ? '' : '<br>The switches can be turned on now; replies start once these are added in Vercel.');
+        + (d.ready ? '' : '<br>The switches can be turned on now; replies start once these are added in Vercel.')
+        + metaConnectionHtml(d.connection);
+      const btn = document.getElementById('aiMetaSubscribe');
+      if (btn) btn.addEventListener('click', subscribeMetaPage);
     } catch (e) {
       box.textContent = 'Could not check the Meta connection.';
     }

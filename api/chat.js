@@ -38,7 +38,7 @@
 //   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY  (already set for the site)
 
 const { supabaseRequest } = require('../lib/supabase');
-const { requireAuth } = require('../lib/auth');
+const { requireAuth, requireAdminOrTech } = require('../lib/auth');
 const { loadAiAccess, allowedAreas, publicChatOn, socialChatOn } = require('../lib/ai-access');
 const { toolsFor, runTool, buildStaffPrompt } = require('../lib/staff-ai');
 const { lookupOrderStatus, describeResult, ORDER_TOOL, extractFromText } = require('../lib/order-status');
@@ -911,11 +911,27 @@ async function metaWebhook(req, res) {
 }
 
 // GET /api/chat?mode=meta-status -- for Settings: is Messenger set up?
+// POST /api/chat?mode=meta-status (admin/tech) -- subscribe the Page to this
+// app's message events, the same as "Add subscriptions" in the Meta app.
 async function metaStatus(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.method === 'POST') {
+    const user = requireAdminOrTech(req, res);
+    if (!user) return;
+    try {
+      const done = await meta.subscribePage();
+      const connection = await meta.pageConnection();
+      res.status(200).json({ ok: done, connection, error: done ? undefined : 'Meta did not confirm the subscription.' });
+    } catch (e) {
+      res.status(502).json({ ok: false, error: e.message });
+    }
+    return;
+  }
   const user = requireAuth(req, res, { allowTech: true });
   if (!user) return;
-  res.setHeader('Cache-Control', 'no-store');
-  res.status(200).json({ ok: true, ...meta.setupStatus(), webhook_url: 'https://dcamoptical.com/api/chat?mode=meta' });
+  const status = meta.setupStatus();
+  const connection = status.page_token && status.page_id ? await meta.pageConnection().catch(e => ({ checked: false, error: e.message })) : { checked: false };
+  res.status(200).json({ ok: true, ...status, connection, webhook_url: 'https://dcamoptical.com/api/chat?mode=meta' });
 }
 
 module.exports = async function handler(req, res) {
