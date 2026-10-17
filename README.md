@@ -585,7 +585,7 @@ Meta plumbing in `lib/meta-messaging.js`).
 
 - **Switches:** Settings > AI assistant > Messenger & Instagram (both off by
   default). The card also shows which Meta settings are present in Vercel.
-- **Webhook URL:** `https://dcamoptical.com/api/meta-webhook` (rewrite to
+- **Webhook URL:** `https://dcamoptical.com/api/chat?mode=meta` (use this; the `/api/meta-webhook` rewrite drops Meta's verification query. Old note: rewrite to
   `/api/chat?mode=meta` in `vercel.json`; `/api` is at the 12-function limit).
 - **Vercel env vars:** `META_PAGE_ACCESS_TOKEN` (system-user Page token with
   `pages_messaging`, plus `instagram_manage_messages` for Instagram),

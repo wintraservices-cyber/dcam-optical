@@ -7,8 +7,9 @@
 //   POST /api/chat?mode=order { order_number, phone_last4 } -> order status (no AI)
 //
 // MESSENGER + INSTAGRAM DMs (Meta webhook, see lib/meta-messaging.js):
-//   GET  /api/meta-webhook  (rewrite of /api/chat?mode=meta) -> Meta's URL check
-//   POST /api/meta-webhook  -> signed message events; replies through the Graph API
+//   GET  /api/chat?mode=meta  -> Meta's URL check (give Meta this address;
+//        the /api/meta-webhook rewrite drops Meta's hub.* query, so it can't verify)
+//   POST /api/chat?mode=meta  -> signed message events; replies through the Graph API
 //   GET  /api/chat?mode=meta-status  (staff login) -> which Meta settings are present
 //
 // STAFF assistant (staff login required, see lib/staff-ai.js):
@@ -914,7 +915,7 @@ async function metaStatus(req, res) {
   const user = requireAuth(req, res, { allowTech: true });
   if (!user) return;
   res.setHeader('Cache-Control', 'no-store');
-  res.status(200).json({ ok: true, ...meta.setupStatus(), webhook_url: 'https://dcamoptical.com/api/meta-webhook' });
+  res.status(200).json({ ok: true, ...meta.setupStatus(), webhook_url: 'https://dcamoptical.com/api/chat?mode=meta' });
 }
 
 module.exports = async function handler(req, res) {
