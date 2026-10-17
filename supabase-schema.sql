@@ -869,3 +869,29 @@ alter table intake_submissions add column if not exists src_campaign text;
 alter table intake_submissions add column if not exists src_referrer text;
 alter table intake_submissions add column if not exists src_landing text;
 alter table intake_submissions add column if not exists heard_about text;
+
+-- ---------------------------------------------------------------------
+-- Messenger + Instagram assistant (Ask Anita in DMs, 2026-10-16).
+-- 1) Let AI usage and unanswered questions be logged per channel.
+-- 2) meta_chat_state: one row per person who messaged, keyed by a one-way
+--    hash of their Messenger/Instagram ID. Holds only when the bot must
+--    stay quiet (handed to staff) and a fingerprint of its last reply so
+--    the echo of that reply isn't mistaken for staff. No message text.
+-- Safe to re-run.
+-- ---------------------------------------------------------------------
+alter table ai_usage_log drop constraint if exists ai_usage_log_channel_check;
+alter table ai_usage_log add constraint ai_usage_log_channel_check
+  check (channel in ('website', 'staff', 'messenger', 'instagram'));
+alter table ai_unanswered drop constraint if exists ai_unanswered_channel_check;
+alter table ai_unanswered add constraint ai_unanswered_channel_check
+  check (channel in ('website', 'staff', 'messenger', 'instagram'));
+
+create table if not exists meta_chat_state (
+  user_key text primary key,
+  platform text not null check (platform in ('messenger', 'instagram')),
+  quiet_until timestamptz,
+  last_bot_hash text,
+  last_bot_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+alter table meta_chat_state enable row level security;

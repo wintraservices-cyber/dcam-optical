@@ -575,3 +575,34 @@ Website insights → **Where intakes came from** answers "is social media bringi
 - **Setup:** run the latest `supabase-schema.sql` (adds the `src_*` and `heard_about` columns).
 
 The Social media section also shows an **engagement rate** per platform (Facebook engagements ÷ views; Instagram interactions ÷ accounts reached) and **Top posts in this period** ranked by engagement, with each post's views / reach where Meta provides them.
+
+## Messenger & Instagram assistant (Ask Anita in DMs)
+
+The website chat's assistant also answers Facebook Messenger and Instagram
+direct messages. Same prompt, Clinic knowledge, stock, order check, Claude /
+Gemini choice and daily spending limit (`api/chat.js`, `mode=meta`;
+Meta plumbing in `lib/meta-messaging.js`).
+
+- **Switches:** Settings > AI assistant > Messenger & Instagram (both off by
+  default). The card also shows which Meta settings are present in Vercel.
+- **Webhook URL:** `https://dcamoptical.com/api/meta-webhook` (rewrite to
+  `/api/chat?mode=meta` in `vercel.json`; `/api` is at the 12-function limit).
+- **Vercel env vars:** `META_PAGE_ACCESS_TOKEN` (system-user Page token with
+  `pages_messaging`, plus `instagram_manage_messages` for Instagram),
+  `META_APP_SECRET` (required; every webhook call's signature is checked),
+  `META_VERIFY_TOKEN` (any long random text, typed into Meta's webhook form),
+  `META_APP_ID`, `META_PAGE_ID`.
+- **Meta app webhook fields:** Page: `messages`, `messaging_postbacks`,
+  `message_echoes`. Instagram: `messages` (echoes included).
+- **Behaviour:** first reply says it is an automated assistant; typing
+  STAFF, or a person replying from any inbox (Meta Business Suite,
+  GoHighLevel, phone app), keeps it quiet in that conversation for 12 hours.
+  Booking replies link to the intake form tagged
+  `utm_campaign=messenger`. Replies only within Meta's 24-hour window
+  (it never messages first).
+- **Privacy:** no message text is stored by the site. Earlier messages are
+  read back from Meta when answering. `meta_chat_state` keeps only a hashed
+  ID, the quiet-until time and a fingerprint of the last bot reply.
+- **Database:** run the "Messenger + Instagram assistant" block at the end
+  of `supabase-schema.sql` before switching it on (widens the usage and
+  unanswered-question channels, creates `meta_chat_state`).

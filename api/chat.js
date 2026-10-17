@@ -6,6 +6,11 @@
 //   POST /api/chat  { messages: [...] }  -> streams plain text
 //   POST /api/chat?mode=order { order_number, phone_last4 } -> order status (no AI)
 //
+// MESSENGER + INSTAGRAM DMs (Meta webhook, see lib/meta-messaging.js):
+//   GET  /api/meta-webhook  (rewrite of /api/chat?mode=meta) -> Meta's URL check
+//   POST /api/meta-webhook  -> signed message events; replies through the Graph API
+//   GET  /api/chat?mode=meta-status  (staff login) -> which Meta settings are present
+//
 // STAFF assistant (staff login required, see lib/staff-ai.js):
 //   GET  /api/chat?mode=staff            -> { enabled, areas } for this user
 //   POST /api/chat?mode=staff { messages } -> { ok, reply }
@@ -33,12 +38,13 @@
 
 const { supabaseRequest } = require('../lib/supabase');
 const { requireAuth } = require('../lib/auth');
-const { loadAiAccess, allowedAreas, publicChatOn } = require('../lib/ai-access');
+const { loadAiAccess, allowedAreas, publicChatOn, socialChatOn } = require('../lib/ai-access');
 const { toolsFor, runTool, buildStaffPrompt } = require('../lib/staff-ai');
 const { lookupOrderStatus, describeResult, ORDER_TOOL, extractFromText } = require('../lib/order-status');
 const { logUsage, dailyCapStatus } = require('../lib/ai-usage');
 const { geminiRoute, geminiModel, geminiMessage, geminiStream } = require('../lib/ai-gemini');
 const { isTestMode, publicTestReply, staffTestReply, streamText } = require('../lib/ai-test-mode');
+const meta = require('../lib/meta-messaging');
 const {
   loadKnowledge, knowledgePromptBlock, unansweredInstruction, stripMarker, logUnanswered, UNANSWERED_MARKER,
 } = require('../lib/ai-knowledge');
@@ -129,9 +135,12 @@ async function loadPracticeContext(includeStock) {
   return text;
 }
 
-function buildSystemPrompt(practiceContext, knowledgeBlock, logGaps, assistantName) {
+function buildSystemPrompt(practiceContext, knowledgeBlock, logGaps, assistantName, surface) {
   const name = (assistantName && String(assistantName).trim()) || 'DCAM Assistant';
-  return `You are ${name}, the front-desk assistant on the DCAM Optical website -- a full-service optometry practice in the Philippines (comprehensive eye exams, contact lens fittings, prescription eyewear, frame styling, pediatric eye care). If asked your name, say ${name}.
+  const where = surface === 'instagram' ? "in DCAM Optical's Instagram direct messages"
+    : surface === 'messenger' ? "in DCAM Optical's Facebook Messenger"
+    : 'on the DCAM Optical website';
+  return `You are ${name}, the front-desk assistant ${where} -- a full-service optometry practice in the Philippines (comprehensive eye exams, contact lens fittings, prescription eyewear, frame styling, pediatric eye care). If asked your name, say ${name}.
 
 ${practiceContext || 'PRACTICE DETAILS: not available right now. If asked for hours, phone numbers, address, stock or prices, say you don\'t have the exact details at the moment and suggest starting the intake form or visiting the branch.'}
 
@@ -150,7 +159,17 @@ HOW TO ANSWER:
 - Do not ask for or store sensitive personal details (full medical history, ID numbers, payment info) in chat; point them to the intake form instead.
 
 BOOKING HAND-OFF:
-When the visitor wants to book, asks how to get an appointment, or booking is clearly the helpful next step, end your reply with the exact marker [[BOOK]] on its own. The website turns it into a "Book an exam" button. Use it at most once per reply, and not for urgent-symptom replies where they should seek care right away.${unansweredInstruction(logGaps)}`;
+When the visitor wants to book, asks how to get an appointment, or booking is clearly the helpful next step, end your reply with the exact marker [[BOOK]] on its own. ${surface === 'messenger' || surface === 'instagram' ? 'It is replaced with a link to the online eye-exam request form.' : 'The website turns it into a "Book an exam" button.'} Use it at most once per reply, and not for urgent-symptom replies where they should seek care right away.${surface === 'messenger' || surface === 'instagram' ? socialChannelInstruction() : ''}${unansweredInstruction(logGaps)}`;
+}
+
+function socialChannelInstruction() {
+  return `
+
+THIS CHANNEL (social media messages):
+- You are replying inside a chat app, not on the website. Plain text only: no markdown, no bullet symbols, no links other than the booking marker. Keep it short (under about 500 characters).
+- "This site" means dcamoptical.com. To book, people use the online request form (the [[BOOK]] marker) and staff confirm by phone or message.
+- If someone wants a person, tell them to type STAFF and a team member will reply here during shop hours.
+- If a message is only a sticker, emoji or thanks, reply briefly and warmly.`;
 }
 
 function sanitizeMessages(raw) {
@@ -721,9 +740,188 @@ async function callModel({ provider, access, system, messages, tools, maxTokens 
   return { ...r, model };
 }
 
+// ---------------------------------------------------------------------
+// Messenger + Instagram DMs (Meta webhook)
+// ---------------------------------------------------------------------
+const BOOK_MARKER = '[[BOOK]]';
+const INTAKE_URL = 'https://dcamoptical.com/intake';
+
+function bookingLink(platform) {
+  const source = platform === 'instagram' ? 'instagram' : 'facebook';
+  return `${INTAKE_URL}?utm_source=${source}&utm_medium=social&utm_campaign=messenger`;
+}
+
+// Turns the model's text into what is sent: marker -> link, no markdown.
+function finishSocialReply(text, platform) {
+  let t = stripMarker(String(text || ''));
+  const wantsBooking = t.includes(BOOK_MARKER);
+  t = t.split(BOOK_MARKER).join('')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/^#+\s*/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  if (wantsBooking) t += `\n\nRequest an eye exam here: ${bookingLink(platform)}`;
+  return t || 'Sorry, I could not answer that just now. Type STAFF and a team member will reply here.';
+}
+
+function disclosureLine(access) {
+  const name = (access.public && access.public.name) || 'DCAM Assistant';
+  return `Hi! I'm ${name}, DCAM Optical's automated assistant. Type STAFF anytime to reach a person.`;
+}
+
+async function shopHoursText() {
+  const b = await loadBusinessInfo();
+  return b.hours ? String(b.hours).trim().slice(0, 120) : '';
+}
+
+// One customer message -> one reply. Returns the text to send, or null.
+async function socialReply(ev, access) {
+  const platform = ev.platform;
+  const channel = platform; // 'messenger' | 'instagram' (usage + unanswered log)
+  const fakeReq = { headers: { 'x-forwarded-for': `meta:${platform}:${ev.userId}` } };
+
+  if (!ev.text) {
+    return ev.hasAttachment
+      ? "Thanks! I can only read text messages. Tell me what you'd like to know, or type STAFF to reach a person."
+      : null;
+  }
+
+  if (meta.wantsPerson(ev.text)) {
+    await meta.goQuiet(platform, ev.userId);
+    const hours = await shopHoursText();
+    return `Sure! A team member will reply here${hours ? ' during shop hours (' + hours + ')' : ' as soon as they can'}.`;
+  }
+
+  // Conversation so far, read back from Meta (nothing stored here).
+  const history = await meta.recentHistory(platform, ev.userId, 10);
+  if (!history.length || history[history.length - 1].content !== ev.text) {
+    history.push({ role: 'user', content: ev.text });
+  }
+  const firstContact = !history.some(m => m.role === 'assistant');
+  const messages = sanitizeMessages(history) || [{ role: 'user', content: ev.text.slice(0, MAX_MSG_CHARS) }];
+  const question = messages[messages.length - 1].content;
+
+  const capped = !isTestMode(access) && (await dailyCapStatus(access)).reached;
+  let body;
+
+  if (isTestMode(access) || capped) {
+    const orderReply = await testModeOrderReply(messages, access, fakeReq);
+    if (orderReply) {
+      body = orderReply;
+    } else {
+      const knowledge = await loadKnowledge();
+      const r = await publicTestReply(question, access, knowledge);
+      body = r.text;
+      if (r.unanswered && access.log_unanswered) await logUnanswered({ channel, question });
+    }
+    await logUsage({ channel, model: capped ? 'daily-cap' : 'test-mode', test: true });
+  } else {
+    let provider = pickProvider(access, 'website');
+    if (!provider) {
+      console.error('meta: no AI provider key set');
+      return null;
+    }
+    const [practiceContext, knowledge] = await Promise.all([loadPracticeContext(access.public.stock), loadKnowledge()]);
+    const orderLookupOn = access.public.order_status;
+    const system = buildSystemPrompt(practiceContext, knowledgePromptBlock(knowledge, 'website'), access.log_unanswered, access.public.name, platform)
+      + orderStatusInstruction(orderLookupOn);
+    const usage = makeUsageTracker();
+    const convo = messages.slice();
+    let toolCalls = 0;
+    let text = '';
+    for (let round = 0; round < 2; round++) {
+      const tools = orderLookupOn && round === 0 ? [ORDER_TOOL] : undefined;
+      let data;
+      try {
+        data = await callModel({ provider, access, system, messages: convo, tools, maxTokens: MAX_OUTPUT_TOKENS });
+      } catch (err) {
+        const backup = backupProvider(access, provider);
+        if (!backup) { console.error('meta: AI error', err.message); break; }
+        provider = backup;
+        data = await callModel({ provider, access, system, messages: convo, tools, maxTokens: MAX_OUTPUT_TOKENS });
+      }
+      usage.add(data.model, data.usage && data.usage.input_tokens, data.usage && data.usage.output_tokens);
+      const content = data.content || [];
+      text = content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || text;
+      if (data.stop_reason !== 'tool_use') break;
+      convo.push({ role: 'assistant', content, ...(data._geminiParts ? { _geminiParts: data._geminiParts } : {}) });
+      const results = [];
+      for (const tu of content.filter(b => b.type === 'tool_use')) {
+        toolCalls += 1;
+        const out = tu.name === ORDER_TOOL.name && orderLookupOn
+          ? await lookupOrderStatus({ orderNo: tu.input && tu.input.order_number, phoneLast4: tu.input && tu.input.phone_last4, req: fakeReq, showBalance: access.public.order_balance })
+          : { result: 'error', note: 'Order lookup is switched off.' };
+        results.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) });
+      }
+      convo.push({ role: 'user', content: results });
+    }
+    if (access.log_unanswered && text.includes(UNANSWERED_MARKER)) await logUnanswered({ channel, question });
+    await logAllUsage(usage, { channel, toolCalls });
+    if (!text) return null;
+    body = text;
+  }
+
+  const reply = finishSocialReply(body, platform);
+  return firstContact ? `${disclosureLine(access)}\n\n${reply}` : reply;
+}
+
+async function metaWebhook(req, res) {
+  if (req.method === 'GET') {
+    const r = meta.verifyChallenge(req.query);
+    res.status(r.status).setHeader('Content-Type', 'text/plain');
+    res.end(r.body);
+    return;
+  }
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'GET, POST');
+    res.status(405).end();
+    return;
+  }
+
+  const payload = await meta.readSignedPayload(req);
+  if (!payload) {
+    console.error('meta: webhook signature missing or wrong (check META_APP_SECRET)');
+    res.status(403).end();
+    return;
+  }
+
+  const access = await loadAiAccess();
+  const cfg = meta.metaConfig();
+  for (const ev of meta.parseEvents(payload)) {
+    try {
+      if (meta.alreadySeen(ev.mid)) continue;
+      if (ev.userId === cfg.pageId || (cfg.igId && ev.userId === cfg.igId)) continue;
+      if (ev.kind === 'echo') { await meta.handleEcho(ev); continue; }
+      if (!socialChatOn(access, ev.platform) || !cfg.token) continue;
+      if (rateLimited(`meta:${ev.platform}:${ev.userId}`)) continue;
+      const state = await meta.getState(ev.platform, ev.userId);
+      if (meta.isQuiet(state)) continue; // a person is handling this conversation
+      await meta.typing(ev.platform, ev.userId);
+      const reply = await socialReply(ev, access);
+      if (!reply) continue;
+      await meta.noteBotReply(ev.platform, ev.userId, reply);
+      await meta.sendText(ev.platform, ev.userId, reply);
+    } catch (err) {
+      console.error('meta: could not answer a message', err.message);
+    }
+  }
+  // Always 200 once the signature is valid, so Meta doesn't resend.
+  res.status(200).end('EVENT_RECEIVED');
+}
+
+// GET /api/chat?mode=meta-status -- for Settings: is Messenger set up?
+async function metaStatus(req, res) {
+  const user = requireAuth(req, res, { allowTech: true });
+  if (!user) return;
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).json({ ok: true, ...meta.setupStatus(), webhook_url: 'https://dcamoptical.com/api/meta-webhook' });
+}
+
 module.exports = async function handler(req, res) {
   const mode = req.query && req.query.mode;
   if (mode === 'staff') return staffChat(req, res);
   if (mode === 'order') return orderStatusForm(req, res);
+  if (mode === 'meta') return metaWebhook(req, res);
+  if (mode === 'meta-status') return metaStatus(req, res);
   return publicChat(req, res);
 };

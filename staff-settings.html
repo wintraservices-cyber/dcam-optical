@@ -980,6 +980,26 @@
     </div>
 
     <div class="card">
+      <h2>Messenger &amp; Instagram</h2>
+      <div class="card-sub">The same assistant answers Facebook Messenger and Instagram direct messages, using the website chat's name, Clinic knowledge, in-stock items and order-check settings above. Its first reply says it's an automated assistant. Typing <strong>STAFF</strong>, or a staff member replying from the inbox, makes it stay quiet in that conversation for 12 hours. Its cost counts toward the daily spending limit.</div>
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">Answer Facebook Messenger</div>
+          <div class="ai-help">Replies to new messages sent to the DCAM Facebook Page.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiSocialMessenger"><span class="slider"></span></label>
+      </div>
+      <div class="ai-master">
+        <div>
+          <div class="ai-label">Answer Instagram messages</div>
+          <div class="ai-help">Needs the Instagram account as a professional account linked to the Facebook Page, and Instagram messaging approved on the Meta app.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiSocialInstagram"><span class="slider"></span></label>
+      </div>
+      <div class="ai-note" id="aiMetaStatus">Checking Meta connection…</div>
+    </div>
+
+    <div class="card">
       <h2>Staff assistant</h2>
       <div class="card-sub">The chat bubble on staff pages. Choose exactly what it can look up, separately for admins and staff. It can only read data — it never creates, edits or deletes anything.</div>
       <div class="ai-master">
@@ -1757,6 +1777,7 @@
   ];
   const AI_DEFAULTS = {
     public: { enabled: true, stock: true, name: 'DCAM Assistant' },
+    social: { messenger: false, instagram: false },
     staff: { enabled: true, areas: {
       orders: { admin: true, staff: true }, balances: { admin: true, staff: true },
       stock: { admin: true, staff: true }, sales: { admin: true, staff: false },
@@ -1824,6 +1845,24 @@
     }, 1200);
   });
 
+  // Messenger & Instagram: which Meta settings exist in Vercel (never the values).
+  async function renderMetaStatus() {
+    const box = document.getElementById('aiMetaStatus');
+    if (!box) return;
+    try {
+      const r = await fetch('/api/chat?mode=meta-status', { cache: 'no-store' });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error();
+      const item = (ok, label) => `<span style="margin-right:12px;">${ok ? '✓' : '✗'} ${label}</span>`;
+      box.innerHTML = `<strong>Meta connection${d.ready ? ': ready' : ': not set up yet'}</strong><br>`
+        + item(d.page_token, 'Page token') + item(d.app_secret, 'App secret') + item(d.verify_token, 'Verify token') + item(d.app_id, 'App ID') + item(d.page_id, 'Page ID')
+        + `<br>Webhook URL for the Meta app: <code>${escapeHtml(d.webhook_url)}</code>`
+        + (d.ready ? '' : '<br>The switches can be turned on now; replies start once these are added in Vercel.');
+    } catch (e) {
+      box.textContent = 'Could not check the Meta connection.';
+    }
+  }
+
   function renderAiAccess(saved) {
     const v = saved || {};
     const pub = Object.assign({}, AI_DEFAULTS.public, v.public || {});
@@ -1841,6 +1880,10 @@
     document.getElementById('aiOrderStatus').checked = pub.order_status === true;
     document.getElementById('aiOrderBalance').checked = pub.order_balance === true;
     document.getElementById('aiStaffEnabled').checked = staff.enabled !== false;
+    const social = Object.assign({}, AI_DEFAULTS.social, v.social || {});
+    document.getElementById('aiSocialMessenger').checked = social.messenger === true;
+    document.getElementById('aiSocialInstagram').checked = social.instagram === true;
+    renderMetaStatus();
 
     document.getElementById('aiAreasBody').innerHTML = AI_AREAS.map(a => {
       const cur = Object.assign({}, AI_DEFAULTS.staff.areas[a.key], areas[a.key] || {});
@@ -1948,6 +1991,10 @@
           order_status: document.getElementById('aiOrderStatus').checked,
           order_balance: document.getElementById('aiOrderBalance').checked,
           name: document.getElementById('aiPublicName').value.trim().slice(0, 60) || AI_DEFAULTS.public.name,
+        },
+        social: {
+          messenger: document.getElementById('aiSocialMessenger').checked,
+          instagram: document.getElementById('aiSocialInstagram').checked,
         },
         staff: { enabled: document.getElementById('aiStaffEnabled').checked, areas },
       };
@@ -2500,7 +2547,7 @@
       ${r.range.test_replies ? `<div class="usage-test-note">Plus ${int(r.range.test_replies)} Test-mode repl${r.range.test_replies === 1 ? 'y' : 'ies'} in this period — free, not included in the totals.</div>` : ''}
       <table class="usage-split">
         <thead><tr><th>Assistant</th><th class="num">Replies</th><th class="num">Input tokens</th><th class="num">Output tokens</th><th class="num">Est. cost</th></tr></thead>
-        <tbody>${row('Website chat', t.website)}${row('Staff assistant', t.staff)}</tbody>
+        <tbody>${row('Website chat', t.website)}${t.social && t.social.messages ? row('Messenger &amp; Instagram', t.social) : ''}${row('Staff assistant', t.staff)}</tbody>
       </table>
       ${models}
       <div class="usage-alltime">
@@ -2508,6 +2555,7 @@
         <span>${usd(all.total.cost_usd)} total</span>
         <span>${int(all.total.messages)} replies</span>
         <span>Website ${usd(all.website.cost_usd)}</span>
+        ${all.social && all.social.messages ? `<span>Messenger &amp; Instagram ${usd(all.social.cost_usd)}</span>` : ''}
         <span>Staff ${usd(all.staff.cost_usd)}</span>
         ${allProv}
         ${r.all_time.test_replies ? `<span>Test mode ${int(r.all_time.test_replies)} free</span>` : ''}
