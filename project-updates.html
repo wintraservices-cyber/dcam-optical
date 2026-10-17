@@ -133,6 +133,22 @@
   .dot.wait { background: var(--pending-fg); }
 
   /* Phase tracker */
+  .latest-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 22px 6px;
+    margin-bottom: 20px;
+  }
+  .latest-card[hidden] { display: none; }
+  .latest-card > h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; margin: 0 0 2px; }
+  .latest-card > p { color: var(--ink-soft); font-size: 0.85rem; margin: 0 0 18px; }
+  .latest-entry { padding: 14px 0 16px; border-top: 1px solid var(--line); }
+  .latest-entry h3 { font-family: var(--font-display); font-weight: 700; font-size: 0.98rem; margin: 0 0 8px; }
+  .latest-entry h3 .latest-date { display: block; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 3px; }
+  .latest-entry ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .latest-entry li { font-size: 0.9rem; line-height: 1.55; color: var(--ink); }
+
   .phases-card {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -644,21 +660,29 @@
     <h1>Where things stand</h1>
     <p>A snapshot of what's built across the Website, Staff Portal, and AI Services, plus the tech stack and what's planned next. The full build history is at the bottom of this page.</p>
     <div class="status-bar">
-      <span class="status-chip"><span class="dot wait"></span>Site in Maintenance mode (not yet public)</span>
+      <span class="status-chip"><span class="dot live"></span>Website live since Oct 11 (soft launch)</span>
       <span class="status-chip"><span class="dot live"></span>Staff portal live and in daily use</span>
+      <span class="status-chip"><span class="dot live"></span>Facebook and Instagram connected</span>
+      <span class="status-chip"><span class="dot wait"></span>Social posting starts Oct 22</span>
     </div>
+  </div>
+
+  <div class="latest-card" id="latestCard" hidden>
+    <h2>Latest updates</h2>
+    <p id="latestAsOf"></p>
+    <div id="latestList"></div>
   </div>
 
   <div class="phases-card">
     <h2>Project phases</h2>
-    <p>Kickoff Sep 15, 2026 &mdash; current phase: Core Build / QA / UAT</p>
+    <p>Kickoff Sep 15, 2026 &mdash; current phase: QA / UAT on the live site</p>
     <div class="phase-track">
       <div class="seg done"></div>
       <div class="seg done"></div>
       <div class="seg active"></div>
       <div class="seg done"></div>
       <div class="seg active"></div>
-      <div class="seg"></div>
+      <div class="seg done"></div>
     </div>
     <div class="phase-list">
       <span class="phase-item"><span class="pdot done"></span><b>Discovery</b>&nbsp;&mdash; done</span>
@@ -666,7 +690,7 @@
       <span class="phase-item"><span class="pdot active"></span><b>Core Build</b>&nbsp;&mdash; in progress</span>
       <span class="phase-item"><span class="pdot done"></span><b>Integration</b>&nbsp;&mdash; done</span>
       <span class="phase-item"><span class="pdot active"></span><b>QA / UAT</b>&nbsp;&mdash; ongoing</span>
-      <span class="phase-item"><span class="pdot todo"></span><b>Launch</b>&nbsp;&mdash; not started</span>
+      <span class="phase-item"><span class="pdot todo"></span><b>Launch</b>&nbsp;&mdash; live (soft launch Oct 11)</span>
     </div>
   </div>
 
@@ -691,11 +715,23 @@
         <p class="milestone-label">AI Services live</p>
         <p class="milestone-note">Website chat &amp; staff assistant on Claude or Gemini</p>
       </div>
+      <div class="milestone done">
+        <div class="milestone-dot"></div>
+        <p class="milestone-date">Oct 11</p>
+        <p class="milestone-label">Website live</p>
+        <p class="milestone-note">Maintenance mode off, soft launch</p>
+      </div>
+      <div class="milestone done">
+        <div class="milestone-dot"></div>
+        <p class="milestone-date">Oct 17</p>
+        <p class="milestone-label">Facebook &amp; Instagram connected</p>
+        <p class="milestone-note">Social numbers now show in Website insights</p>
+      </div>
       <div class="milestone waiting">
         <div class="milestone-dot"></div>
-        <p class="milestone-date">Pending</p>
-        <p class="milestone-label">Go live</p>
-        <p class="milestone-note">Maintenance mode off, public launch</p>
+        <p class="milestone-date">Oct 22</p>
+        <p class="milestone-label">Social posting starts</p>
+        <p class="milestone-note">Launch posts go out on Facebook and Instagram</p>
       </div>
     </div>
   </div>
@@ -711,9 +747,9 @@
       </div>
       <div class="cap-title">
         <h2>Website</h2>
-        <span class="cap-sub">13 sections &mdash; the public-facing site patients will see</span>
+        <span class="cap-sub">15 sections &mdash; the public-facing site patients see</span>
       </div>
-      <span class="cap-status waiting">In maintenance mode</span>
+      <span class="cap-status live">Live</span>
     </div>
     <ul class="cap-grid">
       <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Homepage hero (cinematic glasses design)</li>
@@ -731,6 +767,8 @@
       <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Coming Soon / Maintenance mode page</li>
       <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Meet our team (optometrists, staff, technicians) as a slide carousel</li>
       <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Google Analytics and Facebook link</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Announcement pop-up for offers and news, with start and end time (Settings &gt; Website)</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Full privacy notice, reachable from the footer and the intake form</li>
     </ul>
   </div>
 
@@ -883,18 +921,22 @@
 
   <div class="pending-card">
     <h2>Waiting on you</h2>
-    <p>A short list of what needs your input or confirmation before launch.</p>
-    <div class="pending-row">
-      <span class="pending-tag action">Action needed</span>
-      <span>Turn off Maintenance mode when you're ready for the site to go live to the public.</span>
-    </div>
+    <p>A short list of what needs your input or confirmation.</p>
     <div class="pending-row">
       <span class="pending-tag action">Action needed</span>
       <span>Send the real team profiles (photos, short bios and written consent) for the Meet our team section.</span>
     </div>
     <div class="pending-row">
+      <span class="pending-tag action">Action needed</span>
+      <span>Replace the price placeholder on the Anita Day flyer before the announcement pop-up is switched on.</span>
+    </div>
+    <div class="pending-row">
       <span class="pending-tag confirm">Please confirm</span>
-      <span>Print a real order slip and confirm the recent print fixes look right on paper.</span>
+      <span>Print a real claim stub and scan the review QR code with a phone to confirm it opens your Facebook reviews.</span>
+    </div>
+    <div class="pending-row">
+      <span class="pending-tag confirm">Please confirm</span>
+      <span>Name a Data Protection Officer and a contact address for the privacy notice.</span>
     </div>
   </div>
 
@@ -993,6 +1035,23 @@
         <li class="fix"><b>Fixed:</b> the Facebook button not opening properly on phones; the Facebook page is confirmed up and linked from the site.</li>
       </ul>
     </div>
+
+    <div class="tl-group">
+      <div class="tl-group-head"><span class="tl-group-date">Oct 10 &ndash; 17 &middot; Launch, payments &amp; social</span></div>
+      <ul class="tl-items">
+        <li><b>The website is live</b> (soft launch Oct 11). Business email is set up, and every completed intake now emails the shop. Search engines can now find the site.</li>
+        <li><b>Fuller privacy notice</b> covering what is collected, who receives it, how long it is kept and a patient's rights, linked from the footer and the intake form.</li>
+        <li><b>Staff permissions grew</b> &mdash; switches for Reports, New order, Catalog, and whether staff may edit or void a logged payment (admins always can).</li>
+        <li><b>Order numbers follow your own pattern</b> &mdash; set a prefix, year or month, digits and restart rule for Rx and Non-Rx in Settings, with the last and next number shown.</li>
+        <li><b>Split payments are clearer</b> &mdash; the split total fills in when an order opens, and the Orders and Sales downloads show Cash and GCash/CC columns. The Expenses download now shows each expense's source and has the column picker.</li>
+        <li><b>The order form shows every payment</b> since intake, so Amount minus Deposit minus payments equals the Balance. A wrongly logged payment can be corrected or voided, with a record of the change.</li>
+        <li><b>Claim stub extras</b> &mdash; a review QR code that opens your Facebook reviews, and a PAID / CLAIMED stamp on a reprint of an order that has already been claimed. Both can be switched off in Settings &gt; Print.</li>
+        <li><b>Announcement pop-up</b> on the home page for offers and news &mdash; upload an image, choose start and end time, how often visitors see it, and an optional link. Managed under Settings &gt; Website.</li>
+        <li><b>Facebook and Instagram are connected.</b> Website insights now shows followers, views, new follows, a daily chart and your latest Facebook posts, and saves a daily history from tonight.</li>
+        <li><b>Messenger and Instagram message assistant built</b> &mdash; the same assistant as the website chat, switched off for now and ready to turn on in Settings &gt; AI assistant when you are.</li>
+        <li><b>New favicon</b> on the site and the staff portal.</li>
+      </ul>
+    </div>
   </div>
 
   <!-- ============ END-TO-END FLOW ============ -->
@@ -1064,10 +1123,39 @@
 
   <footer>
     DCAM Optical &middot; built by ArrowheadX AI<br>
-    Updated October 9, 2026
+    Updated October 17, 2026
   </footer>
 
 </div>
+
+<script>
+(function () {
+  // "Latest updates": entries published from Settings > Project status.
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function nice(d) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || '');
+    return m ? MONTHS[+m[2] - 1] + ' ' + (+m[3]) + ', ' + m[1] : d;
+  }
+  fetch('/api/settings?view=project_updates', { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.entries || !d.entries.length) return;
+      var list = document.getElementById('latestList');
+      d.entries.slice(0, 12).forEach(function (e) {
+        var wrap = document.createElement('div'); wrap.className = 'latest-entry';
+        var h = document.createElement('h3');
+        var when = document.createElement('span'); when.className = 'latest-date'; when.textContent = nice(e.date);
+        h.appendChild(when); h.appendChild(document.createTextNode(e.title));
+        var ul = document.createElement('ul');
+        e.bullets.forEach(function (b) { var li = document.createElement('li'); li.textContent = b; ul.appendChild(li); });
+        wrap.appendChild(h); wrap.appendChild(ul); list.appendChild(wrap);
+      });
+      document.getElementById('latestAsOf').textContent = 'Published ' + nice(d.as_of) + '. Older changes are under Build history below.';
+      document.getElementById('latestCard').hidden = false;
+    })
+    .catch(function () {});
+})();
+</script>
 
 </body>
 </html>

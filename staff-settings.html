@@ -1217,7 +1217,7 @@
 
     <div class="card">
       <h2>Client project updates</h2>
-      <div class="card-sub">Client-facing summary of what's been built, current status, and what's next. This is a snapshot saved to the site -- it reflects the page as of its last refresh, not necessarily this exact minute.</div>
+      <div class="card-sub">Client-facing summary of what's been built, current status, and what's next. The page opens with a Latest updates list that you generate and publish below; the sections under it are saved text that is updated with each release.</div>
       <div class="field-grid">
         <div>
           <label>Phase</label>
@@ -1234,9 +1234,38 @@
         <button class="save-btn" id="savePstatusBtn">Save</button>
         <span class="save-status" id="pstatusSaveStatus"></span>
       </div>
+      <div class="field-grid">
+        <div style="grid-column: 1 / -1;">
+          <label>Generate latest updates</label>
+          <div class="card-sub" style="margin-bottom:8px;">Drafts plain-language updates from the changes made since the last published update (or since the date below), plus any notes you add. You can edit the draft before it goes on the client page.</div>
+        </div>
+      </div>
+      <div class="field-grid">
+        <div>
+          <label for="updSince">From date (optional)</label>
+          <input type="date" id="updSince">
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label for="updNotes">Extra notes (optional)</label>
+          <textarea id="updNotes" rows="3" placeholder="Anything that is not obvious from the changes, e.g. the Instagram account was created, a decision made, something waiting on the shop."></textarea>
+        </div>
+      </div>
       <div class="save-row">
-        <button class="save-btn" id="refreshUpdatesBtn">Refresh / generate latest updates</button>
+        <button class="save-btn" id="updGenerateBtn" type="button">Generate draft</button>
+        <button class="save-btn secondary" id="refreshUpdatesBtn" type="button">Reload preview</button>
         <span class="save-status" id="refreshUpdatesStatus"></span>
+      </div>
+      <div id="updDraftBox" hidden>
+        <div class="field-grid">
+          <div style="grid-column: 1 / -1;">
+            <label for="updDraft">Draft (edit freely; keep the "## date | title" and "- bullet" lines)</label>
+            <textarea id="updDraft" rows="12" spellcheck="true"></textarea>
+          </div>
+        </div>
+        <div class="save-row">
+          <button class="save-btn" id="updPublishBtn" type="button">Publish to client page</button>
+          <span class="save-status" id="updDraftStatus"></span>
+        </div>
       </div>
       <div class="iframe-wrap">
         <iframe id="projectUpdatesFrame" src="project-updates.html" title="DCAM Optical client project updates" loading="lazy"></iframe>
@@ -1286,24 +1315,79 @@
     });
   });
 
-  // Client project updates: the embedded page is a saved snapshot, not a
-  // live view -- there's no service this app can call to regenerate it on
-  // demand, so "refresh" means reload the snapshot that's on the site now.
-  // Getting a newer snapshot still means asking the ArrowheadX team to
-  // publish one.
+  // Client project updates: the embedded page shows the saved page plus a
+  // "Latest updates" list. Generate drafts new entries from recent changes
+  // and notes (admin only); Publish saves the edited draft, and the page
+  // shows it right away. Reload preview just re-reads the page.
   const refreshBtn = document.getElementById('refreshUpdatesBtn');
   const refreshStatus = document.getElementById('refreshUpdatesStatus');
   const updatesFrame = document.getElementById('projectUpdatesFrame');
+  function reloadUpdatesFrame(msg) {
+    refreshStatus.textContent = 'Reloading…';
+    refreshStatus.className = 'save-status';
+    const src = updatesFrame.getAttribute('src').split('?')[0];
+    updatesFrame.setAttribute('src', src + '?t=' + Date.now());
+    updatesFrame.addEventListener('load', () => {
+      refreshStatus.textContent = msg || 'Showing the latest published page.';
+      refreshStatus.className = 'save-status success';
+    }, { once: true });
+  }
   if (refreshBtn && updatesFrame) {
-    refreshBtn.addEventListener('click', () => {
-      refreshStatus.textContent = 'Reloading…';
+    refreshBtn.addEventListener('click', () => reloadUpdatesFrame());
+  }
+  const updGenBtn = document.getElementById('updGenerateBtn');
+  const updPubBtn = document.getElementById('updPublishBtn');
+  const updDraftBox = document.getElementById('updDraftBox');
+  const updDraftStatus = document.getElementById('updDraftStatus');
+  if (updGenBtn) {
+    updGenBtn.addEventListener('click', async () => {
+      updGenBtn.disabled = true;
+      refreshStatus.textContent = 'Drafting… this takes about 10 seconds.';
       refreshStatus.className = 'save-status';
-      const src = updatesFrame.getAttribute('src').split('?')[0];
-      updatesFrame.setAttribute('src', src + '?t=' + Date.now());
-      updatesFrame.addEventListener('load', () => {
-        refreshStatus.textContent = 'Showing the latest saved snapshot.';
+      try {
+        const resp = await fetch('/api/settings?action=updates_draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes: document.getElementById('updNotes').value, since: document.getElementById('updSince').value || undefined }),
+        });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not draft updates.');
+        document.getElementById('updDraft').value = result.draft;
+        updDraftBox.hidden = false;
+        updDraftStatus.textContent = '';
+        refreshStatus.textContent = 'Draft ready below' + (result.note ? ' (' + result.note + ')' : '. Edit it, then publish.');
         refreshStatus.className = 'save-status success';
-      }, { once: true });
+      } catch (err) {
+        refreshStatus.textContent = err.message;
+        refreshStatus.className = 'save-status error';
+      } finally {
+        updGenBtn.disabled = false;
+      }
+    });
+  }
+  if (updPubBtn) {
+    updPubBtn.addEventListener('click', async () => {
+      updPubBtn.disabled = true;
+      updDraftStatus.textContent = 'Publishing…';
+      updDraftStatus.className = 'save-status';
+      try {
+        const resp = await fetch('/api/settings?action=updates_publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ draft: document.getElementById('updDraft').value }),
+        });
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) throw new Error(result.error || 'Could not publish.');
+        updDraftStatus.textContent = 'Published.';
+        updDraftStatus.className = 'save-status success';
+        document.getElementById('updNotes').value = '';
+        reloadUpdatesFrame('Published. The client page now shows the new updates.');
+      } catch (err) {
+        updDraftStatus.textContent = err.message;
+        updDraftStatus.className = 'save-status error';
+      } finally {
+        updPubBtn.disabled = false;
+      }
     });
   }
 

@@ -26,9 +26,10 @@ const { normalizeHomepage, TEXT_FIELDS } = require('../lib/homepage');
 const { geminiStatus } = require('../lib/ai-gemini');
 const { PERMISSIONS, normalizePermissions, getPermissions } = require('../lib/staff-permissions');
 const { normalizeJobSeries, getJobSeries, describeSeries, JobSeriesError } = require('../lib/job-series');
+const PU = require('../lib/project-updates');
 const { buildAnnouncement, adminAnnouncement, publicAnnouncement, decodeImage, AnnouncementError } = require('../lib/announcement');
 
-const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status', 'staff_permissions', 'tech_costs', 'job_series', 'announcement'];
+const ALLOWED_KEYS = ['rx_ranges', 'business_info', 'phone_validation', 'print_prefs', 'ai_access', 'ai_knowledge', 'site_mode', 'optometrists', 'homepage', 'project_status', 'staff_permissions', 'tech_costs', 'job_series', 'announcement', 'project_updates'];
 
 async function readSetting(key) {
   const resp = await supabaseRequest(`app_settings?key=eq.${encodeURIComponent(key)}&limit=1`, { method: 'GET' });
@@ -168,11 +169,12 @@ async function putSetting(req, res, sessionUser) {
       : key === 'staff_permissions' ? normalizePermissions(value)
       : key === 'tech_costs' ? normalizeTechCosts(value)
       : key === 'job_series' ? normalizeJobSeries(value)
+      : key === 'project_updates' ? PU.normalizeProjectUpdates(value)
       : key === 'optometrists' ? await saveTeamPhotos(value, sessionUser)
       : key === 'announcement' ? await saveAnnouncement(value, sessionUser)
       : value;
   } catch (err) {
-    if (err instanceof SiteModeError || err instanceof TeamError || err instanceof JobSeriesError || err instanceof AnnouncementError) {
+    if (err instanceof SiteModeError || err instanceof TeamError || err instanceof JobSeriesError || err instanceof AnnouncementError || err instanceof PU.UpdatesError) {
       res.status(400).json({ ok: false, error: err.message });
       return;
     }
@@ -547,6 +549,53 @@ module.exports = async (req, res) => {
     } catch (err) {
       console.error('job_series view error:', err.message);
       res.status(502).json({ ok: false, error: 'Could not load the job code series.' });
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && req.query && req.query.view === 'project_updates') {
+    // Public: the "Latest updates" list on the client project page.
+    try {
+      const value = PU.normalizeProjectUpdates(await readSetting('project_updates'));
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Vercel-CDN-Cache-Control', 'max-age=10, stale-while-revalidate=30');
+      res.status(200).json({ ok: true, as_of: value.as_of, entries: value.entries });
+    } catch (err) {
+      console.error('project_updates read error:', err.message);
+      res.status(200).json({ ok: true, as_of: '', entries: [] });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && req.query && (req.query.action === 'updates_draft' || req.query.action === 'updates_publish')) {
+    // Admin: draft client updates from recent changes + notes, then publish
+    // the (edited) draft to the client project page.
+    const sessionUser = requireAdmin(req, res);
+    if (!sessionUser) return;
+    let body = req.body;
+    if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
+    body = body || {};
+    try {
+      const current = PU.normalizeProjectUpdates(await readSetting('project_updates'));
+      if (req.query.action === 'updates_draft') {
+        // Start the day after the newest published entry's date range: the
+        // last published date itself is included so a half-covered day is not lost.
+        const out = await PU.generateDraft({ notes: body.notes, sinceDate: body.since || current.as_of || '2026-10-18' });
+        res.status(200).json({ ok: true, ...out, as_of: current.as_of });
+        return;
+      }
+      const incoming = PU.parseDraft(body.draft);
+      const entries = PU.mergeEntries(current.entries, incoming);
+      const value = { as_of: PU.manilaToday(), entries };
+      await writeSetting('project_updates', value, sessionUser.username);
+      res.status(200).json({ ok: true, as_of: value.as_of, entries });
+    } catch (err) {
+      if (err instanceof PU.UpdatesError) {
+        res.status(400).json({ ok: false, error: err.message });
+      } else {
+        console.error('project_updates error:', err.message);
+        res.status(502).json({ ok: false, error: 'Could not do that right now. Try again in a minute.' });
+      }
     }
     return;
   }

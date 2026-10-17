@@ -159,3 +159,12 @@ Settings → **Website → Site settings → Announcement pop-up** (admins and t
 - The picture is resized to at most 1080 px wide JPEG in the browser (~150-300 KB). The link may be `https://…` or an on-site path such as `/intake`.
 - Public endpoints (no login): `GET /api/settings?view=announcement` (null unless on and inside its window) and `GET /api/settings?view=announcement_image&v=…` (cached for a year).
 - Client: `announcement.js` on `index.html`. It waits about a second after load, closes with the button, Esc or a click outside, and remembers what a visitor has seen in their own browser.
+
+## Client project updates: Generate latest updates (admin only)
+
+Settings > Project status > **Client project updates**.
+
+- **Generate draft** writes plain-language updates from the repository's changes since the last published update (or since the From date) plus any Extra notes. It needs `ANTHROPIC_API_KEY`; the change history is read from GitHub's public API (`GITHUB_REPO`, default `wintraservices-cyber/dcam-optical`; add `GITHUB_TOKEN` only if the repository is made private). If GitHub cannot be read, the draft uses the notes alone.
+- Edit the draft (keep the `## YYYY-MM-DD | Title` and `- bullet` lines), then **Publish to client page**. A date that is already published is replaced, not duplicated.
+- The public `project-updates.html` shows the list under "Latest updates" (`GET /api/settings?view=project_updates`). Stored in `app_settings.project_updates`; no new function file.
+- **Reload preview** only re-reads the page. The sections below the Latest updates card are saved text and are edited with each release.
