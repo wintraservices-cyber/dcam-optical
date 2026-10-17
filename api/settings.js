@@ -48,8 +48,8 @@ async function writeSetting(key, value, username) {
 
 // What the 'tech' role may read/edit: the AI assistant + Website tabs only.
 // business_info is read-only for tech (the Website tab shows hours/contact).
-const TECH_READ_KEYS = ['ai_access', 'ai_knowledge', 'site_mode', 'homepage', 'tech_costs', 'business_info'];
-const TECH_WRITE_KEYS = ['ai_access', 'ai_knowledge', 'site_mode', 'homepage', 'tech_costs'];
+const TECH_READ_KEYS = ['ai_access', 'ai_knowledge', 'site_mode', 'homepage', 'tech_costs', 'business_info', 'announcement'];
+const TECH_WRITE_KEYS = ['ai_access', 'ai_knowledge', 'site_mode', 'homepage', 'tech_costs', 'announcement'];
 
 async function getSettings(req, res, sessionUser) {
   const { key } = req.query || {};

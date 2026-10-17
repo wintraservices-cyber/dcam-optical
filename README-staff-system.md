@@ -153,7 +153,7 @@ Settings → **Business info → Optometrists** manages the "Meet our optometris
 
 ## Announcement pop-up (home page)
 
-Settings → **Website → Site settings → Announcement pop-up** (admin only) shows one image over the home page for marketing or news. Upload the image, set a start and end (Manila time, both optional), choose how often a visitor sees it (once a day, once only, every visit), optionally add a link for when the picture is clicked, then Save. **Preview pop-up** shows exactly what visitors will see. It switches off by itself at the end time.
+Settings → **Website → Site settings → Announcement pop-up** (admins and the tech role, like the rest of the Website tab) shows one image over the home page for marketing or news. Upload the image, set a start and end (Manila time, both optional), choose how often a visitor sees it (once a day, once only, every visit), optionally add a link for when the picture is clicked, then Save. **Preview pop-up** shows exactly what visitors will see. It switches off by itself at the end time.
 
 - Stored in `app_settings`: `announcement` (on/off, description, link, start, end, frequency, image hash) and `announcement_image` (the picture, kept separate so normal settings loads stay small). No schema change needed.
 - The picture is resized to at most 1080 px wide JPEG in the browser (~150-300 KB). The link may be `https://…` or an on-site path such as `/intake`.

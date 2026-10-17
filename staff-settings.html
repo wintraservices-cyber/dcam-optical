@@ -3193,7 +3193,7 @@
       aiSpendToday = result.settings.ai_spend_today || null;
       renderAiAccess(result.settings.ai_access);
       renderSiteMode(result.settings.site_mode);
-      if (isTech) annEl('announceCard').hidden = true; else renderAnnouncement(result.settings.announcement);
+      renderAnnouncement(result.settings.announcement);
       hpTextFields = result.settings.homepage_text_fields || [];
       renderHomepage(result.settings.homepage);
       kbEntries = (result.settings.ai_knowledge && result.settings.ai_knowledge.entries) || [];
@@ -3211,7 +3211,7 @@
       if (!isTech) renderTeamFrom(null);
       renderAiAccess(null);
       renderSiteMode(null);
-      if (isTech) annEl('announceCard').hidden = true; else renderAnnouncement(null);
+      renderAnnouncement(null);
       renderHomepage(null);
       renderKnowledge();
       if (!isTech) loadAccounts();
